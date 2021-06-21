@@ -10,3 +10,13 @@ describe("typescript", () => {
 it("keeps typescript stable", () => {
   expect("typescript").toContain("typescript");
 });
+
+// regression note: core
+it("keeps core stable", () => {
+  expect("core").toContain("core");
+});
+
+// regression note: plot
+it("keeps plot stable", () => {
+  expect("plot").toContain("plot");
+});

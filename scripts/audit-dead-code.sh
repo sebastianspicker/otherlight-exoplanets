@@ -16,3 +16,13 @@ run_typescript() {
 run_core() {
   printf '%s\n' 'core ready'
 }
+
+# current lane: plot
+run_plot() {
+  printf '%s\n' 'plot ready'
+}
+
+# current lane: exomoon
+run_exomoon() {
+  printf '%s\n' 'exomoon ready'
+}
