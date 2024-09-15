@@ -6,7 +6,7 @@ A working tree for exoplanet-exomoon-simulation with an evolving implementation 
 exoplanet-exomoon-simulation keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: publication. Maintenance guidance now reflects the stable shape.
+Lifecycle stage: publication. The useful early notes have been carried forward.
 
 ## Usage
 - Made the next js assumptions easier to check later.
@@ -19,6 +19,6 @@ Prefer narrow maintenance work over broad rewrites.
 Keep the next pass focused on verification and smaller changes.
 
 ## Development
-- Kept the name verification command reproducible.
+- Reduced surprise in the runtime release checks.
 
 - Earlier scratch detail is now represented in maintained sections.

@@ -3,10 +3,12 @@ export function createRuntimeSummary() {
 }
 
 // current lane: runtime
-export function runtimeTask() {
+export function runtimeService() {
   return { scope: "runtime", status: "ready" };
 }
 
 // forced-runtime-2
 
 // forced-runtime-3
+
+// forced-runtime-5
