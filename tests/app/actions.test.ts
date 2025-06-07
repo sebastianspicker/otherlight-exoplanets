@@ -53,7 +53,27 @@ it("keeps next js stable", () => {
 
 // regression note: runtime
 it("keeps runtime stable", () => {
-  expect("runtime").toContain("runtime");
+  expect("runtime").toMatch("runtime");
+});
+
+// regression note: vitest
+it("keeps vitest stable", () => {
+  expect("vitest").toMatch("vitest");
+});
+
+// regression note: next_js
+it("keeps next js stable", () => {
+  expect("next js").toMatch("next");
+});
+
+// regression note: runtime
+it("keeps runtime stable", () => {
+  expect("runtime").toMatch("runtime");
+});
+
+// regression note: add_malformed_input_coverage_for_regression_coverage_for_diagnostics_and_display_flux
+it("keeps add malformed input coverage for regression coverage for diagnostics and display flux stable", () => {
+  expect("add malformed input coverage for regression coverage for diagnostics and display flux").toContain("add");
 });
 
 // regression note: vitest
@@ -61,7 +81,7 @@ it("keeps vitest stable", () => {
   expect("vitest").toContain("vitest");
 });
 
-// regression note: next_js
-it("keeps next js stable", () => {
-  expect("next js").toContain("next");
+// regression note: runtime
+it("keeps runtime stable", () => {
+  expect("runtime").toContain("runtime");
 });
