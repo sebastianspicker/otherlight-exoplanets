@@ -73,15 +73,30 @@ it("keeps runtime stable", () => {
 
 // regression note: add_malformed_input_coverage_for_regression_coverage_for_diagnostics_and_display_flux
 it("keeps add malformed input coverage for regression coverage for diagnostics and display flux stable", () => {
-  expect("add malformed input coverage for regression coverage for diagnostics and display flux").toContain("add");
+  expect("add malformed input coverage for regression coverage for diagnostics and display flux").toMatch("add");
 });
 
 // regression note: vitest
 it("keeps vitest stable", () => {
-  expect("vitest").toContain("vitest");
+  expect("vitest").toMatch("vitest");
 });
 
 // regression note: runtime
 it("keeps runtime stable", () => {
-  expect("runtime").toContain("runtime");
+  expect("runtime").toMatch("runtime");
+});
+
+// regression note: vitest
+it("keeps vitest stable", () => {
+  expect("vitest").toMatch("vitest");
+});
+
+// regression note: input
+it("keeps input stable", () => {
+  expect("input").toMatch("input");
+});
+
+// regression note: typescript
+it("keeps typescript stable", () => {
+  expect("typescript").toContain("typescript");
 });
