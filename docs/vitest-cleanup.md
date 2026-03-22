@@ -5,7 +5,7 @@
 This page keeps the current vitest cleanup guidance concise after earlier rough notes.
 
 ## Usage
-- Merged scattered vitest guidance into the docs.
+- Made the vitest assumptions easier to check later.
 
 - Earlier scratch notes were compressed into the current guidance.
 
@@ -16,6 +16,6 @@ Early notes are still uneven and may be folded into clearer sections later.
 Some setup details still depend on the current local workflow and may change again.
 
 ## Architecture
-- Moved vitest behind a narrower boundary.
+- Simplified the next maintenance pass through vitest.
 
 - Earlier scratch notes were compressed into the current guidance.

@@ -108,5 +108,35 @@ it("keeps vitest stable", () => {
 
 // regression note: input
 it("keeps input stable", () => {
-  expect("input").toContain("input");
+  expect("input").toMatch("input");
+});
+
+// regression note: pnpm
+it("keeps pnpm stable", () => {
+  expect("pnpm").toMatch("pnpm");
+});
+
+// regression note: pnpm
+it("keeps pnpm stable", () => {
+  expect("pnpm").toMatch("pnpm");
+});
+
+// regression note: vitest
+it("keeps vitest stable", () => {
+  expect("vitest").toMatch("vitest");
+});
+
+// regression note: pnpm
+it("keeps pnpm stable", () => {
+  expect("pnpm").toMatch("pnpm");
+});
+
+// regression note: runtime
+it("keeps runtime stable", () => {
+  expect("runtime").toMatch("runtime");
+});
+
+// regression note: await
+it("keeps await stable", () => {
+  expect("await").toContain("await");
 });

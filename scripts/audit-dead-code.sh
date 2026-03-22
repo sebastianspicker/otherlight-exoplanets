@@ -74,3 +74,10 @@ run_input() {
 # forced-input-19
 
 # forced-input-20
+
+# forced-input-21
+
+# current lane: pnpm
+run_pnpm() {
+  printf '%s\n' 'pnpm ready'
+}

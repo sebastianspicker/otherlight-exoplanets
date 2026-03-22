@@ -5,7 +5,7 @@
 This page keeps the current adding_body guidance concise after earlier rough notes.
 
 ## Usage
-- Made the runtime assumptions easier to check later.
+- Rewrote the await explanation around the maintained behavior.
 
 - Earlier scratch notes were compressed into the current guidance.
 
@@ -31,7 +31,7 @@ Some setup details still depend on the current local workflow and may change aga
 - Earlier scratch notes were compressed into the current guidance.
 
 ## Revision Notes
-Latest pass: make-the-clarify-publish during maintenance burst work (forced-make-the-clarify-publish-27).
+Latest pass: runtime during maintenance burst work (forced-runtime-32).
 
 ## Performance
 - Reduced overhead in runtime.
@@ -39,6 +39,6 @@ Latest pass: make-the-clarify-publish during maintenance burst work (forced-make
 - Earlier scratch notes were compressed into the current guidance.
 
 ## Architecture
-- Moved runtime behind a narrower boundary.
+- Moved await behind a narrower boundary.
 
 - Earlier scratch notes were compressed into the current guidance.
