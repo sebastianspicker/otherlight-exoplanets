@@ -51,21 +51,24 @@ export function validateRecord(validator, schema, value, base, location) {
 function validateRequiredProperties(validator, schema, value, location) {
   let valid = true;
   for (const key of schema.required ?? [])
-    if (!(key in value)) valid = validator.fail(location, `must include ${key}`) && valid;
+    if (!Object.hasOwn(value, key)) valid = validator.fail(location, `must include ${key}`) && valid;
   return valid;
 }
 
 function validateDeclaredProperties(validator, properties, value, base, location) {
   let valid = true;
-  for (const [key, nested] of Object.entries(properties))
-    if (key in value) valid = validator.validate(nested, value[key], base, `${location}/${key}`) && valid;
+  for (const [key, nested] of Object.entries(properties)) {
+    const property = Object.getOwnPropertyDescriptor(value, key);
+    if (property !== undefined)
+      valid = validator.validate(nested, property.value, base, `${location}/${key}`) && valid;
+  }
   return valid;
 }
 
 function validateAdditionalProperties(validator, schema, properties, value, base, location) {
   let valid = true;
   for (const [key, nested] of Object.entries(value)) {
-    if (key in properties) continue;
+    if (Object.hasOwn(properties, key)) continue;
     valid = validateAdditionalProperty(validator, schema, nested, key, base, location) && valid;
   }
   return valid;
@@ -186,8 +189,50 @@ function validateStringLengths(validator, schema, value, location) {
 }
 
 function validateStringPattern(validator, schema, value, location) {
-  if (typeof schema.pattern !== "string" || new RegExp(schema.pattern, "u").test(value)) return true;
+  if (typeof schema.pattern !== "string" || matchesSupportedPattern(schema.pattern, value)) return true;
   return validator.fail(location, "does not match pattern");
+}
+
+function matchesSupportedPattern(pattern, value) {
+  switch (pattern) {
+    case "^artifact-[0-9a-f]{64}$":
+      return /^artifact-[0-9a-f]{64}$/u.test(value);
+    case "^[0-9a-f]{64}$":
+      return /^[0-9a-f]{64}$/u.test(value);
+    case "^[a-z0-9][a-z0-9-]{0,126}$":
+      return /^[a-z0-9][a-z0-9-]{0,126}$/u.test(value);
+    case "^ds-[0-9a-f]{64}$":
+      return /^ds-[0-9a-f]{64}$/u.test(value);
+    case "^job-[a-z0-9][a-z0-9-]{0,126}$":
+      return /^job-[a-z0-9][a-z0-9-]{0,126}$/u.test(value);
+    case "^[a-z0-9]+(?:[.-][a-z0-9]+)*$":
+      return matchesSeparatedIdentifier(value, true);
+    case "^[a-z0-9]+(?:-[a-z0-9]+)*$":
+      return matchesSeparatedIdentifier(value, false);
+    default:
+      throw new Error(`Unsupported JSON Schema pattern: ${pattern}`);
+  }
+}
+
+function matchesSeparatedIdentifier(value, allowPeriod) {
+  let requiresAlphanumeric = true;
+  for (const character of value) {
+    if (isLowercaseAsciiAlphanumeric(character)) {
+      requiresAlphanumeric = false;
+      continue;
+    }
+    if ((character === "-" || (allowPeriod && character === ".")) && !requiresAlphanumeric) {
+      requiresAlphanumeric = true;
+      continue;
+    }
+    return false;
+  }
+  return !requiresAlphanumeric;
+}
+
+function isLowercaseAsciiAlphanumeric(character) {
+  const code = character.charCodeAt(0);
+  return (code >= 48 && code <= 57) || (code >= 97 && code <= 122);
 }
 
 function validateDateTime(validator, schema, value, location) {
@@ -197,14 +242,20 @@ function validateDateTime(validator, schema, value, location) {
 }
 
 export function matchesType(type, value) {
-  return typeChecks[type]?.(value) ?? false;
+  switch (type) {
+    case "object":
+      return object(value);
+    case "array":
+      return Array.isArray(value);
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "integer":
+      return Number.isInteger(value);
+    case "boolean":
+      return typeof value === "boolean";
+    default:
+      return false;
+  }
 }
-
-const typeChecks = {
-  object,
-  array: Array.isArray,
-  string: (value) => typeof value === "string",
-  number: (value) => typeof value === "number" && Number.isFinite(value),
-  integer: Number.isInteger,
-  boolean: (value) => typeof value === "boolean",
-};
