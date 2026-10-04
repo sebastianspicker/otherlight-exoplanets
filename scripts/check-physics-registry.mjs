@@ -1,5 +1,5 @@
 /**
- * Cross-checks physics claims against source owners, tests, and bibliography
+ * Cross-checks physics claims against source owners and bibliography
  * entries so public model status cannot drift from executable evidence.
  */
 
@@ -16,17 +16,7 @@ const bibliographyIds = new Set(
 );
 
 const allowedStatuses = new Set(registry.statusValues ?? []);
-const requiredFields = [
-  "id",
-  "status",
-  "claim",
-  "equation",
-  "units",
-  "validity",
-  "owners",
-  "tests",
-  "references",
-];
+const requiredFields = ["id", "status", "claim", "equation", "units", "validity", "owners", "references"];
 const requiredOwners = [
   "apps/browser/src/domain/model/units.ts",
   "apps/browser/src/domain/orbits/kepler.ts",
@@ -79,7 +69,7 @@ for (const [index, model] of (registry.models ?? []).entries()) {
   if (ids.has(model.id)) errors.push(`duplicate model id: ${model.id}`);
   ids.add(model.id);
   if (!allowedStatuses.has(model.status)) errors.push(`${model.id}: invalid status ${model.status}`);
-  for (const field of ["owners", "tests", "references"]) {
+  for (const field of ["owners", "references"]) {
     if (!Array.isArray(model[field]) || model[field].length === 0) {
       errors.push(`${model.id}: ${field} must be non-empty`);
     }

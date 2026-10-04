@@ -114,7 +114,6 @@ The maintained visual rules are in the [design system](DESIGN.md).
 pnpm lint
 pnpm typecheck
 pnpm typecheck:compat
-pnpm test
 pnpm architecture:check
 pnpm build
 ```

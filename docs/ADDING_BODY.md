@@ -31,7 +31,6 @@ validation. Otherwise reject the feature at compilation time.
 
 ```bash
 pnpm typecheck
-pnpm test
 pnpm architecture:check
 pnpm physics-registry
 ```

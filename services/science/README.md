@@ -154,7 +154,6 @@ From the repository root with the development environment active:
 python -m ruff format --check services/science
 python -m ruff check services/science
 python -m pyright --pythonpath "$VIRTUAL_ENV/bin/python" services/science
-PYTHONPATH=services/science python -m pytest services/science/tests
 ```
 
 Run latency and traced-memory measurements separately. The benchmark reports

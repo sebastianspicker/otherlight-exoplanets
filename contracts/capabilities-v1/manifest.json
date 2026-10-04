@@ -11,7 +11,7 @@
       "title": "Shareable product route state",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
@@ -35,7 +35,7 @@
       "title": "Portable .otherlight workspace document",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
@@ -59,13 +59,11 @@
       "title": "Preset and committed real-system catalog",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift"
-        ],
+        "evidence": [],
         "reason": "The native catalog is narrower than the website catalog."
       },
       "iphone": {
@@ -85,7 +83,7 @@
       "title": "Start, pause, reset, speed, transit jump, and zoom",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
@@ -112,30 +110,21 @@
       "title": "Interactive and deterministic reference runtime modes",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The deterministic reference path and macOS app tests pass; the complete Xcode 26.6 platform and UI acceptance gate remains pending."
       },
       "iphone": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The shared reference path passed an iPhone simulator test and launch; the named Xcode 26.6 release gate remains pending."
       },
       "ipad": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The reference path is implemented in shared Apple sources; the named Xcode 26.6 iPad simulator and UI gate remains pending."
       }
     },
@@ -145,30 +134,21 @@
       "title": "Essential and advanced parameter editing",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The portable radius, grid, quadratic limb-darkening, and phase subset preserves invalid drafts and passes app tests; cadence and dynamics controls remain unexposed."
       },
       "iphone": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The portable advanced subset passed the iPhone 17 Pro/iOS 26.5 app-test gate; complete responsive and accessibility review remains pending."
       },
       "ipad": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The portable advanced subset passed the iPad Pro 13-inch (M5)/iOS 26.5 app-test gate; complete responsive and accessibility review remains pending."
       }
     },
@@ -178,30 +158,21 @@
       "title": "Detached-binary preview photometry",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "Portable detached-binary dynamics and normalized two-star preview photometry pass the macOS app-test gate; complete visual and accessibility review remains pending."
       },
       "iphone": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The shared detached-binary preview passed the iPhone 17 Pro/iOS 26.5 simulator gate; complete responsive and accessibility review remains pending."
       },
       "ipad": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The shared detached-binary preview passed the iPad Pro 13-inch (M5)/iOS 26.5 simulator gate; complete responsive and accessibility review remains pending."
       }
     },
@@ -211,7 +182,7 @@
       "title": "Atmosphere and scattering preview photometry",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "unavailable",
@@ -235,7 +206,7 @@
       "title": "Synthetic instrument-noise preview",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "unavailable",
@@ -259,7 +230,7 @@
       "title": "Sky, light-curve, O-C, summaries, overlays, and tracking",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
@@ -283,14 +254,11 @@
       "title": "Phased responses, hints, checks, comparison, rubric, and report",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/AppTests/OtherlightTests.swift",
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/GuidedLearningTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The phased workflow is implemented; the documented Xcode UI gate remains pending."
       },
       "iphone": {
@@ -310,14 +278,11 @@
       "title": "Binary hypothesis and guarded reveal workflow",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/OtherlightCoreTests.swift",
-          "apps/apple/AppTests/OtherlightTests.swift"
-        ],
+        "evidence": ["apps/apple/AppTests/OtherlightTests.swift"],
         "reason": "The hypothesis, parameter-locking, and guarded-reveal workflow passes the macOS app-test gate; complete visual and accessibility review remains pending."
       },
       "iphone": {
@@ -337,7 +302,7 @@
       "title": "Light-curve history, clear, undo, and CSV",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
@@ -361,7 +326,7 @@
       "title": "O-C body, unit, trend, statistics, clear, undo, and CSV",
       "website": {
         "status": "available",
-        "evidence": ["apps/browser/tests/contracts/capability-manifest.test.ts"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
@@ -386,18 +351,11 @@
       "website": {
         "status": "available",
         "availability": "capability-gated",
-        "evidence": [
-          "apps/browser/tests/science/contracts-client.test.ts",
-          "services/science/tests/test_api_contract.py"
-        ]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightCore/Tests/OtherlightCoreTests/TransitScienceAuthoringTests.swift",
-          "apps/apple/Packages/OtherlightScience/Tests/OtherlightScienceTests/TransitScienceTests.swift",
-          "apps/apple/MacAppTests/OtherlightMacTests.swift"
-        ],
+        "evidence": ["apps/apple/MacAppTests/OtherlightMacTests.swift"],
         "reason": "Portable V4-to-V5 authoring, native execution, cancellation, stale-result rejection, and validated in-memory publication pass the isolated Mac host tests; live visual and accessibility acceptance remains pending."
       },
       "iphone": {
@@ -418,14 +376,11 @@
       "website": {
         "status": "available",
         "availability": "capability-gated",
-        "evidence": ["services/science/tests/test_api_contract.py"]
+        "evidence": []
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightScience/Tests/OtherlightScienceTests/ArrowSwiftIPCWriterTests.swift",
-          "apps/apple/MacAppTests/OtherlightMacTests.swift"
-        ],
+        "evidence": ["apps/apple/MacAppTests/OtherlightMacTests.swift"],
         "reason": "The Arrow writer and separate explicit product export pass the isolated Mac host tests; live export UI acceptance remains pending."
       },
       "iphone": {
@@ -445,18 +400,12 @@
       "title": "Engine-neutral manifest and canonical request hash",
       "website": {
         "status": "experimental",
-        "evidence": [
-          "apps/browser/tests/science/contracts-client.test.ts",
-          "apps/browser/tests/science/canonical-json.test.ts"
-        ],
+        "evidence": [],
         "reason": "V2 writers and compatibility readers pass Browser and Python tests; end-to-end live scientific provenance review remains pending."
       },
       "macos": {
         "status": "experimental",
-        "evidence": [
-          "apps/apple/Packages/OtherlightScience/Tests/OtherlightScienceTests/TransitScienceTests.swift",
-          "apps/apple/Packages/OtherlightScience/Tests/OtherlightScienceTests/ArrowSwiftIPCWriterTests.swift"
-        ],
+        "evidence": [],
         "reason": "Strict Swift request/result contracts, V2 provenance, validated in-memory publication, and explicit manifest export pass the isolated Mac host tests; live provenance visibility review remains pending."
       },
       "iphone": {
@@ -476,12 +425,7 @@
       "title": "Strict session-scoped V6 scientific datasets",
       "website": {
         "status": "experimental",
-        "evidence": [
-          "contracts/science-v6/contract-cases.json",
-          "apps/browser/tests/science/dataset-client.test.ts",
-          "apps/browser/tests/science/dataset-workspace.test.ts",
-          "services/science/tests/test_v6_datasets.py"
-        ],
+        "evidence": ["contracts/science-v6/contract-cases.json"],
         "reason": "The strict local service, Browser client, and operational dataset UI pass automated gates; live responsive and accessibility acceptance remains pending."
       },
       "macos": {

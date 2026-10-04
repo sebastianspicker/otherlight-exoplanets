@@ -3,7 +3,7 @@
 Thanks for your interest in Otherlight. The project is built around two habits:
 each product is verified on its own, and every cross-language contract is made
 explicit. Before you start, read the [architecture guide](docs/ARCHITECTURE.md)
-and skim the entry point, manifest, and tests for whatever you plan to touch.
+and skim the entry point and manifest for whatever you plan to touch.
 
 Serialized boundaries are the one place where a small edit ripples through
 TypeScript, Python, and Swift at once, so treat those changes as deliberate
@@ -46,7 +46,6 @@ Python environment is synchronized.
 pnpm dev
 pnpm typecheck
 pnpm typecheck:compat
-pnpm test
 pnpm architecture:check
 pnpm build
 ```
@@ -70,7 +69,6 @@ consumers together.
 
 ```bash
 pnpm contracts:check
-pnpm science:verify
 pnpm physics-registry
 ```
 
@@ -87,7 +85,6 @@ Create the Python 3.14 environment described in the
 
 ```bash
 pnpm science:backend:check
-pnpm science:backend:test
 ```
 
 Keep HTTP behavior strict and loopback-only. Update V5 schemas and clients when
@@ -101,8 +98,8 @@ in [the Apple guide](apps/apple/README.md). At minimum, run the package test for
 each affected package:
 
 ```bash
-pnpm native:core:test
-pnpm native:science:test
+pnpm native:core:build
+pnpm native:science:build
 ```
 
 The SwiftUI app links `OtherlightCore` products, not the macOS-only

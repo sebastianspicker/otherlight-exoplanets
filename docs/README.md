@@ -10,17 +10,16 @@ are not part of this set.
 
 ## Start here
 
-| Document                               | Audience and purpose                                                              |
-| -------------------------------------- | --------------------------------------------------------------------------------- |
-| [Root README](../README.md)            | What the project is, screenshots, quick start, and component navigation           |
-| [Architecture](ARCHITECTURE.md)        | Components, dependency rules, data flows, state, interfaces, and non-goals        |
-| [Operations runbook](RUNBOOK.md)       | Step-by-step procedures for the Browser, Pages, science service, and Apple builds |
-| [Contributing](../CONTRIBUTING.md)     | Change workflow and the checks to run per subsystem                               |
-| [Continuous integration](ci.md)        | What each automated lane runs, and where its evidence stops                       |
-| [Security policy](../SECURITY.md)      | How to report a problem and which trust boundaries apply                          |
-| [Release status](../RELEASE_STATUS.md) | Whether any revision is release-qualified                                         |
-| [Product](PRODUCT.md)                  | Users, purpose, voice, principles, and accessibility commitments                  |
-| [Design system](DESIGN.md)             | The Signal & Ink visual language and cross-platform interaction rules             |
+| Document                           | Audience and purpose                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| [Root README](../README.md)        | What the project is, screenshots, quick start, and component navigation           |
+| [Architecture](ARCHITECTURE.md)    | Components, dependency rules, data flows, state, interfaces, and non-goals        |
+| [Operations runbook](RUNBOOK.md)   | Step-by-step procedures for the Browser, Pages, science service, and Apple builds |
+| [Contributing](../CONTRIBUTING.md) | Change workflow and the checks to run per subsystem                               |
+| [Continuous integration](ci.md)    | What each automated lane runs, and where its evidence stops                       |
+| [Security policy](../SECURITY.md)  | How to report a problem and which trust boundaries apply                          |
+| [Product](PRODUCT.md)              | Users, purpose, voice, principles, and accessibility commitments                  |
+| [Design system](DESIGN.md)         | The Signal & Ink visual language and cross-platform interaction rules             |
 
 ## Product and contract references
 

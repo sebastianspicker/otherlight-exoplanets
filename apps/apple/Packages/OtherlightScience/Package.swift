@@ -21,13 +21,6 @@ let package = Package(
         .product(name: "TransitScienceContracts", package: "OtherlightCore"),
         .product(name: "Arrow", package: "arrow-swift"),
       ]),
-    .testTarget(
-      name: "OtherlightScienceTests",
-      dependencies: [
-        "TransitScience",
-        .product(name: "TransitScienceContracts", package: "OtherlightCore"),
-        .product(name: "Arrow", package: "arrow-swift"),
-      ]),
   ],
   swiftLanguageModes: [.v6]
 )

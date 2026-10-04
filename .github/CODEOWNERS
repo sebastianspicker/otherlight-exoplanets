@@ -13,7 +13,6 @@ apps/browser/src/domain/photometry/ @sebastianspicker
 apps/apple/ @sebastianspicker
 apps/demo/ @sebastianspicker
 contracts/ @sebastianspicker
-RELEASE_STATUS.md @sebastianspicker
 docs/alpha-release.md @sebastianspicker
 scripts/archive-macos.sh @sebastianspicker
 scripts/build-run-macos.sh @sebastianspicker

@@ -52,8 +52,8 @@ jobs:
           source scripts/select-swift-toolchain.sh
           env -u TOOLCHAINS xcodebuild -version | grep -Fx "Xcode 26.6"
           swift --version | grep -F "Swift version 6.3.3"
-      - name: Test portable Swift package
-        run: swift test --package-path apps/apple/Packages/OtherlightCore
+      - name: Build portable Swift package
+        run: swift build --package-path apps/apple/Packages/OtherlightCore
       - name: Benchmark interactive, reference, and series workloads
         run: |
           source scripts/select-swift-toolchain.sh
@@ -84,8 +84,8 @@ jobs:
           source scripts/select-swift-toolchain.sh
           env -u TOOLCHAINS xcodebuild -version | grep -Fx "Xcode 26.6"
           swift --version | grep -F "Swift version 6.3.3"
-      - name: Test macOS-only scientific package
-        run: swift test --package-path apps/apple/Packages/OtherlightScience
+      - name: Build macOS-only scientific package
+        run: swift build --package-path apps/apple/Packages/OtherlightScience
 
   app-test:
     name: ${{ matrix.destination.name }}

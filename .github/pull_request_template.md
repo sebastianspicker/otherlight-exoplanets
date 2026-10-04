@@ -12,9 +12,9 @@
 
 - [ ] `pnpm ci:verify`
 - [ ] `pnpm audit:security` (for dependency/security-impacting changes)
-- [ ] Python backend: `pnpm science:backend:check` and `pnpm science:backend:test` (when `services/science/` changes)
-- [ ] Scientific contracts/physics: `pnpm science:verify` and `pnpm physics-registry` (when models, contracts, or capability claims change)
-- [ ] Swift package: `pnpm native:core:test` (when `apps/apple/` changes)
+- [ ] Python backend: `pnpm science:backend:check` (when `services/science/` changes)
+- [ ] Scientific contracts/physics: `pnpm physics-registry` (when models, contracts, or capability claims change)
+- [ ] Swift package: `pnpm native:core:build` (when `apps/apple/` changes)
 - [ ] Native Apple app: run the documented `xcodebuild test` command for each changed platform (when app/project code changes)
 - [ ] UI smoke: `pnpm dev` and check preset switching + light curve render
 - [ ] `docs/screenshots/web/` captures are refreshed when the public UI changes, and no generated capture output is committed

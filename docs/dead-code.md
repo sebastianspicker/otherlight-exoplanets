@@ -5,8 +5,8 @@ exports and types. `pnpm deadcode:report` prints raw Knip JSON, and
 `pnpm deadcode:exports` writes `test-results/deadcode-exports.json` and fails on
 any unlisted finding or stale allowance.
 
-Discovery roots Browser startup, the chromatic worker, the Vite and Vitest
-configurations, all tests, the static demo entry, and the script entrypoints in
+Discovery roots Browser startup, the chromatic worker, the Vite
+configuration, the registered barycenter model owner, the static demo entry, and the script entrypoints in
 `package.json`. Those roots stay explicit even when a Knip plugin calls them
 redundant, so discovery never depends on implicit plugin behavior.
 
@@ -23,6 +23,8 @@ directory suppressions. Symbols that scripts load through Vite `ssrLoadModule`
 strings are an example of an untraceable channel. The current entries keep the
 mixed-shape opaque-transit integrator that model
 `photometry.transit.opaque-disks` in [the model registry](physics/model-registry.json)
-describes, although no runtime path calls it yet.
+describes, although no runtime path calls it yet. The remaining entries are
+Browser model and helper exports that only the unpublished validation suite
+exercised.
 
 An allowance added only to make the gate pass defeats the purpose of the gate.

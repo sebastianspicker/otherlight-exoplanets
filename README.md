@@ -12,7 +12,7 @@ strictly validated radial-velocity model when you want numbers you can inspect.
 
 [![CI](https://github.com/sebastianspicker/otherlight-exoplanets/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastianspicker/otherlight-exoplanets/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](RELEASE_STATUS.md)
+[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](docs/alpha-release.md)
 
 Otherlight is a local-first workspace for learning about exoplanet transits,
 exomoons, detached binaries, photometry, and timing. It began as a teaching
@@ -134,16 +134,15 @@ pnpm ci:verify
 
 `ci:verify` runs the public-surface and documentation hygiene checks, the Browser
 architecture and physics-registry checks, lint and format checks, TypeScript 7
-and TypeScript 6 compatibility, tests, and the production build.
+and TypeScript 6 compatibility, and the production build.
 `contracts:check` is a separate command in the CI workflow.
 
 Run the independent lane when its code or contracts change:
 
 ```bash
 pnpm science:backend:check
-pnpm science:backend:test
-pnpm native:core:test
-pnpm native:science:test
+pnpm native:core:build
+pnpm native:science:build
 pnpm smoke:pages
 ```
 
@@ -161,7 +160,6 @@ and the component guides.
 - [Physics model status](docs/physics/model-status.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
-- [Release status](RELEASE_STATUS.md)
 
 Otherlight is licensed under [MIT](LICENSE). Third-party attribution notes are
 in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

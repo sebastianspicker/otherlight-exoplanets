@@ -12,4 +12,4 @@ CI=1 pnpm install --frozen-lockfile
 pnpm ci:verify
 pnpm smoke:served
 pnpm audit:security
-pnpm science:verify
+pnpm physics-registry

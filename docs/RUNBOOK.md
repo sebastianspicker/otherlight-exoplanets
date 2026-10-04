@@ -60,7 +60,6 @@ python3.14 -m venv services/science/.venv
 source services/science/.venv/bin/activate
 python -m pip install -e './services/science[dev]'
 pnpm science:backend:check
-pnpm science:backend:test
 pnpm science:backend:serve
 ```
 
@@ -107,8 +106,8 @@ Use Xcode 26.6 and Swift 6.3.3. The portable and scientific packages have separa
 test lanes:
 
 ```bash
-pnpm native:core:test
-pnpm native:science:test
+pnpm native:core:build
+pnpm native:science:build
 ```
 
 Use the [Apple guide](../apps/apple/README.md) for Xcode destinations, local macOS

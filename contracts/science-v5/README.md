@@ -23,10 +23,8 @@ repository root:
 
 ```bash
 pnpm contracts:check
-pnpm science:verify
-pnpm science:backend:test
-pnpm native:core:test
-pnpm native:science:test
+pnpm native:core:build
+pnpm native:science:build
 ```
 
 The implemented numerical and HTTP boundaries are documented in the

@@ -15,17 +15,12 @@ separately. Heap and RSS deltas include allocator and garbage-collection effects
 and are not exact allocation counts.
 
 ```bash
-pnpm benchmark:browser
 source scripts/select-swift-toolchain.sh
 swift --version
 swift run --package-path apps/apple/Packages/OtherlightCore OtherlightBenchmark
 ```
 
-The Browser harness uses four fixed frames, 256 preview points, and three bands
-at 450/550/700 nm with 96 samples over -10,000 to 10,000 seconds. It records
-Node and platform details, the seed, two warmups, nine repetitions, raw latency
-samples, work counts, and a separate heap/RSS pass, then checks retained-runtime
-band values against fresh-runtime values. For maximum-size imports and
+For maximum-size imports and
 rich/compact forward output, run the service benchmark documented in the
 [science README](../services/science/README.md).
 

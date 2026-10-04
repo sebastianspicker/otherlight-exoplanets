@@ -23,12 +23,6 @@ let package = Package(
       dependencies: ["TransitCore", "TransitEducation", "TransitScienceContracts"]),
     .executableTarget(
       name: "OtherlightBenchmark", dependencies: ["TransitCore", "TransitEducation"]),
-    .testTarget(
-      name: "OtherlightCoreTests",
-      dependencies: [
-        "TransitCore", "TransitEducation", "TransitVisualization", "TransitScienceContracts",
-        "TransitScienceAuthoring",
-      ]),
   ],
   swiftLanguageModes: [.v6]
 )

@@ -169,6 +169,14 @@ Desktop.ini
 /CONVERSATION_EXPORT.json
 /CONVERSATION_EXPORT.jsonl
 
+# Internal notes and unpublished tests
+/DESIGN_BRIEF.md
+/RELEASE_STATUS.md
+/apps/apple/Packages/OtherlightCore/Tests/
+/apps/apple/Packages/OtherlightScience/Tests/
+/apps/browser/tests/
+/services/science/tests/
+
 # Local historical material and superseded gallery files
 /docs/archive/
 /docs/screenshots/*.png

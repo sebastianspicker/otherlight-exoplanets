@@ -29,9 +29,8 @@ Then run every independent lane the candidate includes:
 
 ```bash
 pnpm science:backend:check
-pnpm science:backend:test
-pnpm native:core:test
-pnpm native:science:test
+pnpm native:core:build
+pnpm native:science:build
 ```
 
 When you claim CI-equivalent service or Apple evidence, use the locked wheel
@@ -47,7 +46,7 @@ evidence status.
 
 ## Record the qualification
 
-Update [RELEASE_STATUS.md](../RELEASE_STATUS.md) with the candidate revision, the
+Record the candidate revision, the
 date, the included surfaces, the exact checks that passed, toolchains,
 artifacts, and every skipped or externally controlled lane. Static captures and
 fixture replays are presentation or contract evidence, never runtime execution

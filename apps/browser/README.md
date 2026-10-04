@@ -9,7 +9,6 @@ Run these from the repository root:
 
 ```bash
 pnpm dev
-pnpm test
 pnpm typecheck
 pnpm typecheck:compat
 pnpm architecture:check
@@ -67,7 +66,5 @@ overlay-specific warning reports worker failure. Hidden tabs stop sampling, and
 teardown terminates the worker. Both the ordinary and Pages builds permit
 same-origin workers through their CSP.
 
-Run `pnpm benchmark:browser` for work-count assertions and an informational JSON
-report in `test-results/browser-benchmark.json`. See
-[performance validation](../../docs/performance.md) for workloads and manual
+See [performance validation](../../docs/performance.md) for workloads and manual
 responsiveness checks.

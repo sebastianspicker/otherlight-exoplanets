@@ -10,5 +10,143 @@
     "symbol": "IntegrateDiskMidpointShapesParams",
     "kind": "type",
     "reason": "Sole implementation of the mixed-shape opaque-transit path claimed as implemented by docs/physics/model-registry.json model 'photometry.transit.opaque-disks'; no live caller currently reaches it."
+  },
+  {
+    "file": "apps/browser/src/presentation/shell/appShell.ts",
+    "symbol": "createAppDocumentHtml",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/presentation/shell/templates/header.ts",
+    "symbol": "WORKSPACE_FILE_ACCEPT",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/presentation/science/templates/scientificWorkspace.ts",
+    "symbol": "renderScientificDatasetWorkspace",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/application/deployment.ts",
+    "symbol": "isGitHubPagesMode",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/presentation/workspace/persistence.ts",
+    "symbol": "WORKSPACE_DOWNLOAD_FILENAME",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/domain/simulation/v4/nativePhotometry.ts",
+    "symbol": "atmosphereOpacityForOcculter",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/domain/simulation/v4/index.ts",
+    "symbol": "ScientificBrowserRuntimeError",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/domain/photometry/limbDarkening.ts",
+    "symbol": "deriveQuadraticLimbDarkeningFromStellarParams",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/presentation/playback/chromaticOverlay.ts",
+    "symbol": "styleBandSamples",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/application/productViewState.ts",
+    "symbol": "serializeProductViewState",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/workspace/workspaceDocument.ts",
+    "symbol": "WORKSPACE_SCHEMA_VERSION",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/workspace/workspaceDocument.ts",
+    "symbol": "parseWorkspaceDocument",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/workspace/workspaceDocument.ts",
+    "symbol": "restoreWorkspaceScenario",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/domain/simulation/v4/nativePhotometryAtmosphere.ts",
+    "symbol": "atmosphereOpacityForOcculter",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/presentation/labs/didacticsViewNavigation.ts",
+    "symbol": "resolveLessonEventSec",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/science/canonicalJson.ts",
+    "symbol": "canonicalScientificJson",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/science/educationScenarioCompiler.ts",
+    "symbol": "buildScientificScenarioV5FromEducationScenarioV4",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/science/educationScenarioCompiler.ts",
+    "symbol": "BuildScientificScenarioV5FromEducationScenarioV4Input",
+    "kind": "type",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/science/types.ts",
+    "symbol": "MAX_RHS_EVALUATIONS",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/infrastructure/science/types.ts",
+    "symbol": "MAX_FORWARD_WALL_TIME_SECONDS",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/domain/photometry/smearing.ts",
+    "symbol": "boxcarAverageFlux",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/domain/orbits/hillRadius.ts",
+    "symbol": "hillRadiusAtDistance",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
+  },
+  {
+    "file": "apps/browser/src/domain/orbits/exomoonTiming.ts",
+    "symbol": "tdvRatioFromSkyPlaneSpeeds",
+    "kind": "export",
+    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
   }
 ]

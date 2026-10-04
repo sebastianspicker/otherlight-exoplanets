@@ -16,13 +16,13 @@ pnpm ci:verify
 
 It runs public-surface, executable-code, and Swift-documentation hygiene; the
 Browser architecture and physics-registry checks; ESLint and Prettier;
-TypeScript 7 and TypeScript 6 compatibility over application, worker, and test
-sources; Vitest; and the ordinary Vite
+TypeScript 7 and TypeScript 6 compatibility over application and worker
+sources; and the ordinary Vite
 build. It does not run serialized-contract validation, Python, Apple, security,
 or Pages smoke checks.
 
-`.github/workflows/ci.yml` runs `pnpm contracts:check` before the lint lane, tests
-Node 22 and 24, and builds on Node 22. The complete local equivalent for the
+`.github/workflows/ci.yml` runs `pnpm contracts:check` before the lint lane and
+builds on Node 22. The complete local equivalent for the
 Browser and contract portion is:
 
 ```bash
@@ -60,7 +60,7 @@ the tour captures before upload.
 
 The Python job uses exact Python 3.14.6 and `uv==0.10.7`, synchronizes
 `services/science/uv.lock` with the `dev` extra, then runs
-`scripts/check-complexity.sh`, Ruff formatting and linting, Pyright, pytest, a wheel build, and
+`scripts/check-complexity.sh`, Ruff formatting and linting, Pyright, a wheel build, and
 an installed-wheel import/version smoke. The Node lint job invokes ShellCheck
 through `quality:static`, and the native checks use Xcode 26.6 and Swift 6.3.3 on
 their dedicated macOS runner.
@@ -69,7 +69,6 @@ The shorter editable-install development checks are:
 
 ```bash
 pnpm science:backend:check
-pnpm science:backend:test
 ```
 
 They are useful local gates, but they are not equivalent to the locked CI job and
@@ -81,7 +80,7 @@ its wheel smoke.
 the checked-in catalog, and its workflow and toolchain files. On `macos-26` with
 Xcode 26.6 and Swift 6.3.3 it runs:
 
-- both SwiftPM package tests;
+- both SwiftPM package builds;
 - strict `swift format lint` across `apps/apple`;
 - `xcodebuild test` for `OtherlightMac` on macOS and for the `Otherlight`
   Education target on iPhone 17 Pro and iPad Pro 13-inch (M5), both on iOS 26.5;
@@ -109,14 +108,11 @@ scientific-validation evidence are independent, so state any omitted lane instea
 of inferring it from another successful check.
 
 Use the [alpha release procedure](alpha-release.md) for the candidate-level
-checklist and [release status](../RELEASE_STATUS.md) for the current
-qualification marker.
+checklist.
 
 ## Performance evidence
 
-The existing test lanes already produce performance reports. Browser lanes run
-`pnpm benchmark:browser` and upload `browser-benchmarks-node-22` and
-`browser-benchmarks-node-24` JSON artifacts. The Python lane runs maximum-size
+The existing CI lanes already produce performance reports. The Python lane runs maximum-size
 dataset imports and rich/compact forward output in separate latency and memory
 passes, then uploads `python-benchmarks`. The portable Swift package lane runs
 `OtherlightBenchmark` and uploads `apple-benchmarks` text output for the

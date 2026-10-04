@@ -19,7 +19,6 @@ function isAuthoredExecutable(path) {
   const extension = extname(path);
   if (!executableExtensions.has(extension)) return false;
   if (path.startsWith("apps/browser/src/")) return extension === ".css" || extension === ".ts";
-  if (path.startsWith("apps/browser/tests/")) return extension === ".ts";
   return (
     path.startsWith("scripts/") || path.startsWith("services/science/") || path.startsWith("apps/apple/")
   );
@@ -83,7 +82,7 @@ function hasModuleDocumentation(path) {
     .replace(/^\/[/*]+\s*/, "")
     .replace(/\s*\*\/$/, "")
     .trim();
-  return !/^(?:(?:apps\/browser\/(?:src|tests)|apps\/apple|scripts|services\/science)\/\S+|[\w.-]+\.(?:css|html|js|mjs|ts))$/.test(
+  return !/^(?:(?:apps\/browser\/src|apps\/apple|scripts|services\/science)\/\S+|[\w.-]+\.(?:css|html|js|mjs|ts))$/.test(
     commentText,
   );
 }

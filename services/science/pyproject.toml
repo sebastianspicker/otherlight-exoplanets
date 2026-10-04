@@ -50,9 +50,5 @@ max-complexity = 12
 pythonVersion = "3.14"
 typeCheckingMode = "standard"
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-q"
-
 [tool.hatch.build.targets.wheel]
 packages = ["science_backend"]

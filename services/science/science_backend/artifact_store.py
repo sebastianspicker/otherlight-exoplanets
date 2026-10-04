@@ -39,6 +39,17 @@ def _can_open_safely(filename: str) -> bool:
     )
 
 
+def _contained_artifact_path(base_real: str, filename: str) -> str | None:
+    """Return the resolved path only when it is a direct, non-symlink child of the root."""
+
+    path = os.path.realpath(os.path.join(base_real, filename))
+    if not path.startswith(base_real.rstrip(os.sep) + os.sep):
+        return None
+    if os.path.dirname(path) != base_real or os.path.basename(path) != filename:
+        return None
+    return path
+
+
 def open_verified_artifact(
     root: Path,
     filename: str,
@@ -50,15 +61,19 @@ def open_verified_artifact(
 
     if not _can_open_safely(filename):
         return None
+    base_real = os.path.realpath(root)
+    artifact_path = _contained_artifact_path(base_real, filename)
+    if artifact_path is None:
+        return None
     directory_fd: int | None = None
     artifact_fd: int | None = None
     try:
         directory_fd = os.open(
-            root,
+            base_real,
             os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW,
         )
         artifact_fd = os.open(
-            filename,
+            os.path.basename(artifact_path),
             os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
             dir_fd=directory_fd,
         )

@@ -17,4 +17,3 @@ pnpm-lock.yaml
 .npmrc
 *.sarif
 *.sarif.zip
-apps/browser/tests/**/__snapshots__/
