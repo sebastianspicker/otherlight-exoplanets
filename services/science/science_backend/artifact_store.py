@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import stat
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 MAX_ARTIFACT_RESPONSE_BYTES = 64 * 1024 * 1024
+_ARTIFACT_FILENAME = re.compile(r"[0-9a-f]{64}\.arrow")
 
 
 @dataclass(slots=True)
@@ -28,6 +30,15 @@ class VerifiedArtifact:
             self.file.close()
 
 
+def _can_open_safely(filename: str) -> bool:
+    """Accept only content-addressed names on platforms with no-follow directory opens."""
+
+    required_flags = ("O_CLOEXEC", "O_DIRECTORY", "O_NOFOLLOW")
+    return _ARTIFACT_FILENAME.fullmatch(filename) is not None and all(
+        hasattr(os, flag) for flag in required_flags
+    )
+
+
 def open_verified_artifact(
     root: Path,
     filename: str,
@@ -37,8 +48,7 @@ def open_verified_artifact(
 ) -> VerifiedArtifact | None:
     """Open relative to a trusted directory and verify the same descriptor that is served."""
 
-    required_flags = ("O_CLOEXEC", "O_DIRECTORY", "O_NOFOLLOW")
-    if any(not hasattr(os, flag) for flag in required_flags):
+    if not _can_open_safely(filename):
         return None
     directory_fd: int | None = None
     artifact_fd: int | None = None
