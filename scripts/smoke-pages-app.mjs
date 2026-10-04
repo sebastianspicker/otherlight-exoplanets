@@ -83,7 +83,9 @@ function assertPagesPath(pathname, label) {
 
 function assertNoOriginRootAssetReference(source, label) {
   const originRootReference =
-    /(?:src|href)\s*[:=]\s*["']\/(?!otherlight\/)|url\(\s*["']?\/(?!otherlight\/)/i.exec(source);
+    /(?:src|href)\s*[:=]\s*["']\/(?!otherlight-exoplanets\/)|url\(\s*["']?\/(?!otherlight-exoplanets\/)/i.exec(
+      source,
+    );
   assert.equal(
     originRootReference,
     null,
