@@ -12,12 +12,12 @@ dependencies = []
 
 [project.optional-dependencies]
 integrator = ["scipy==1.18.0"]
-service = ["fastapi==0.139.0", "uvicorn==0.51.0"]
+service = ["fastapi==0.139.0", "uvicorn==0.54.0"]
 artifacts = ["pyarrow==25.0.0"]
 dev = [
   "scipy==1.18.0",
   "fastapi==0.139.0",
-  "uvicorn==0.51.0",
+  "uvicorn==0.54.0",
   "pyarrow==25.0.0",
   "build==1.4.0",
 ]
