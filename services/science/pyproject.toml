@@ -16,7 +16,7 @@ service = ["fastapi==0.139.0", "uvicorn==0.51.0"]
 artifacts = ["pyarrow==25.0.0"]
 test = [
   "pytest==9.1.1",
-  "httpx2==2.7.0",
+  "httpx2==2.12.0",
   "ruff==0.15.20",
   "pyright==1.1.411",
   "lizard==1.24.0",
@@ -27,7 +27,7 @@ dev = [
   "uvicorn==0.51.0",
   "pyarrow==25.0.0",
   "pytest==9.1.1",
-  "httpx2==2.7.0",
+  "httpx2==2.12.0",
   "ruff==0.15.20",
   "pyright==1.1.411",
   "lizard==1.24.0",
