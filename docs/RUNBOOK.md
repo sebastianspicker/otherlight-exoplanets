@@ -27,15 +27,15 @@ rebuilds, starts a preview on `127.0.0.1:4173`, and probes the served applicatio
 
 ## GitHub Pages mode
 
-The Pages artifact holds the Browser application beneath `/otherlight/` and the
-static screenshot tour beneath `/otherlight/demo/`:
+The Pages artifact holds the Browser application beneath `/otherlight-exoplanets/` and the
+static screenshot tour beneath `/otherlight-exoplanets/demo/`:
 
 ```bash
 pnpm build:pages:site
 pnpm preview:pages
 ```
 
-Open the preview at `/otherlight/`, not the origin root. The Pages build removes
+Open the preview at `/otherlight-exoplanets/`, not the origin root. The Pages build removes
 loopback science origins from its Content Security Policy. Its Scientific view
 shows a deterministic projection of
 `contracts/science-v5/contract-cases.json#validForwardResult`, labelled as a

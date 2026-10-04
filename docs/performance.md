@@ -38,7 +38,7 @@ equality independently of those Education measurements.
 ## Browser responsiveness and worker lifecycle
 
 Serve each of `pnpm build` and `pnpm build:pages` with its matching preview
-command; Pages uses `/otherlight/`. Then, in a real browser:
+command; Pages uses `/otherlight-exoplanets/`. Then, in a real browser:
 
 1. Confirm the shell, canvas, text evidence, and primary controls render. Check
    the console and network panel for CSP violations or failed worker assets.

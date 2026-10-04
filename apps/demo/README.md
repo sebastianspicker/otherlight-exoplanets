@@ -6,8 +6,8 @@ the Browser simulation, create workspaces, call the science service, or prove
 runtime behavior. Every control pictured in the captures is a painted pixel.
 
 The Pages workflow publishes this tour at
-<https://sebastianspicker.github.io/otherlight/demo/>, alongside the live app at
-<https://sebastianspicker.github.io/otherlight/>. Captures come from the same
+<https://sebastianspicker.github.io/otherlight-exoplanets/demo/>, alongside the live app at
+<https://sebastianspicker.github.io/otherlight-exoplanets/>. Captures come from the same
 Pages build the workflow ships, so the tour matches what visitors see.
 
 ## Local review

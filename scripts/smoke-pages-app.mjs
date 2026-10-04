@@ -6,7 +6,7 @@ import process from "node:process";
 
 const host = process.env.SMOKE_PAGES_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.SMOKE_PAGES_PORT ?? "4174", 10);
-const basePath = "/otherlight/";
+const basePath = "/otherlight-exoplanets/";
 const origin = `http://${host}:${port}`;
 const pagesUrl = `${origin}${basePath}`;
 const previewStopTimeoutMs = 5_000;

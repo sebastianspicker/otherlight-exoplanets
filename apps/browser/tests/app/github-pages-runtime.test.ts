@@ -71,8 +71,8 @@ function scienceWorkspaceArgs() {
 describe("GitHub Pages runtime presentation", () => {
   it("uses the runtime base URL for assets and an inline orbit brand mark", () => {
     expect(runtimeAssetUrl("favicon.svg", "/")).toBe("/favicon.svg");
-    expect(runtimeAssetUrl("/brand/otherlight-signal-eclipse.svg", "/otherlight/")).toBe(
-      "/otherlight/brand/otherlight-signal-eclipse.svg",
+    expect(runtimeAssetUrl("/brand/otherlight-signal-eclipse.svg", "/otherlight-exoplanets/")).toBe(
+      "/otherlight-exoplanets/brand/otherlight-signal-eclipse.svg",
     );
     expect(isGitHubPagesMode("github-pages")).toBe(true);
     expect(isGitHubPagesMode("production")).toBe(false);
@@ -81,14 +81,14 @@ describe("GitHub Pages runtime presentation", () => {
     expect(localDocument).toContain('href="/favicon.svg"');
     expect(localDocument).toContain('<svg class="brand-mark"');
 
-    const pagesDocument = createAppDocumentHtml("/otherlight/");
-    expect(pagesDocument).toContain('href="/otherlight/favicon.svg"');
+    const pagesDocument = createAppDocumentHtml("/otherlight-exoplanets/");
+    expect(pagesDocument).toContain('href="/otherlight-exoplanets/favicon.svg"');
     expect(pagesDocument).toContain('<svg class="brand-mark"');
     expect(renderScientificWorkspace()).toContain(
-      'href="https://github.com/sebastianspicker/otherlight/blob/main/docs/physics/model-status.md"',
+      'href="https://github.com/sebastianspicker/otherlight-exoplanets/blob/main/docs/physics/model-status.md"',
     );
     expect(renderSidebarTemplate()).toContain(
-      'href="https://github.com/sebastianspicker/otherlight/blob/main/docs/physics/model-status.md"',
+      'href="https://github.com/sebastianspicker/otherlight-exoplanets/blob/main/docs/physics/model-status.md"',
     );
   });
 

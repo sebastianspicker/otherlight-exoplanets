@@ -10,7 +10,7 @@ credentials, and personal data out of public issues.
 If private reporting is unavailable, open a minimal issue asking for a private
 contact channel without describing the problem itself. Ordinary, non-sensitive
 bugs belong in the
-[public issue tracker](https://github.com/sebastianspicker/otherlight/issues).
+[public issue tracker](https://github.com/sebastianspicker/otherlight-exoplanets/issues).
 
 ## What is in scope
 

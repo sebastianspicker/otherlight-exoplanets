@@ -5,7 +5,7 @@ import { defineConfig, type ConfigEnv, type HtmlTagDescriptor, type UserConfig }
 
 type AppCspMode = "serve" | "build" | "github-pages";
 
-export const GITHUB_PAGES_BASE = "/otherlight/";
+export const GITHUB_PAGES_BASE = "/otherlight-exoplanets/";
 
 const SCIENCE_LOOPBACK_SOURCES = "http://127.0.0.1:8765 http://localhost:8765";
 

@@ -50,9 +50,9 @@ also runs.
 install, `pnpm ci:verify`, `pnpm build:pages:site`, and `pnpm smoke:pages`. Only
 the deployment job receives `pages:write` and `id-token:write`.
 
-The uploaded artifact is `dist/` with base `/otherlight/`. It contains the Browser
-and the display-only V5 contract fixture replay at `/otherlight/`, plus the static
-screenshot tour at `/otherlight/demo/`. It contains no Python runtime and cannot
+The uploaded artifact is `dist/` with base `/otherlight-exoplanets/`. It contains the Browser
+and the display-only V5 contract fixture replay at `/otherlight-exoplanets/`, plus the static
+screenshot tour at `/otherlight-exoplanets/demo/`. It contains no Python runtime and cannot
 execute scientific jobs. The smoke check verifies the app, its worker asset, and
 the tour captures before upload.
 

@@ -5,12 +5,12 @@
 Change a planet's radius, watch the light curve answer back, then step up to a
 strictly validated radial-velocity model when you want numbers you can inspect.
 
-[Live app](https://sebastianspicker.github.io/otherlight/) ·
-[Screenshot tour](https://sebastianspicker.github.io/otherlight/demo/) ·
+[Live app](https://sebastianspicker.github.io/otherlight-exoplanets/) ·
+[Screenshot tour](https://sebastianspicker.github.io/otherlight-exoplanets/demo/) ·
 [Documentation](docs/README.md) ·
 [Contributing](CONTRIBUTING.md)
 
-[![CI](https://github.com/sebastianspicker/otherlight/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastianspicker/otherlight/actions/workflows/ci.yml)
+[![CI](https://github.com/sebastianspicker/otherlight-exoplanets/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastianspicker/otherlight-exoplanets/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](RELEASE_STATUS.md)
 
@@ -63,10 +63,10 @@ your own machine.
 
 ## Try it
 
-**Hosted builds.** The [live app](https://sebastianspicker.github.io/otherlight/)
+**Hosted builds.** The [live app](https://sebastianspicker.github.io/otherlight-exoplanets/)
 runs the Education simulation in your browser and shows the Scientific profile as
 a labelled fixture replay — it never contacts a service. The
-[screenshot tour](https://sebastianspicker.github.io/otherlight/demo/) is the
+[screenshot tour](https://sebastianspicker.github.io/otherlight-exoplanets/demo/) is the
 same three frames above, as a standalone page.
 
 **Run it locally.** Requires Node 22.13 or later and pnpm 11.4. From the

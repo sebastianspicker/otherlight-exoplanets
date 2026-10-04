@@ -21,7 +21,7 @@ flowchart LR
   Contracts -. validate .-> Apple
   Contracts -. validate .-> Science
   Pages["GitHub Pages build"] --> Browser
-  Pages --> Tour["Static screenshot tour<br/>/otherlight/demo/"]
+  Pages --> Tour["Static screenshot tour<br/>/otherlight-exoplanets/demo/"]
   Pages -. "display-only checked-in fixture" .-> Contracts
 ```
 
@@ -35,20 +35,20 @@ job off the main actor, and exposes separate, explicit Arrow and manifest
 exports.
 
 `apps/demo/` is a separate static screenshot tour that does not execute the
-simulation. The Pages workflow publishes it at `/otherlight/demo/`, beside the
-live app at `/otherlight/`.
+simulation. The Pages workflow publishes it at `/otherlight-exoplanets/demo/`, beside the
+live app at `/otherlight-exoplanets/`.
 
 ## Components and ownership
 
-| Component                                | Responsibility                                                                                                   | Build or runtime boundary                             |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `apps/browser/`                          | Scenario authoring, Education runtime, Guided Labs, visualization, workspace handling, and Scientific-profile UI | One Vite bundle in `dist/`                            |
-| `apps/apple/`                            | Shared SwiftUI Education sources, mobile app, and macOS native V5 host                                           | Isolated mobile and macOS Xcode project graphs        |
-| `apps/apple/Packages/OtherlightCore/`    | Portable models, Education, visualization, strict V5 contracts and authoring, and benchmark                      | Independent SwiftPM package                           |
-| `apps/apple/Packages/OtherlightScience/` | Experimental macOS DOP853 execution and Arrow IPC writing                                                        | Independent SwiftPM package; Mac target only          |
-| `services/science/`                      | Strict V5 jobs plus bounded V6 process-memory dataset imports                                                    | Installable Python package and loopback process       |
-| `contracts/`                             | Schemas, shared fixtures, and platform capability evidence                                                       | Serialized compatibility boundary                     |
-| `apps/demo/`                             | Non-executing static screenshot tour                                                                             | Copied into the Pages artifact at `/otherlight/demo/` |
+| Component                                | Responsibility                                                                                                   | Build or runtime boundary                                        |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `apps/browser/`                          | Scenario authoring, Education runtime, Guided Labs, visualization, workspace handling, and Scientific-profile UI | One Vite bundle in `dist/`                                       |
+| `apps/apple/`                            | Shared SwiftUI Education sources, mobile app, and macOS native V5 host                                           | Isolated mobile and macOS Xcode project graphs                   |
+| `apps/apple/Packages/OtherlightCore/`    | Portable models, Education, visualization, strict V5 contracts and authoring, and benchmark                      | Independent SwiftPM package                                      |
+| `apps/apple/Packages/OtherlightScience/` | Experimental macOS DOP853 execution and Arrow IPC writing                                                        | Independent SwiftPM package; Mac target only                     |
+| `services/science/`                      | Strict V5 jobs plus bounded V6 process-memory dataset imports                                                    | Installable Python package and loopback process                  |
+| `contracts/`                             | Schemas, shared fixtures, and platform capability evidence                                                       | Serialized compatibility boundary                                |
+| `apps/demo/`                             | Non-executing static screenshot tour                                                                             | Copied into the Pages artifact at `/otherlight-exoplanets/demo/` |
 
 ## Browser modular monolith
 
@@ -255,10 +255,10 @@ normal Browser, Apple, and service operation never fetches that catalog.
 
 - `pnpm build` creates the ordinary Browser bundle in `dist/` with the
   loopback-only science allowance.
-- `pnpm build:pages` creates the `/otherlight/` Pages variant with V5 requests
+- `pnpm build:pages` creates the `/otherlight-exoplanets/` Pages variant with V5 requests
   disabled. The Pages workflow is the only automated publication path.
 - `pnpm build:pages:site` builds that variant and copies the static tour to
-  `dist/demo/`, which the workflow publishes as `/otherlight/demo/`.
+  `dist/demo/`, which the workflow publishes as `/otherlight-exoplanets/demo/`.
 - `pnpm build:demo` builds the tour on its own into `pages-dist/` for local review.
 - The Python package can be built as a wheel, but no remote service deployment is
   defined.
