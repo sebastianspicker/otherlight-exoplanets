@@ -12,11 +12,13 @@
 // This module provides *validation warnings* only; it does not enforce constraints.
 
 import type { OrbitElements, BrowserScenarioDraft } from "../model/types";
+import { perifocalToInertial } from "./frames";
 import {
   hillRadius,
   maxStableProgradeMoonAxisDomingos,
   maxStableRetrogradeMoonAxisDomingos,
 } from "./hillRadius";
+import { vDot, type Vec3 } from "./vec3";
 
 /** Validation warning severity. */
 type PhysicsValidationSeverity = "info" | "warn";
@@ -198,6 +200,20 @@ function resolveHillMasses(p: BrowserScenarioDraft, inputs: HillRawInputs): Hill
   return { kind: "inputs", inputs: { ...inputs, mStar: p.star.m, mPlanet: p.planet.m } };
 }
 
+// Unit angular-momentum axis of an element set: Rz(Omega) Rx(inc) Rz(omega) applied to +z.
+function orbitNormal(orbit: OrbitElements): Vec3 {
+  return perifocalToInertial({ x: 0, y: 0, z: 1 }, orbit.Omega, orbit.inc, orbit.omega);
+}
+
+/**
+ * Resolves the moon's orbital sense for the Domingos fit. An authored `sense` wins; otherwise
+ * the moon orbit is retrograde when its orbit normal points against the planet's orbit normal.
+ */
+function resolveMoonSense(inputs: HillMassInputs): "prograde" | "retrograde" {
+  if (inputs.moon.sense) return inputs.moon.sense;
+  return vDot(orbitNormal(inputs.moonOrbit), orbitNormal(inputs.planetOrbit)) < 0 ? "retrograde" : "prograde";
+}
+
 function buildHillStabilityContext(
   inputs: HillMassInputs,
 ): { kind: "done"; warnings: PhysicsValidationMessage[] } | { kind: "inputs"; inputs: HillStabilityContext } {
@@ -216,7 +232,7 @@ function buildHillStabilityContext(
     };
   }
 
-  const retro = inputs.moon.sense === "retrograde";
+  const retro = resolveMoonSense(inputs) === "retrograde";
   // Domingos, Winter & Yokoyama (2006) define the fit in units of the
   // semimajor-axis Hill radius and include e_p in the empirical factor. Using
   // the periapsis radius here would apply (1 - e_p) a second time.

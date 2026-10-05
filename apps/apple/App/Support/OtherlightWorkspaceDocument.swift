@@ -184,9 +184,9 @@ extension GuidedLabWorkspace {
     else { return false }
     guard learning.lastScore.map({ $0.isFinite && $0 >= 0 }) ?? true else { return false }
     return responses.allSatisfy { entry in
-      !entry.key.isEmpty && entry.key.count <= 512
-        && (entry.value.primary?.count ?? 0) <= 20_000
-        && (entry.value.secondary?.count ?? 0) <= 20_000
+      !entry.key.isEmpty && entry.key.unicodeScalars.count <= 512
+        && (entry.value.primary?.unicodeScalars.count ?? 0) <= 20_000
+        && (entry.value.secondary?.unicodeScalars.count ?? 0) <= 20_000
     }
   }
 }

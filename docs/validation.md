@@ -10,7 +10,10 @@ interactive Education model, then creates a canonical `EducationScenarioV4`.
 Domain checks and warnings belong under `apps/browser/src/domain/`, and the
 authoring conversion is in
 `apps/browser/src/application/browserScenarioAdapter.ts`. Education output stays
-a teaching preview within the model registry's stated limits.
+a teaching preview within the model registry's stated limits. The locally kept (unpublished) science tests pin
+its barycentric and stellar-reflex kinematics, transit-timing references,
+secondary-eclipse, spot, and ring photometry, and conjunction-phased variability;
+these are self-consistency checks, not independent validation evidence.
 
 Presentation tests cover browsing sources without committing a model change,
 reselection of teaching defaults after a catalog model, restored source
@@ -28,7 +31,8 @@ of an arbitrary Education result, and no Education result substitutes for a
 missing scientific capability.
 
 The Python service independently validates request bounds, barycentric state,
-execution limits, result publication, and provenance. See the
+execution limits, result publication, and provenance. Finite-radius contact is
+judged only on the accepted DOP853 trajectory, not on integrator trial stages. See the
 [V5 scientific contract](physics/v5-scientific-contract.md).
 
 ## Additive science V6 datasets

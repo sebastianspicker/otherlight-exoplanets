@@ -104,7 +104,7 @@ function finiteNonNegativeOrDefault(value: number | undefined, fallback: number)
 
 function initialEccentricAnomaly(Mw: number, e: number): number {
   if (e < 0.8) return wrapToPi(Mw + e * Math.sin(Mw) * (1 + e * Math.cos(Mw)));
-  return wrapToPi(Math.abs(Mw) < 1e-12 ? 0 : Math.sign(Mw) * Math.PI);
+  return Math.abs(Mw) < 1e-12 ? 0 : Math.sign(Mw) * Math.PI;
 }
 
 function resolveKeplerDiagnostics(diag: KeplerSolveDiagnostics | undefined): ResolvedKeplerDiagnostics {
@@ -193,7 +193,8 @@ function runKeplerNewtonIterations(
     const fp = regularizedDerivative(1 - e * Math.cos(E), f);
     const step = limitedNewtonStep(f, fp);
     if (step.limited) stepLimitedCount++;
-    E = wrapToPi(E + step.dE);
+    // Mw is wrapped to (-pi, pi] and E shares its sign with |E| <= pi, so clamp instead of wrapping.
+    E = Math.min(Math.PI, Math.max(-Math.PI, E + step.dE));
     lastAbsDE = Math.abs(step.dE);
     if (lastAbsDE <= tol)
       return { E, converged: true, iterationsUsed: k + 1, stepLimitedCount, lastAbsF, lastAbsDE };

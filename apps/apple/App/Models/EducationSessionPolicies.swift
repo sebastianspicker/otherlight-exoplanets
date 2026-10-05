@@ -219,7 +219,7 @@ enum EducationWorkspacePayloadPolicy {
         source: BundledRealSystems.labels.contains(where: { $0.0 == selectedScenarioID })
           ? .real : .preset,
         scenario: selectedScenarioID,
-        lab: scenario.mode == .detachedBinaryLab ? "binary-eclipse" : "transit-exomoon",
+        lab: scenario.mode == .detachedBinaryLab ? "binary-stars" : "transit-exomoon",
         lesson: selectedLessonID,
         runtime: runtimeMode == .reference ? .reference : .interactive),
       education: .init(

@@ -13,7 +13,7 @@ from .api_v2_datasets import (
     MAX_NORMALIZED_BYTES,
     V6DatasetRegistry,
 )
-from .errors import ContractError, DatasetCapacityError
+from .errors import ContractError, DatasetTooLargeError
 
 V2_SCHEMA_VERSION = "science-v6"
 _DATASET_ID_LENGTH = len("ds-") + 64
@@ -35,21 +35,33 @@ def _dataset_identifier(value: str) -> bool:
 
 async def _read_dataset_body(request: Any) -> bytes:
     raw_headers = request.scope.get("headers", ())
-    declared = _validate_content_headers(raw_headers)
+    return await read_bounded_body(request, _validate_content_headers(raw_headers))
+
+
+async def read_bounded_body(
+    request: Any, declared: int | None, subject: str = "dataset"
+) -> bytes:
     body = bytearray()
     async for chunk in request.stream():
         body.extend(chunk)
         if len(body) > MAX_DATASET_BYTES:
-            raise DatasetCapacityError(
-                f"dataset upload exceeds the {MAX_DATASET_BYTES}-byte limit"
+            raise DatasetTooLargeError(
+                f"{subject} upload exceeds the {MAX_DATASET_BYTES}-byte limit"
             )
     if declared is not None and len(body) != declared:
-        raise ContractError("dataset body size does not match Content-Length")
+        raise ContractError(f"{subject} body size does not match Content-Length")
     return bytes(body)
 
 
 def _header_values(raw_headers: Any, expected: bytes) -> list[bytes]:
     return [value for name, value in raw_headers if name.lower() == expected]
+
+
+def declared_content_length(raw_headers: Any, subject: str = "dataset") -> int | None:
+    content_lengths = _header_values(raw_headers, b"content-length")
+    if len(content_lengths) > 1:
+        raise ContractError("request must contain at most one Content-Length")
+    return _declared_length(content_lengths, subject)
 
 
 def _validate_content_headers(raw_headers: Any) -> int | None:
@@ -82,20 +94,22 @@ def _validate_content_headers(raw_headers: Any) -> int | None:
     return declared
 
 
-def _declared_length(content_lengths: list[bytes]) -> int | None:
+def _declared_length(
+    content_lengths: list[bytes], subject: str = "dataset"
+) -> int | None:
     if not content_lengths:
         return None
     try:
         declared = int(content_lengths[0].decode("ascii"))
     except (UnicodeDecodeError, ValueError) as error:
         raise ContractError(
-            "dataset Content-Length must be a non-negative integer"
+            f"{subject} Content-Length must be a non-negative integer"
         ) from error
     if declared < 0:
-        raise ContractError("dataset Content-Length must be a non-negative integer")
+        raise ContractError(f"{subject} Content-Length must be a non-negative integer")
     if declared > MAX_DATASET_BYTES:
-        raise DatasetCapacityError(
-            f"dataset upload exceeds the {MAX_DATASET_BYTES}-byte limit"
+        raise DatasetTooLargeError(
+            f"{subject} upload exceeds the {MAX_DATASET_BYTES}-byte limit"
         )
     return declared
 

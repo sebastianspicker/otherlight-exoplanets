@@ -17,10 +17,28 @@ import {
   resetTransitHistoryState,
   type TransitHistoryState,
 } from "../../application/runtime/transitHistory";
+import type { BrowserScenarioDraft } from "../../domain/model/types";
+import { resolveOrbitElements } from "../../domain/simulation/orbits";
 
 type BootstrapOcPanelState = {
   transitHistory: TransitHistoryState;
+  params?: BrowserScenarioDraft;
 };
+
+/**
+ * Planet orbital period of the active scenario. It defines the O-C epoch numbers for both
+ * series: a moon crosses the star once per planet orbit, together with its planet.
+ */
+function ocEpochPeriodSec(params: BrowserScenarioDraft | undefined): number | undefined {
+  if (!params) return undefined;
+  try {
+    const { period } = resolveOrbitElements(params.planet.orbit, 0, "planet.orbit");
+    return Number.isFinite(period) && period > 0 ? period : undefined;
+  } catch {
+    // Without a resolvable period the plot falls back to recorded-event ordinals.
+    return undefined;
+  }
+}
 
 type BootstrapOcPanelDeps = {
   refs: UiRefs;
@@ -60,22 +78,17 @@ export function createBootstrapOcPanelController(deps: BootstrapOcPanelDeps): {
     moon: { ...history.moon, events: history.moon.events.map((event) => ({ ...event })) },
   });
 
+  const ocOptions = () => ({
+    unit: ocUnit,
+    trendMode: ocTrendMode,
+    periodSec: ocEpochPeriodSec(state.params),
+  });
+
   const renderOcPanel = (): void => {
-    renderOcHistoryCanvas(ocCanvas, state.transitHistory, ocBody, {
-      unit: ocUnit,
-      trendMode: ocTrendMode,
-    });
-    if (ocStatsVal) {
-      ocStatsVal.textContent = formatOcPanelStats(state.transitHistory, ocBody, {
-        unit: ocUnit,
-        trendMode: ocTrendMode,
-      });
-    }
-    if (ocFitVal) {
-      ocFitVal.textContent = formatOcFitSummary(state.transitHistory, ocBody, {
-        unit: ocUnit,
-      });
-    }
+    const options = ocOptions();
+    renderOcHistoryCanvas(ocCanvas, state.transitHistory, ocBody, options);
+    if (ocStatsVal) ocStatsVal.textContent = formatOcPanelStats(state.transitHistory, ocBody, options);
+    if (ocFitVal) ocFitVal.textContent = formatOcFitSummary(state.transitHistory, ocBody, options);
   };
 
   const wireOcControls = (): void => {
@@ -126,14 +139,11 @@ export function createBootstrapOcPanelController(deps: BootstrapOcPanelDeps): {
     ocExportBtn?.addEventListener(
       "click",
       () => {
-        runWithErrorHandling(
-          () => exportOcCsv(state.transitHistory, ocBody, { unit: ocUnit, trendMode: ocTrendMode }),
-          {
-            statusEl: warnEl ?? null,
-            getSuccessMessage,
-            errorPrefix: "Export failed: ",
-          },
-        );
+        runWithErrorHandling(() => exportOcCsv(state.transitHistory, ocBody, ocOptions()), {
+          statusEl: warnEl ?? null,
+          getSuccessMessage,
+          errorPrefix: "Export failed: ",
+        });
       },
       listenerOptions,
     );

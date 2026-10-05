@@ -34,7 +34,9 @@ export function renderExomoonTimingFieldset(): string {
         <legend>Exomoon timing/shape (Dynamics)</legend>
         <label class="inline" for="exoEnabled">Enabled <input id="exoEnabled" type="checkbox" checked /></label>
         <div class="grid">
-          <label for="exoTRef">tRef (s) <input id="exoTRef" type="number" step="0.1" value="0" /></label>
+          <label for="exoTRef"
+            >tRef (s, blank = transit epoch) <input id="exoTRef" type="number" step="0.1"
+          /></label>
           <label for="exoVelDt"
             >velDt (s) <input id="exoVelDt" type="number" min="0.000001" step="0.1" value="2"
           /></label>

@@ -83,7 +83,8 @@ export function renderComparisonControls(): string {
           <summary>Compare scenarios</summary>
           <p class="help help--compact">
             Compare the current parameter set (A) against a preset (B) at a given time to isolate which
-            parameter changes drive the observed flux difference.
+            parameter changes drive the observed flux difference. Leave t empty to compare at the
+            mid-transit (or mid-eclipse) of A.
           </p>
           <div class="lab-compare__row">
             <label class="inline">
@@ -92,7 +93,7 @@ export function renderComparisonControls(): string {
             </label>
             <label class="inline" for="didCompareTime">
               t [s]
-              <input id="didCompareTime" type="number" step="1" value="0" />
+              <input id="didCompareTime" type="number" step="1" value="" placeholder="mid-transit" />
             </label>
             <button id="didCompareBtn" type="button">Compare scenarios</button>
           </div>

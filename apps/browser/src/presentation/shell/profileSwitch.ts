@@ -7,7 +7,7 @@ import {
   syncProductProfileVisibility,
 } from "./productProfile";
 import type { BrowserScenarioDraft } from "../../domain/model/types";
-import { wireScienceWorkspace } from "../science/scienceWorkspace";
+import { wireScienceWorkspace, type ScienceWorkspaceController } from "../science/scienceWorkspace";
 import { isGitHubPagesRuntime } from "../../application/deployment";
 
 type BootstrapProfileArgs = {
@@ -23,6 +23,8 @@ type BootstrapProfileArgs = {
 
 export type BootstrapProfileController = {
   syncFromControl: (announce?: boolean) => void;
+  restoreScientificRequest: ScienceWorkspaceController["restoreRequest"];
+  currentScientificRequest: ScienceWorkspaceController["currentRequest"];
 };
 
 export function wireBootstrapProfile(args: BootstrapProfileArgs): BootstrapProfileController {
@@ -78,5 +80,9 @@ export function wireBootstrapProfile(args: BootstrapProfileArgs): BootstrapProfi
   });
 
   syncFromControl();
-  return { syncFromControl };
+  return {
+    syncFromControl,
+    restoreScientificRequest: scienceWorkspace.restoreRequest,
+    currentScientificRequest: scienceWorkspace.currentRequest,
+  };
 }

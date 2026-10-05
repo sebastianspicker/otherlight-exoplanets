@@ -137,10 +137,10 @@ export function resolveAndValidateLimbDarkening(params: {
 /**
  * Resolve limb darkening for a specific star-like body.
  *
- * Resolution order:
+ * Resolution order (an explicitly supplied law always wins over the Teff/logg/[Fe/H] fit):
  * 1) explicit per-band table entry for the star's passband (or model passband)
- * 2) derived quadratic law from merged stellar parameters, preferring star-specific values
- * 3) explicit model.default law
+ * 2) explicit model.default law
+ * 3) derived quadratic law from merged stellar parameters, preferring star-specific values
  * 4) model.stellar-derived fallback
  */
 export function resolveAndValidateLimbDarkeningForStar(params: {
@@ -153,6 +153,9 @@ export function resolveAndValidateLimbDarkeningForStar(params: {
   const byExplicitBand = findBandLaw(model.bands, bandpass);
   if (byExplicitBand) return validateResolvedLaw(byExplicitBand, model.constraints);
 
+  const def = model.default;
+  if (isLawObject(def)) return validateResolvedLaw(def, model.constraints);
+
   const mergedStellar: StellarLdParams = {
     ...model.stellar,
     ...star,
@@ -162,9 +165,6 @@ export function resolveAndValidateLimbDarkeningForStar(params: {
     const derived = deriveQuadraticLimbDarkeningFromStellarParams(mergedStellar);
     return validateResolvedLaw(derived, model.constraints);
   }
-
-  const def = model.default;
-  if (isLawObject(def)) return validateResolvedLaw(def, model.constraints);
 
   const derived = deriveFromStellarParams(model.stellar, bandpass);
   return derived ? validateResolvedLaw(derived, model.constraints) : undefined;

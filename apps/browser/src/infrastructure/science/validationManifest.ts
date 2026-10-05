@@ -21,6 +21,9 @@ import {
   type UnknownRecord,
 } from "./validationPrimitives";
 
+/** CODATA-2018 G, fixed by the run-manifest schema. */
+const GRAVITATIONAL_CONSTANT_M3_KG_S2 = 6.6743e-11;
+
 export function assertCapabilityManifest(value: unknown): asserts value is CapabilityManifest {
   const capabilities = assertRecord(value, "capabilities");
   assertExactKeys(capabilities, "capabilities", [
@@ -155,10 +158,12 @@ function assertRunManifestV2Implementation(manifest: UnknownRecord): void {
 }
 
 function assertRunManifestTimingAndModels(manifest: UnknownRecord): void {
-  assertPositive(manifest.gravitationalConstantM3KgS2, "runManifest.gravitationalConstantM3KgS2");
+  if (manifest.gravitationalConstantM3KgS2 !== GRAVITATIONAL_CONSTANT_M3_KG_S2) {
+    fail("runManifest.gravitationalConstantM3KgS2", `exactly ${GRAVITATIONAL_CONSTANT_M3_KG_S2}`);
+  }
   assertPositive(manifest.epochJdTdb, "runManifest.epochJdTdb");
   assertTimestamp(manifest.startedAt, "runManifest.startedAt");
-  if (manifest.completedAt !== undefined) assertTimestamp(manifest.completedAt, "runManifest.completedAt");
+  assertTimestamp(manifest.completedAt, "runManifest.completedAt");
   assertString(manifest.capabilityManifestVersion, "runManifest.capabilityManifestVersion");
   const modelVersions = assertArray(manifest.modelVersions, "runManifest.modelVersions");
   if (modelVersions.length === 0) fail("runManifest.modelVersions", "a non-empty array");

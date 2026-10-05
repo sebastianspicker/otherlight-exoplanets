@@ -29,6 +29,12 @@ within each registry entry's validity domain and evidence level. Light curves,
 timing diagnostics, scattering, stellar variability, and relativity-era
 previews are never attached to a V5 result as though the service produced them.
 
+Education kinematics superpose authored Kepler orbits and, when masses are
+finite and positive, displace each planet about its planet-moon barycentre and
+the star by its reflex, so the preview star has non-zero RV and astrometric
+offset. Phase curves are gated by secondary eclipse and mutual events, and the
+signed thermal lag and offsets shift the phase-curve peak.
+
 The Apple app implements a narrower Education surface through
 `OtherlightCore`. Platform availability is tracked separately in the capability
 registry.
@@ -37,7 +43,8 @@ registry.
 
 The Browser compiles only supported, static Education V4 input into barycentric
 Cartesian SI state. The service then integrates a two- or three-body DOP853 path
-with explicit work limits and a fail-closed finite-radius contact certificate.
+with explicit work limits and a fail-closed finite-radius contact certificate
+that is judged only on the accepted trajectory, never on integrator trial stages.
 It does not model impacts, mergers, softening, tides, rotational multipoles,
 radiation forces, relativity, photometry, astrometry, inference, atmospheres, or
 time-scale conversion.

@@ -56,6 +56,8 @@ export type ScenarioFlowState = {
   didacticsRuntime: DidacticsRuntimeState;
   noise: NoiseState;
   binaryLabState: BinaryLabState;
+  /** Runtime settings restored from a workspace; cleared by any full scenario load that is not a restore. */
+  workspaceScenarioSettings?: object;
   comparisonCurveSeries?: LightCurveOverlaySeries[];
   comparisonInset?: LightCurveComparisonInset;
   comparisonGhosts?: SceneGhostGeometry[];
@@ -70,14 +72,27 @@ export type ScenarioFlowDeps = {
   resetSimTimeAndLC: (opts?: { resetNoise?: boolean }) => void;
 };
 
+type QueuedScenarioApply = {
+  run: () => Promise<void>;
+  waiters: Array<{ resolve: () => void; reject: (error: unknown) => void }>;
+};
+
 export type ScenarioApplyGuard = {
   applying: boolean;
-  pendingRun?: (() => Promise<void>) | null;
+  pendingApply?: QueuedScenarioApply | null;
 };
 
 export type ApplyScenarioParamsOptions = {
   syncUi?: boolean;
   resetNoise?: boolean;
+  /**
+   * Start a fresh binary-lab hypothesis/reveal state. Defaults to true for a full
+   * scenario load (UI sync and noise reset), which covers preset, real-system,
+   * and workspace loads; parameter applies and resets keep the learner's state.
+   */
+  resetBinaryLab?: boolean;
+  /** Keep restored workspace runtime settings (used by workspace restore, which sets them first). */
+  keepWorkspaceSettings?: boolean;
 };
 
 export function isBinaryHypothesis(value: string): value is BinaryLabHypothesis {
@@ -96,6 +111,7 @@ export function isBinaryModeActive(refs: UiRefs): boolean {
 
 type BinaryLabUiStatus = {
   active: boolean;
+  hypothesis: string;
   skyVisible: boolean;
   canEdit: boolean;
   canReveal: boolean;
@@ -141,6 +157,7 @@ function resolveBinaryLabUiStatus(refs: UiRefs, binaryLabState: BinaryLabState):
   const active = isBinaryModeActive(refs);
   return {
     active,
+    hypothesis: binaryLabState.hypothesis ?? "",
     skyVisible: !active || binaryLabState.skyVisible,
     canEdit: !active || canEditParams(binaryLabState),
     canReveal: active && canRevealSky(binaryLabState) && !binaryLabState.revealed,
@@ -149,6 +166,8 @@ function resolveBinaryLabUiStatus(refs: UiRefs, binaryLabState: BinaryLabState):
 
 const syncBinaryLabControls = (refs: UiRefs, status: BinaryLabUiStatus): void => {
   setOptionalHidden(refs.didBinaryControls, !status.active);
+  // Mirror the state so a stale hypothesis never stays selected after a reset.
+  if (refs.didHypothesisSelect) refs.didHypothesisSelect.value = status.hypothesis;
   setOptionalDisabled(refs.didHypothesisSelect, !status.active);
   setOptionalDisabled(refs.didRevealSkyBtn, !status.canReveal);
 };
@@ -185,32 +204,66 @@ function setScenarioApplyBusy(refs: UiRefs, busy: boolean, statusEl?: HTMLElemen
   if (busy && statusEl) statusEl.textContent = "Applying scenario...";
 }
 
-export async function withScenarioApplyGuard(
+type ScenarioApplyOutcome = { ok: true } | { ok: false; error: unknown };
+
+async function runScenarioApply(run: () => Promise<void>): Promise<ScenarioApplyOutcome> {
+  try {
+    await run();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function settleScenarioApply(request: QueuedScenarioApply, outcome: ScenarioApplyOutcome): void {
+  for (const waiter of request.waiters) {
+    if (outcome.ok) waiter.resolve();
+    else waiter.reject(outcome.error);
+  }
+}
+
+async function drainScenarioApplyQueue(
+  guard: ScenarioApplyGuard,
+  refs: UiRefs,
+  first: QueuedScenarioApply,
+): Promise<void> {
+  let request: QueuedScenarioApply | null = first;
+  while (request) {
+    guard.pendingApply = null;
+    const outcome = await runScenarioApply(request.run);
+    const next: QueuedScenarioApply | null = guard.pendingApply ?? null;
+    if (!next) {
+      guard.applying = false;
+      setScenarioApplyBusy(refs, false);
+    }
+    settleScenarioApply(request, outcome);
+    request = next;
+  }
+}
+
+export function withScenarioApplyGuard(
   guard: ScenarioApplyGuard,
   refs: UiRefs,
   statusEl: HTMLElement | null | undefined,
   run: () => Promise<void>,
 ): Promise<void> {
   // UI changes can arrive while a runtime rebuild is still preparing. Keep the
-  // current rebuild serialized and remember only the latest requested follow-up.
-  if (guard.applying) {
-    guard.pendingRun = run;
-    return;
-  }
-  guard.applying = true;
-  setScenarioApplyBusy(refs, true, statusEl ?? null);
-  let currentRun: (() => Promise<void>) | null = run;
-  try {
-    while (currentRun) {
-      guard.pendingRun = null;
-      await currentRun();
-      currentRun = guard.pendingRun ?? null;
+  // rebuilds serialized and run only the latest requested follow-up. Every
+  // caller settles with the outcome of the run that served its request: a
+  // superseded request shares the outcome of the run that replaced it, and a
+  // queued run still runs after the current run fails.
+  return new Promise<void>((resolve, reject) => {
+    const request: QueuedScenarioApply = { run, waiters: [{ resolve, reject }] };
+    if (guard.applying) {
+      const superseded = guard.pendingApply;
+      if (superseded) request.waiters.unshift(...superseded.waiters);
+      guard.pendingApply = request;
+      return;
     }
-  } finally {
-    guard.applying = false;
-    guard.pendingRun = null;
-    setScenarioApplyBusy(refs, false);
-  }
+    guard.applying = true;
+    setScenarioApplyBusy(refs, true, statusEl ?? null);
+    void drainScenarioApplyQueue(guard, refs, request);
+  });
 }
 
 async function applyPresetById(deps: ScenarioFlowDeps, id: string): Promise<void> {
@@ -275,6 +328,11 @@ async function applyBinaryLabScenario(deps: ScenarioFlowDeps): Promise<void> {
   }
 }
 
+function shouldResetBinaryLab(options: ApplyScenarioParamsOptions): boolean {
+  if (options.resetBinaryLab !== undefined) return options.resetBinaryLab;
+  return options.syncUi !== false && options.resetNoise !== false;
+}
+
 export async function applyScenarioParams(
   deps: ScenarioFlowDeps,
   nextParams: BrowserScenarioDraft,
@@ -285,6 +343,8 @@ export async function applyScenarioParams(
     params: state.params,
     didacticsRuntime: state.didacticsRuntime,
     noise: state.noise,
+    binaryLabState: state.binaryLabState,
+    workspaceScenarioSettings: state.workspaceScenarioSettings,
     comparisonCurveSeries: state.comparisonCurveSeries,
     comparisonInset: state.comparisonInset,
     comparisonGhosts: state.comparisonGhosts,
@@ -297,6 +357,11 @@ export async function applyScenarioParams(
   state.comparisonBadges = undefined;
   applyObserverModeContract(state.params, readUiMode(refs.uiModeSelect.value));
   state.didacticsRuntime = initDidacticsRuntime(state.params, deps.getTimeSec());
+  if (shouldResetBinaryLab(options)) {
+    state.binaryLabState = createBinaryLabState(DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab);
+    if (!options.keepWorkspaceSettings && state.workspaceScenarioSettings)
+      state.workspaceScenarioSettings = {};
+  }
   if (options.syncUi !== false) {
     loadParamsIntoUI(state.params, refs);
     syncAllEnableStates(refs);
@@ -316,6 +381,8 @@ export async function applyScenarioParams(
     state.params = previous.params;
     state.didacticsRuntime = previous.didacticsRuntime;
     state.noise = previous.noise;
+    state.binaryLabState = previous.binaryLabState;
+    state.workspaceScenarioSettings = previous.workspaceScenarioSettings;
     state.comparisonCurveSeries = previous.comparisonCurveSeries;
     state.comparisonInset = previous.comparisonInset;
     state.comparisonGhosts = previous.comparisonGhosts;

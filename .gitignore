@@ -175,6 +175,8 @@ Desktop.ini
 /apps/apple/Packages/OtherlightCore/Tests/
 /apps/apple/Packages/OtherlightScience/Tests/
 /apps/browser/tests/
+/apps/browser/vitest.config.ts
+/apps/browser/tsconfig.test.json
 /services/science/tests/
 
 # Local historical material and superseded gallery files

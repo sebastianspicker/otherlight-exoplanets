@@ -3,6 +3,7 @@
  */
 import type { BrowserScenarioDraft } from "../model/types";
 import { createSimulationV4, mapBrowserScenarioDraftToEducationScenarioV4 } from "../simulation/v4";
+import type { EducationScenarioV4 } from "../simulation/v4/types";
 import { displayFluxValueForConfig } from "../simulation/v4/binaryBaseline";
 import type { SimulationFrame } from "../simulation/frames";
 import { appendScalarDeltas, dynamicsNote, interpretationLine } from "./compareText";
@@ -66,18 +67,24 @@ export type DidacticComparison = {
   };
 };
 
+// The window is centred on the comparison time so the event being compared is always inside it.
 function deriveComparisonWindow(
   stepA: SimulationFrame,
   stepB: SimulationFrame,
+  tSec: number,
 ): { startSec: number; endSec: number } {
   const durationSec = Math.max(...durationCandidates(stepA, stepB), 1800);
-  const extentSec = Math.max(...extentCandidates(stepA, stepB));
+  const extentSec = Math.max(...extentCandidates(stepA, stepB).map((eventSec) => offsetFrom(eventSec, tSec)));
   const halfWindowSec = Math.max(3600, durationSec * 3, extentSec + durationSec);
-  return { startSec: -halfWindowSec, endSec: halfWindowSec };
+  return { startSec: tSec - halfWindowSec, endSec: tSec + halfWindowSec };
 }
 
 function absTimingValue(value: number | undefined): number {
   return Math.abs(value ?? 0);
+}
+
+function offsetFrom(eventSec: number | undefined, tSec: number): number {
+  return Number.isFinite(eventSec) ? Math.abs((eventSec as number) - tSec) : 0;
 }
 
 function durationCandidates(stepA: SimulationFrame, stepB: SimulationFrame): number[] {
@@ -89,16 +96,16 @@ function durationCandidates(stepA: SimulationFrame, stepB: SimulationFrame): num
   ];
 }
 
-function extentCandidates(stepA: SimulationFrame, stepB: SimulationFrame): number[] {
+function extentCandidates(stepA: SimulationFrame, stepB: SimulationFrame): Array<number | undefined> {
   return [
-    absTimingValue(stepA.timing?.planetIngressSec),
-    absTimingValue(stepA.timing?.planetEgressSec),
-    absTimingValue(stepA.timing?.moonIngressSec),
-    absTimingValue(stepA.timing?.moonEgressSec),
-    absTimingValue(stepB.timing?.planetIngressSec),
-    absTimingValue(stepB.timing?.planetEgressSec),
-    absTimingValue(stepB.timing?.moonIngressSec),
-    absTimingValue(stepB.timing?.moonEgressSec),
+    stepA.timing?.planetIngressSec,
+    stepA.timing?.planetEgressSec,
+    stepA.timing?.moonIngressSec,
+    stepA.timing?.moonEgressSec,
+    stepB.timing?.planetIngressSec,
+    stepB.timing?.planetEgressSec,
+    stepB.timing?.moonIngressSec,
+    stepB.timing?.moonEgressSec,
   ];
 }
 
@@ -218,8 +225,8 @@ function rvPlanetDelta(sa: SimulationFrame, sb: SimulationFrame): number {
 }
 
 function comparisonFluxDisplayDelta(args: {
-  configA: ReturnType<typeof mapBrowserScenarioDraftToEducationScenarioV4>;
-  configB: ReturnType<typeof mapBrowserScenarioDraftToEducationScenarioV4>;
+  configA: EducationScenarioV4;
+  configB: EducationScenarioV4;
   sa: SimulationFrame;
   sb: SimulationFrame;
 }): number {
@@ -230,21 +237,20 @@ function comparisonFluxDisplayDelta(args: {
 }
 
 /**
- * Run both scenarios at `tSec`, sample a comparison window centred on any transits,
+ * Run two already-mapped V4 scenarios at `tSec`, sample a comparison window centred on `tSec`,
  * and return a {@link DidacticComparison} with scalar deltas, curve series, and scene ghosts.
+ * Callers map drafts through the application adapter so binary-lab scenarios keep their mode.
  */
-export function compareScenariosAtTime(
-  a: BrowserScenarioDraft,
-  b: BrowserScenarioDraft,
+export function compareScenarioConfigsAtTime(
+  configA: EducationScenarioV4,
+  configB: EducationScenarioV4,
   tSec: number,
 ): DidacticComparison {
-  const configA = mapBrowserScenarioDraftToEducationScenarioV4(a);
-  const configB = mapBrowserScenarioDraftToEducationScenarioV4(b);
   const runtimeA = createSimulationV4(configA);
   const runtimeB = createSimulationV4(configB);
   const sa = runtimeA.step(tSec);
   const sb = runtimeB.step(tSec);
-  const { startSec, endSec } = deriveComparisonWindow(sa, sb);
+  const { startSec, endSec } = deriveComparisonWindow(sa, sb, tSec);
   const { aSamples, bSamples } = sampleComparisonCurves(runtimeA, runtimeB, startSec, endSec);
   const fluxDisplayDelta = comparisonFluxDisplayDelta({ configA, configB, sa, sb });
 
@@ -257,6 +263,73 @@ export function compareScenariosAtTime(
     rvPlanetDelta: rvPlanetDelta(sa, sb),
     visual: buildComparisonVisual({ tSec, displayDelta: fluxDisplayDelta, sa, sb, aSamples, bSamples }),
   };
+}
+
+/** Compares two preset-lab drafts (no binary branch) at `tSec`. */
+export function compareScenariosAtTime(
+  a: BrowserScenarioDraft,
+  b: BrowserScenarioDraft,
+  tSec: number,
+): DidacticComparison {
+  return compareScenarioConfigsAtTime(
+    mapBrowserScenarioDraftToEducationScenarioV4(a),
+    mapBrowserScenarioDraftToEducationScenarioV4(b),
+    tSec,
+  );
+}
+
+type CentreEstimator = (trialSec: number) => number | undefined;
+
+const CENTRE_REFINE_MAX_ITERATIONS = 8;
+const CENTRE_REFINE_TOLERANCE_SEC = 1;
+
+// Near elongation the sky-plane tangent points almost a full cycle ahead, so a linear estimate
+// counts only when it lands within a quarter period of its trial epoch. The estimate is then
+// iterated to a fixed point (re-estimating from the previous estimate), which removes the
+// extrapolation error; a candidate that does not settle is dropped.
+function refinedCentreCandidate(
+  centreAt: CentreEstimator,
+  trialSec: number,
+  periodSec: number | undefined,
+): number | undefined {
+  const estimateSec = centreAt(trialSec);
+  if (!Number.isFinite(estimateSec)) return undefined;
+  if (periodSec !== undefined && Math.abs((estimateSec as number) - trialSec) > periodSec / 4)
+    return undefined;
+  let centreSec = estimateSec as number;
+  for (let iteration = 0; iteration < CENTRE_REFINE_MAX_ITERATIONS; iteration++) {
+    const nextSec = centreAt(centreSec);
+    if (!Number.isFinite(nextSec)) return undefined;
+    const deltaSec = Math.abs((nextSec as number) - centreSec);
+    centreSec = nextSec as number;
+    if (deltaSec < CENTRE_REFINE_TOLERANCE_SEC) return centreSec;
+  }
+  return undefined;
+}
+
+/**
+ * Returns the primary transit or eclipse centre nearest to `tSec` (trial epochs cover one
+ * orbital period centred on `tSec`), or `tSec` itself when the scenario has no transiting body.
+ */
+export function nearestPrimaryTransitCentreSec(config: EducationScenarioV4, tSec: number): number {
+  const runtime = createSimulationV4(config);
+  const centreAt: CentreEstimator = (trialSec) => runtime.step(trialSec).timing?.planetTransitCenterSec;
+  const rawPeriodSec = config.bodies.planets[0]?.orbit.period ?? config.orbits.binary.period;
+  const periodSec = Number.isFinite(rawPeriodSec) && rawPeriodSec > 0 ? rawPeriodSec : undefined;
+  const trialCount = periodSec === undefined ? 0 : 48;
+  let bestSec = tSec;
+  let bestDistanceSec = Number.POSITIVE_INFINITY;
+  for (let index = 0; index <= trialCount; index++) {
+    const trialSec = periodSec === undefined ? tSec : tSec + (index / trialCount - 0.5) * periodSec;
+    const centreSec = refinedCentreCandidate(centreAt, trialSec, periodSec);
+    if (centreSec === undefined) continue;
+    const distanceSec = Math.abs(centreSec - tSec);
+    if (distanceSec < bestDistanceSec) {
+      bestDistanceSec = distanceSec;
+      bestSec = centreSec;
+    }
+  }
+  return bestSec;
 }
 
 /**

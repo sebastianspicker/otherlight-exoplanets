@@ -80,7 +80,9 @@ type AssessmentRule =
         | "rvStar"
         | "rvPlanet"
         | "depthObserved"
-        | "combinedFluxDrop";
+        | "combinedFluxDrop"
+        | "limbDarkeningStrength"
+        | "transitCurvatureRatio";
       min?: number;
       max?: number;
     }
@@ -103,11 +105,23 @@ type AssessmentRule =
   | {
       id: string;
       label: string;
+      /** Relative match: |signal - reference| <= tolerance * |reference| with signal > 0. */
       kind: "signal-approx";
       signal: "depthObserved" | "depthApprox" | "tdvRatio" | "combinedFluxDrop";
       referenceSignal: "depthApprox" | "depthObserved";
       tolerance: number;
+    }
+  | {
+      id: string;
+      label: string;
+      /** Geometric bound: above < signal < below, with bounds read from other signals. */
+      kind: "signal-bound";
+      signal: "bPlanet" | "bMoon";
+      above?: GeometricLimitSignal;
+      below?: GeometricLimitSignal;
     };
+
+type GeometricLimitSignal = "transitContactLimit" | "totalEclipseLimit" | "moonContactLimit";
 
 type LessonStep = {
   id: string;

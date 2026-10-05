@@ -19,6 +19,7 @@ import {
   getLessonsForSimMode,
   resolveLearningState,
 } from "../../domain/education";
+import { normalizeLearningState } from "../../domain/education/learningState";
 import type { DidacticComparison } from "../../domain/education/compare";
 import type { UiRefs } from "../shell/refs";
 import {
@@ -30,6 +31,11 @@ import {
 
 export type DidacticsRuntimeState = {
   learning: LearningState;
+  /**
+   * In-memory progress of lessons visited earlier in this session, keyed by lesson ID, so
+   * A -> B -> A restores A. Workspaces still serialize only the active lesson's `learning`.
+   */
+  learningByLesson?: Readonly<Record<string, LearningState>>;
   responses: DidacticResponseStore;
   latestSignals?: DidacticSignals;
   latestTiming?: StepTimingDiagnostics;
@@ -96,10 +102,10 @@ function activePhase(runtime: DidacticsRuntimeState): LessonPhaseSpec | undefine
   return phases[Math.max(0, Math.min(runtime.learning.phaseIndex ?? 0, Math.max(phases.length - 1, 0)))];
 }
 
-function currentResponseKey(runtime: DidacticsRuntimeState): string {
+function currentResponseKey(current: DidacticsRuntimeState): string {
+  const runtime = withNormalizedLearning(current);
   const lesson = activeLesson(runtime);
-  const step =
-    lesson.steps[Math.max(0, Math.min(runtime.learning.stepIndex, Math.max(lesson.steps.length - 1, 0)))];
+  const step = lesson.steps[runtime.learning.stepIndex] ?? lesson.steps[0];
   const phase = activePhase(runtime);
   return `${lesson.id}:${step.id}:${phase?.id ?? "phase-0"}`;
 }
@@ -163,12 +169,10 @@ export function onDidacticSignals(
   const nextLearning = advanceLearningState(runtime.learning, signals, auto, tSec);
   system.didactics.learningState = nextLearning;
   return {
+    ...runtime,
     learning: nextLearning,
-    responses: runtime.responses,
     latestSignals: signals,
     latestTiming: timing,
-    latestComparison: runtime.latestComparison,
-    latestComparisonText: runtime.latestComparisonText,
   };
 }
 
@@ -179,16 +183,22 @@ export function switchDidacticsLesson(
   tSec: number,
   simMode: LessonSimMode = "preset-lab",
 ): DidacticsRuntimeState {
+  const learningByLesson = { ...runtime.learningByLesson, [runtime.learning.lessonId]: runtime.learning };
   system.didactics = {
     ...(system.didactics ?? {}),
     activeLessonId: nextLessonId,
   };
   const normalizedLessonId = normalizeLessonForSimMode(system, simMode);
-  if (system.didactics) system.didactics.activeLessonId = normalizedLessonId;
+  system.didactics = {
+    ...system.didactics,
+    activeLessonId: normalizedLessonId,
+    learningState: learningByLesson[normalizedLessonId],
+  };
   const learning = resolveLearningState(system, tSec);
-  if (system.didactics) system.didactics.learningState = learning;
+  system.didactics.learningState = learning;
   return {
     learning,
+    learningByLesson,
     responses: runtime.responses,
     latestSignals: undefined,
     latestTiming: undefined,
@@ -199,6 +209,12 @@ export function switchDidacticsLesson(
 
 const clampedLessonPhaseIndex = (phaseIndex: number | undefined, phaseCount: number): number =>
   Math.max(0, Math.min(phaseIndex ?? 0, Math.max(phaseCount - 1, 0)));
+
+// Restored progress may carry an out-of-range step or phase; clamp before navigating.
+const withNormalizedLearning = (runtime: DidacticsRuntimeState): DidacticsRuntimeState => {
+  const learning = normalizeLearningState(runtime.learning);
+  return learning === runtime.learning ? runtime : { ...runtime, learning };
+};
 
 const commitLessonLearning = (
   system: BrowserScenarioDraft,
@@ -211,9 +227,10 @@ const commitLessonLearning = (
 
 export function advanceLessonFlow(
   system: BrowserScenarioDraft,
-  runtime: DidacticsRuntimeState,
+  current: DidacticsRuntimeState,
   tSec: number,
 ): DidacticsRuntimeState {
+  const runtime = withNormalizedLearning(current);
   const lesson = activeLesson(runtime);
   const phases = getLessonStepPhases(lesson, runtime.learning.stepIndex);
   const currentPhaseIndex = clampedLessonPhaseIndex(runtime.learning.phaseIndex, phases.length);
@@ -236,9 +253,10 @@ export function advanceLessonFlow(
 
 export function retreatLessonFlow(
   system: BrowserScenarioDraft,
-  runtime: DidacticsRuntimeState,
+  current: DidacticsRuntimeState,
   tSec: number,
 ): DidacticsRuntimeState {
+  const runtime = withNormalizedLearning(current);
   const lesson = activeLesson(runtime);
   const phases = getLessonStepPhases(lesson, runtime.learning.stepIndex);
   const currentPhaseIndex = clampedLessonPhaseIndex(runtime.learning.phaseIndex, phases.length);
@@ -280,6 +298,24 @@ export function updateDidacticResponse(
         secondary: patch.secondary ?? prev.secondary,
         updatedAtSec: tSec,
       },
+    },
+  };
+}
+
+/**
+ * Stores the binary-lab hypothesis under its own lesson-scoped key so it never replaces the
+ * learner's note for the current phase.
+ */
+export function updateDidacticHypothesis(
+  runtime: DidacticsRuntimeState,
+  hypothesis: string,
+  tSec: number,
+): DidacticsRuntimeState {
+  return {
+    ...runtime,
+    responses: {
+      ...runtime.responses,
+      [`${runtime.learning.lessonId}:hypothesis`]: { primary: hypothesis, updatedAtSec: tSec },
     },
   };
 }

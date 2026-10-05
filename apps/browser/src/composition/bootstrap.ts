@@ -124,14 +124,18 @@ export async function initApp(): Promise<void> {
   const currentLessonSimMode = (): "preset-lab" | "binary-lab" =>
     isBinaryModeActive(refs) ? "binary-lab" : "preset-lab";
 
-  const runtimeArgsFromCurrentParams = () =>
-    runtimeArgsFromBootstrapState(
+  const runtimeArgsFromCurrentParams = () => ({
+    ...runtimeArgsFromBootstrapState(
       appState.params,
       isBinaryModeActive(refs),
       readBootstrapRuntimeMode(runtimeModeSelect?.value),
       DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab,
       { computeDidacticSignals },
-    );
+    ),
+    // Settings restored from a workspace document that the authoring form cannot edit.
+    executionMode: appState.workspaceScenarioSettings.executionMode,
+    referenceSubsteps: appState.workspaceScenarioSettings.referenceSubsteps,
+  });
 
   let simulation: AppSimulationRuntime = createSimulationRuntimeV4FromParams(runtimeArgsFromCurrentParams());
   let disposed = false;

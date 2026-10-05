@@ -19,7 +19,7 @@ export type BrightnessPatch = {
   };
 };
 
-export type StellarVariabilityPhaseModel = "linear-period" | "true-anomaly";
+type StellarVariabilityPhaseModel = "linear-period" | "true-anomaly";
 
 export type StellarVariabilityParams = {
   enabled?: boolean;

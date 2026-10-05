@@ -3,20 +3,21 @@
  */
 import type { BrowserScenarioDraft } from "../../domain/model/types";
 import {
-  buildScientificForwardRequestFromEducationScenarioV4,
   createScienceBackendClient,
   type CapabilityManifest,
+  type ForwardRunRequest,
   type ScienceJobResult,
   type ScienceJobStatus,
 } from "../../infrastructure/science";
-import { toEducationScenarioV4 } from "../../application/browserScenarioAdapter";
 import { isGitHubPagesRuntime } from "../../application/deployment";
 import { getScienceContractReplay, type ScienceContractReplay } from "./scienceContractReplay";
 import { wireScienceDatasetWorkspace } from "./scienceDatasetWorkspace";
+import { pollScienceJobWithinBudget, type SciencePollOutcome } from "./sciencePolling";
+import { createScienceRequestSource, type ScienceRequestSource } from "./scienceRequestSource";
 
 type ScienceWorkspaceClient = Pick<
   ReturnType<typeof createScienceBackendClient>,
-  "getCapabilities" | "submitJob" | "pollJob" | "getResult" | "cancelJob"
+  "getCapabilities" | "submitJob" | "getJob" | "getResult" | "cancelJob"
 >;
 
 type ScienceWorkspaceArgs = {
@@ -32,6 +33,10 @@ export type ScienceWorkspaceController = {
   refreshCapabilities: () => Promise<void>;
   refreshDatasets: () => Promise<void>;
   cancelCurrentJob: () => Promise<void>;
+  /** Pins a validated workspace request (or clears it) as the next submission. */
+  restoreRequest: (request: ForwardRunRequest | undefined) => void;
+  /** The request the next run would submit; throws when the run form is invalid. */
+  currentRequest: () => ForwardRunRequest;
 };
 
 type ScienceWorkspaceElements = {
@@ -49,12 +54,6 @@ type ScienceWorkspaceElements = {
   replay: HTMLElement;
   replaySource: HTMLElement;
   replayMetadata: HTMLElement;
-};
-
-type ScienceRunInputs = {
-  durationHours: number;
-  cadenceSec: number;
-  seed: number;
 };
 
 type ScienceWorkspaceState = {
@@ -75,10 +74,10 @@ type ScienceWorkspaceContext = {
   client: ScienceWorkspaceClient;
   elements: ScienceWorkspaceElements;
   state: ScienceWorkspaceState;
+  requests: ScienceRequestSource;
 };
 
-const SCIENCE_POLL_INTERVAL_MS = 250;
-const SCIENCE_POLL_MAX_ATTEMPTS = 240;
+const RESTORED_REQUEST_NOTE = "The next run submits the restored workspace request unchanged.";
 
 function requiredElement<T extends Element>(id: string, constructor: { new (): T }): T {
   const element = document.getElementById(id);
@@ -112,31 +111,6 @@ function capabilitySupportsAlphaRun(capabilities: CapabilityManifest): boolean {
   );
 }
 
-function isInvalidNumber(
-  value: number,
-  options: { minimum: number; maximum: number; integer?: boolean },
-): boolean {
-  if (!Number.isFinite(value)) return true;
-  if (value < options.minimum) return true;
-  if (value > options.maximum) return true;
-  return options.integer === true && !Number.isSafeInteger(value);
-}
-
-function inputNumber(
-  input: HTMLInputElement,
-  label: string,
-  options: { minimum: number; maximum: number; integer?: boolean },
-): number {
-  const value = input.valueAsNumber;
-  if (isInvalidNumber(value, options)) {
-    const qualifier = options.integer ? "integer " : "";
-    throw new Error(
-      `${label} must be a finite ${qualifier}between ${options.minimum} and ${options.maximum}.`,
-    );
-  }
-  return value;
-}
-
 function errorMessage(error: unknown): string {
   if (error instanceof DOMException && error.name === "AbortError")
     return "The scientific request was cancelled.";
@@ -153,24 +127,6 @@ function renderResult(result: ScienceJobResult): string {
     null,
     2,
   );
-}
-
-function readRunInputs(elements: ScienceWorkspaceElements): ScienceRunInputs {
-  return {
-    durationHours: inputNumber(elements.durationHours, "Duration", {
-      minimum: 0.01,
-      maximum: 8_760,
-    }),
-    cadenceSec: inputNumber(elements.cadenceSec, "Cadence", {
-      minimum: 0.001,
-      maximum: 31_557_600,
-    }),
-    seed: inputNumber(elements.seed, "Seed", {
-      minimum: Number.MIN_SAFE_INTEGER,
-      maximum: Number.MAX_SAFE_INTEGER,
-      integer: true,
-    }),
-  };
 }
 
 function clearRunResult(elements: ScienceWorkspaceElements): void {
@@ -276,6 +232,7 @@ async function refreshScienceCapabilities({
   client,
   elements,
   state,
+  requests,
 }: ScienceWorkspaceContext): Promise<void> {
   if (args.signal.aborted) return;
   const signal = state.startRequest();
@@ -291,7 +248,9 @@ async function refreshScienceCapabilities({
       ? `Available (${capabilities.serviceVersion})`
       : "Connected, required capability unavailable";
     elements.runStatus.textContent = supported
-      ? "The backend contract is valid. The active scenario can now be submitted for validation."
+      ? requests.hasRestoredRequest()
+        ? `The backend contract is valid. ${RESTORED_REQUEST_NOTE}`
+        : "The backend contract is valid. The active scenario can now be submitted for validation."
       : "This backend does not advertise the alpha forward radial-velocity contract.";
   } catch (error) {
     if (!state.isCurrentRequest(signal)) return;
@@ -303,42 +262,50 @@ async function refreshScienceCapabilities({
   }
 }
 
-async function runScienceJob({ args, client, elements, state }: ScienceWorkspaceContext): Promise<void> {
+function describeSubmission(restored: boolean, binaryMode: boolean): string {
+  if (restored)
+    return "Submitting the restored workspace request unchanged to the V5 Newtonian validity checks.";
+  return binaryMode
+    ? "Submitting the active detached-binary lab state to the V5 Newtonian validity checks."
+    : "Submitting the active star/planet/moon state to the V5 Newtonian validity checks.";
+}
+
+async function cancelAfterBudget(
+  { args, client, elements }: ScienceWorkspaceContext,
+  jobId: string,
+  outcome: Extract<SciencePollOutcome, { kind: "budget-exhausted" }>,
+): Promise<void> {
+  const limit = `${Math.round(outcome.budgetMs / 1_000)} s ${outcome.phase === "queued" ? "in the queue" : "of running"}`;
+  try {
+    const status = await client.cancelJob(jobId, args.signal);
+    elements.runStatus.textContent = `Scientific job ${jobId} did not finish within ${limit}; it was cancelled (${status.state}).`;
+  } catch (error) {
+    elements.runStatus.textContent = `Scientific job ${jobId} did not finish within ${limit}; cancelling it failed: ${errorMessage(error)}`;
+  }
+}
+
+async function runScienceJob(context: ScienceWorkspaceContext): Promise<void> {
+  const { args, client, elements, state, requests } = context;
   if (!state.isCapabilitiesReady() || args.signal.aborted) return;
   const signal = state.startRequest();
   clearRunResult(elements);
   try {
-    const { durationHours, cadenceSec, seed } = readRunInputs(elements);
-    const binaryMode = args.isBinaryMode();
-    const request = buildScientificForwardRequestFromEducationScenarioV4({
-      scenario: toEducationScenarioV4({
-        system: args.getSystem(),
-        binaryMode,
-        runtimeMode: "reference",
-        executionMode: "scientific-browser",
-      }),
-      startOffsetSec: 0,
-      endOffsetSec: durationHours * 3_600,
-      sampleCadenceSec: cadenceSec,
-      seed,
-    });
-    elements.scenarioSummary.textContent = binaryMode
-      ? "Submitting the active detached-binary lab state to the V5 Newtonian validity checks."
-      : "Submitting the active star/planet/moon state to the V5 Newtonian validity checks.";
+    const restored = requests.hasRestoredRequest();
+    const request = requests.current();
+    elements.scenarioSummary.textContent = describeSubmission(restored, args.isBinaryMode());
     elements.runStatus.textContent = "Submitting the validated V5 request…";
     const submitted = await client.submitJob(request, signal);
     state.setCurrentJobId(submitted.id);
     elements.runStatus.textContent = `Job ${submitted.id} is ${submitted.state}; waiting for a terminal state…`;
-    const terminal = await client.pollJob(submitted.id, {
-      signal,
-      intervalMs: SCIENCE_POLL_INTERVAL_MS,
-      maxAttempts: SCIENCE_POLL_MAX_ATTEMPTS,
-    });
-    if (terminal.state !== "succeeded") {
-      state.setCurrentJobId(null);
-      throw new Error(terminal.error?.message ?? `V5 job ended in state '${terminal.state}'.`);
-    }
+    const outcome = await pollScienceJobWithinBudget(client, submitted.id, signal);
     state.setCurrentJobId(null);
+    if (outcome.kind === "budget-exhausted") {
+      await cancelAfterBudget(context, submitted.id, outcome);
+      return;
+    }
+    if (outcome.status.state !== "succeeded") {
+      throw new Error(outcome.status.error?.message ?? `V5 job ended in state '${outcome.status.state}'.`);
+    }
     const result = await client.getResult(submitted.id, signal);
     renderCompletedRun(elements, submitted.id, result);
   } catch (error) {
@@ -369,12 +336,15 @@ async function cancelScienceJob({ args, client, elements, state }: ScienceWorksp
 
 export function wireScienceWorkspace(args: ScienceWorkspaceArgs): ScienceWorkspaceController {
   const elements = getElements();
+  const requests = createScienceRequestSource(args, elements);
   if (args.isGitHubPages ?? isGitHubPagesRuntime()) {
     renderGitHubPagesReplay(elements);
     return {
       refreshCapabilities: async () => renderGitHubPagesReplay(elements),
       refreshDatasets: async () => {},
       cancelCurrentJob: async () => {},
+      restoreRequest: requests.restore,
+      currentRequest: requests.current,
     };
   }
   const datasets = wireScienceDatasetWorkspace({ signal: args.signal });
@@ -383,15 +353,28 @@ export function wireScienceWorkspace(args: ScienceWorkspaceArgs): ScienceWorkspa
     client: args.client ?? args.createClient?.() ?? createScienceBackendClient(),
     elements,
     state: createScienceWorkspaceState(elements),
+    requests,
   };
 
   args.signal.addEventListener("abort", context.state.abortActiveRequest, { once: true });
 
   const refreshCapabilities = (): Promise<void> => refreshScienceCapabilities(context);
   const cancelCurrentJob = (): Promise<void> => cancelScienceJob(context);
+  const restoreRequest = (request: ForwardRunRequest | undefined): void => {
+    requests.restore(request);
+    if (request && context.state.isCapabilitiesReady()) {
+      elements.runStatus.textContent = RESTORED_REQUEST_NOTE;
+    }
+  };
   elements.refreshButton.addEventListener("click", () => void refreshCapabilities(), { signal: args.signal });
   elements.runButton.addEventListener("click", () => void runScienceJob(context), { signal: args.signal });
   elements.cancelButton.addEventListener("click", () => void cancelCurrentJob(), { signal: args.signal });
   context.state.setReady(false);
-  return { refreshCapabilities, refreshDatasets: datasets.refresh, cancelCurrentJob };
+  return {
+    refreshCapabilities,
+    refreshDatasets: datasets.refresh,
+    cancelCurrentJob,
+    restoreRequest,
+    currentRequest: requests.current,
+  };
 }

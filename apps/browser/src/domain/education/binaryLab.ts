@@ -36,7 +36,14 @@ export function createBinaryLabState(opts: BinaryLabStateOptions = {}): BinaryLa
   };
 }
 
+/** True once a hidden sky has been revealed: the pre-reveal hypothesis can no longer change. */
+export function isHypothesisLocked(state: BinaryLabState): boolean {
+  return state.revealed && state.hideSkyUntilReveal;
+}
+
+/** Commits a pre-reveal hypothesis; once the sky is revealed the hypothesis is frozen. */
 export function setHypothesis(state: BinaryLabState, hypothesis: BinaryLabHypothesis): BinaryLabState {
+  if (isHypothesisLocked(state)) return state;
   return {
     ...state,
     hypothesis,

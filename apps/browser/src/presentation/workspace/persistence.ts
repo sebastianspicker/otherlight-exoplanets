@@ -1,8 +1,7 @@
 /** Owns portable workspace documents and URL-history restoration for one bootstrap instance. */
 
-import { buildScientificForwardRequestFromEducationScenarioV4 } from "../../infrastructure/science";
 import { toEducationScenarioV4 } from "../../application/browserScenarioAdapter";
-import { DEFAULT_BINARY_LAB_CONFIG_V4 } from "../../application/catalog/binaryLab";
+import type { BinaryLabConfigV4 } from "../../domain/simulation/v4/types";
 import { readBootstrapRuntimeMode } from "../../application/runtime/runtimeArgs";
 import { readUiMode, syncUiModeVisibility } from "../shell/mode";
 import { readProductMode, syncProductModeVisibility } from "../shell/productMode";
@@ -20,7 +19,7 @@ import {
 } from "../shell/productNavigation";
 import type { BootstrapProfileController } from "../shell/profileSwitch";
 import { runWithErrorHandling } from "../shell/runWithErrorHandling";
-import { restoreWorkspace, workspaceProductControls } from "./workspaceRestore";
+import { restoreWorkspace, workspaceProductControls, type WorkspaceSettingsState } from "./workspaceRestore";
 import {
   isBinaryModeActive,
   type ScenarioApplyGuard,
@@ -31,7 +30,8 @@ import {
 /** The extension changed with the product name; the workspace-v1 document remains byte-compatible. */
 export const WORKSPACE_DOWNLOAD_FILENAME = "otherlight-workspace.otherlight";
 
-type PersistenceState = Pick<ScenarioFlowState, "params" | "didacticsRuntime" | "binaryLabState">;
+type PersistenceState = Pick<ScenarioFlowState, "params" | "didacticsRuntime" | "binaryLabState"> &
+  WorkspaceSettingsState;
 
 type BootstrapPersistenceArgs = {
   refs: UiRefs;
@@ -53,34 +53,37 @@ type BootstrapPersistenceArgs = {
   signal: AbortSignal;
 };
 
-function scientificWorkspaceRequest(refs: UiRefs, state: PersistenceState) {
-  if (refs.productProfileSelect.value !== "scientific") return undefined;
-  const durationHours = (document.getElementById("scienceDurationHours") as HTMLInputElement | null)
-    ?.valueAsNumber;
-  const cadenceSec = (document.getElementById("scienceCadenceSec") as HTMLInputElement | null)?.valueAsNumber;
-  const seed = (document.getElementById("scienceSeed") as HTMLInputElement | null)?.valueAsNumber;
-  if (!Number.isFinite(durationHours) || !Number.isFinite(cadenceSec) || !Number.isSafeInteger(seed)) {
-    throw new Error("Scientific controls must be valid before saving this workspace.");
-  }
+function scientificWorkspaceRequest(args: BootstrapPersistenceArgs) {
+  if (args.refs.productProfileSelect.value !== "scientific") return undefined;
+  // The request the next run would submit: a still-valid restored request, or one compiled from the scenario.
+  return { request: args.profileController.currentScientificRequest() };
+}
+
+function workspaceBinaryLabConfig(state: PersistenceState): BinaryLabConfigV4 {
   return {
-    request: buildScientificForwardRequestFromEducationScenarioV4({
-      scenario: toEducationScenarioV4({
-        system: state.params,
-        binaryMode: isBinaryModeActive(refs),
-        runtimeMode: "reference",
-        executionMode: "scientific-browser",
-      }),
-      startOffsetSec: 0,
-      endOffsetSec: (durationHours as number) * 3_600,
-      sampleCadenceSec: cadenceSec as number,
-      seed: seed as number,
-    }),
+    enabled: state.workspaceScenarioSettings.binaryLabEnabled ?? true,
+    hideSkyUntilReveal: state.binaryLabState.hideSkyUntilReveal,
+    requireHypothesis: state.binaryLabState.requireHypothesis,
+    lockParamsUntilHypothesis: state.binaryLabState.lockParamsUntilHypothesis,
   };
+}
+
+function workspaceEducationScenario(refs: UiRefs, state: PersistenceState) {
+  const binaryLab = workspaceBinaryLabConfig(state);
+  const scenario = toEducationScenarioV4({
+    system: state.params,
+    binaryMode: isBinaryModeActive(refs),
+    runtimeMode: readBootstrapRuntimeMode(refs.runtimeModeSelect?.value),
+    executionMode: state.workspaceScenarioSettings.executionMode,
+    referenceSubsteps: state.workspaceScenarioSettings.referenceSubsteps,
+    binaryLabDefaults: binaryLab,
+  });
+  return { ...scenario, binaryLab };
 }
 
 function saveWorkspace(args: BootstrapPersistenceArgs): void {
   const { refs, state } = args;
-  const scientific = scientificWorkspaceRequest(refs, state);
+  const scientific = scientificWorkspaceRequest(args);
   const workspaceDocument: WorkspaceDocumentV1 = {
     schemaVersion: "workspace-v1",
     productContext: readProductViewStateFromControls({
@@ -95,12 +98,7 @@ function saveWorkspace(args: BootstrapPersistenceArgs): void {
       fallbackLesson: args.fallbackLesson,
     }),
     education: {
-      scenario: toEducationScenarioV4({
-        system: state.params,
-        binaryMode: isBinaryModeActive(refs),
-        runtimeMode: readBootstrapRuntimeMode(refs.runtimeModeSelect?.value),
-        binaryLabDefaults: DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab,
-      }),
+      scenario: workspaceEducationScenario(refs, state),
       guidedLab: workspaceGuidedLabState({
         learning: state.didacticsRuntime.learning,
         responses: state.didacticsRuntime.responses,

@@ -66,3 +66,32 @@ export function applyScenarioNormalRanges(form: ParentNode = document): void {
     input.step = String(range.step);
   }
 }
+
+/**
+ * Remember the value a scenario load wrote into a numeric control. Range checks
+ * widen to include it so a loaded scenario is never clamped or rejected.
+ */
+export function markLoadedNumericValue(input: HTMLInputElement, value: number): void {
+  if (Number.isFinite(value)) {
+    input.dataset.loadedValue = String(value);
+    return;
+  }
+  delete input.dataset.loadedValue;
+}
+
+function loadedNumericValue(input: HTMLInputElement): number | undefined {
+  const raw = input.dataset.loadedValue;
+  if (raw === undefined || raw === "") return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+/** Widen a range so it contains the control's loaded scenario value. */
+export function widenRangeForLoadedValue<T extends { min: number; max: number }>(
+  range: T,
+  input: HTMLInputElement,
+): T {
+  const loaded = loadedNumericValue(input);
+  if (loaded === undefined) return range;
+  return { ...range, min: Math.min(range.min, loaded), max: Math.max(range.max, loaded) };
+}

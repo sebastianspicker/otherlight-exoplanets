@@ -151,7 +151,7 @@ type NBodyPlanetMoonParams = {
 type ExomoonTimingShapeParams = {
   enabled?: boolean;
 
-  /** Reference epoch for evolution and for “relative to ref” diagnostics. Default: 0. */
+  /** Reference epoch for evolution and for “relative to ref” diagnostics. When absent, the planet transit epoch is used. */
   tRef?: number;
 
   /** Finite-difference time step [s] used when estimating projected sky-plane speeds. */

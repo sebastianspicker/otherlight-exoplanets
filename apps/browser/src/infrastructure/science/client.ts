@@ -2,6 +2,7 @@
  * Implements the validated loopback-only V5 client, including bounded polling,
  * abort propagation, and normalization of untrusted service errors.
  */
+import { MAX_SCIENCE_DATASET_RESPONSE_BYTES } from "./datasetTypes";
 import type { CapabilityManifest, ScienceJobRequest, ScienceJobResult, ScienceJobStatus } from "./types";
 import {
   ScienceValidationError,
@@ -10,6 +11,7 @@ import {
   assertScienceJobResult,
   assertScienceJobStatus,
 } from "./validation";
+import { readBoundedResponseBody } from "./boundedResponseBody";
 
 export class ScienceBackendError extends Error {
   readonly status?: number;
@@ -37,6 +39,9 @@ export type PollScienceJobOptions = {
 };
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
+const JSON_MEDIA_TYPE = "application/json";
+/** V5 job status, capability, and result bodies share the V6 one-MiB response cap. */
+const MAX_RESPONSE_BYTES = MAX_SCIENCE_DATASET_RESPONSE_BYTES;
 
 function normalizeLocalBaseUrl(value: string): URL {
   let url: URL;
@@ -155,12 +160,18 @@ export class ScienceBackendClient {
     let response: Response;
     try {
       const fetchImpl = this.fetchImpl;
-      response = await fetchImpl(new URL(path, this.base), init);
+      response = await fetchImpl(new URL(path, this.base), {
+        ...init,
+        cache: "no-store",
+        credentials: "omit",
+        redirect: "error",
+      });
     } catch (error) {
       if (init.signal?.aborted) throw abortError();
       throw new ScienceBackendError("V5 backend request failed.", { cause: error });
     }
-    const payload = await readJson(response);
+    assertResponseHeaders(response);
+    const payload = await readBoundedJson(response);
     if (!response.ok) {
       const detail = isBackendErrorPayload(payload) ? payload : undefined;
       throw new ScienceBackendError(detail?.message ?? `V5 backend returned HTTP ${response.status}.`, {
@@ -215,15 +226,51 @@ function isBackendErrorPayload(value: unknown): value is { code?: string; messag
   return typeof record.message === "string" && (record.code === undefined || typeof record.code === "string");
 }
 
-async function readJson(response: Response): Promise<unknown> {
+function assertResponseHeaders(response: Response): void {
+  if (response.headers.get("content-type") !== JSON_MEDIA_TYPE) {
+    throw new ScienceBackendError("V5 backend response must use exact application/json content type.", {
+      status: response.status,
+    });
+  }
+  if (response.headers.get("cache-control") !== "no-store") {
+    throw new ScienceBackendError("V5 backend response must be no-store.", { status: response.status });
+  }
+  if (response.headers.get("x-content-type-options") !== "nosniff") {
+    throw new ScienceBackendError("V5 backend response must set X-Content-Type-Options: nosniff.", {
+      status: response.status,
+    });
+  }
+}
+
+async function readBoundedJson(response: Response): Promise<unknown> {
+  const declaredLength = response.headers.get("content-length");
+  if (declaredLength !== null) {
+    if (!/^[0-9]+$/.test(declaredLength) || Number(declaredLength) > MAX_RESPONSE_BYTES) {
+      throw new ScienceBackendError("V5 backend response exceeds the JSON size limit.", {
+        status: response.status,
+      });
+    }
+  }
+  const bytes = await readBoundedBody(response);
   try {
-    return (await response.json()) as unknown;
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
   } catch (error) {
     throw new ScienceBackendError("V5 backend returned invalid JSON.", {
       status: response.status,
       cause: error,
     });
   }
+}
+
+async function readBoundedBody(response: Response): Promise<Uint8Array> {
+  return readBoundedResponseBody(
+    response,
+    MAX_RESPONSE_BYTES,
+    () =>
+      new ScienceBackendError("V5 backend response exceeds the JSON size limit.", {
+        status: response.status,
+      }),
+  );
 }
 
 function delay(milliseconds: number, signal?: AbortSignal): Promise<void> {

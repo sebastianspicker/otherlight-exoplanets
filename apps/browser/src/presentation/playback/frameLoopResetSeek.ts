@@ -29,6 +29,7 @@ import {
   setPlotMarkers,
   setPlotOverlaySeries,
   setPlotWindowOverlays,
+  truncateHistorySamplesAfter,
 } from "./frameLoopVisualizationHelpers";
 import {
   formatTransitHistorySummary,
@@ -53,7 +54,9 @@ const resetTimelineState = (ctx: FrameLoopContext): void => {
   state.componentTransitHistory = [];
   state.componentScatterHistory = [];
   plot.clear();
-  plot.setOptions({ title: state.displayFluxTitle, manualYRange: state.fixedPlotYRange });
+  // The fixed y-range is always auto-derived from the previous preview; a new scenario must rescale.
+  clearFixedComparisonRange(state, plot);
+  plot.setOptions({ title: state.displayFluxTitle });
   setPlotOverlaySeries(plot, []);
   setPlotWindowOverlays(plot, []);
   setPlotMarkers(plot, []);
@@ -252,6 +255,9 @@ const seekDynamicPlot = (
 ): void => {
   const { simulation, params, plotMode, trackingMode, step } = args;
   resetDynamicPlotIfTrackingChanged(ctx, trackingMode);
+  // A backward seek (e.g. "Jump to event") restarts the trace there; the plot buffer truncates
+  // itself on the next push, and the overlay histories must match it.
+  truncateHistorySamplesAfter(ctx.state, ctx.state.t);
   const fluxForPlot = ctx.sampleFluxForPlot(
     simulation,
     params,

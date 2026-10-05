@@ -182,19 +182,57 @@ const rocheLimit = (planet: PlanetParams, moon: MoonParams): number => {
 const collectPhotometryDisplayWarnings = (params: BrowserScenarioDraft): UiValidationMessage[] => {
   const phot = params.star?.photometry;
 
-  return [...lowGridResWarnings(phot?.gridRes), ...spotEvolutionWarnings(phot)];
+  return [...lowGridResWarnings(params, phot?.gridRes), ...spotEvolutionWarnings(phot)];
 };
 
-const lowGridResWarnings = (gridRes: unknown): UiValidationMessage[] => {
-  if (!positiveNumber(gridRes) || gridRes >= 40) return [];
+const MIN_GRID_RES = 60;
+const MIN_WARNING_GRID_RES = 60;
+const MAX_WARNING_GRID_RES = 1024;
+const MIN_CELLS_ACROSS_OCCULTER = 12;
 
-  return [
-    {
+const lowGridResWarnings = (params: BrowserScenarioDraft, gridRes: unknown): UiValidationMessage[] => {
+  if (!positiveNumber(gridRes)) return [];
+
+  const out: UiValidationMessage[] = [];
+  if (gridRes < MIN_GRID_RES) {
+    out.push({
       severity: "info",
       code: "LOW_GRID_RES",
       message: "gridRes is very low; transit accuracy may degrade.",
-    },
+    });
+  }
+
+  const bodies: [string, unknown][] = [
+    ["planet", params.planet?.r],
+    ["moon", params.moon?.r],
   ];
+  for (const [name, radius] of bodies) {
+    const message = occulterGridMessage(name, radius, params.star?.r, gridRes);
+    if (message) out.push({ severity: "info", code: "LOW_GRID_RES", message });
+  }
+  return out;
+};
+
+const occulterGridMessage = (
+  name: string,
+  rBody: unknown,
+  rStar: unknown,
+  gridRes: number,
+): string | undefined => {
+  if (!positiveNumber(rBody) || !positiveNumber(rStar)) return undefined;
+
+  const ratio = rBody / rStar;
+  // The integrators clamp the grid to [60, 1024]; warn about the resolution they will actually use.
+  const effectiveGridRes = Math.min(MAX_WARNING_GRID_RES, Math.max(MIN_WARNING_GRID_RES, gridRes));
+  const cells = ratio * effectiveGridRes;
+  if (cells >= MIN_CELLS_ACROSS_OCCULTER) return undefined;
+
+  const suggested = Math.ceil(MIN_CELLS_ACROSS_OCCULTER / ratio);
+  const advice =
+    suggested <= MAX_WARNING_GRID_RES
+      ? `increase gridRes (\u2265 ${suggested} for ${MIN_CELLS_ACROSS_OCCULTER} cells) or expect quantized depths.`
+      : `even the maximum gridRes ${MAX_WARNING_GRID_RES} gives fewer than ${MIN_CELLS_ACROSS_OCCULTER} cells, so expect quantized depths.`;
+  return `gridRes ${effectiveGridRes} gives about ${cells.toFixed(1)} cells across the ${name}; ${advice}`;
 };
 
 const spotEvolutionWarnings = (phot: PhotometryConfig): UiValidationMessage[] => {

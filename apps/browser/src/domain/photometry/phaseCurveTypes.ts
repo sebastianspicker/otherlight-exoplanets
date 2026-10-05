@@ -41,6 +41,11 @@ export type NormalizedPhaseCurveModel = {
 
 export type BodyPhaseFluxParams = {
   rBody: Vec3;
+  /**
+   * Optional body velocity relative to its star. When present, phase offsets and the thermal lag
+   * rotate the body along its orbit (shifting the peak); when absent they shift alpha and clamp.
+   */
+  vBody?: Vec3;
   rBodyRadius?: number;
   rStarRadius?: number;
   observerDir: Vec3;

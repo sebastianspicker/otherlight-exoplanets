@@ -4,8 +4,12 @@
 
 import { clamp, toFiniteNumber } from "../../domain/model/units";
 import type { UiRefs } from "../shell/refs";
-import { getParamUiMeta } from "./paramValidation";
-import { applyScenarioNormalRanges, scenarioNormalRange } from "./scenarioControlRanges";
+import { getParamUiMeta, renderParamFieldValidation } from "./paramValidation";
+import {
+  applyScenarioNormalRanges,
+  scenarioNormalRange,
+  widenRangeForLoadedValue,
+} from "./scenarioControlRanges";
 
 type WireParamSlidersOptions = {
   signal?: AbortSignal;
@@ -61,8 +65,13 @@ function dispatchNumberInputEvents(input: HTMLInputElement): void {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function effectiveRange(range: NumericInputRange): NumericInputRange {
+  return widenRangeForLoadedValue(range, range.input);
+}
+
 function sliderValueForInput(range: NumericInputRange): string {
-  return String(clamp(toFiniteNumber(range.input.value, range.min), range.min, range.max));
+  const bounds = effectiveRange(range);
+  return String(clamp(toFiniteNumber(range.input.value, bounds.min), bounds.min, bounds.max));
 }
 
 function createSliderRow(range: NumericInputRange): { row: HTMLDivElement; slider: HTMLInputElement } {
@@ -90,49 +99,33 @@ function createSliderRow(range: NumericInputRange): { row: HTMLDivElement; slide
   return { row, slider };
 }
 
-function clampedNumberValue(range: NumericInputRange, overrideEnabled: boolean): number | undefined {
-  const value = toFiniteNumber(range.input.value, NaN);
-  if (!Number.isFinite(value)) return undefined;
-
-  const physicalMin = range.min >= 0 ? 0 : -Infinity;
-  return overrideEnabled ? Math.max(physicalMin, value) : clamp(value, range.min, range.max);
-}
-
 function syncNumberFromSlider(input: HTMLInputElement, slider: HTMLInputElement): void {
   input.value = slider.value;
   dispatchNumberInputEvents(input);
 }
 
-function syncSliderFromNumber(
-  range: NumericInputRange,
-  slider: HTMLInputElement,
-  overrideEnabled: boolean,
-): void {
+// Only the slider thumb follows the number field. The number field keeps the
+// exact typed or loaded value; validation reports out-of-range input on change
+// and on apply instead of rewriting it mid-keystroke.
+function syncSliderFromNumber(range: NumericInputRange, slider: HTMLInputElement): void {
   const value = toFiniteNumber(range.input.value, NaN);
-  const clampedValue = clampedNumberValue(range, overrideEnabled);
-  if (clampedValue === undefined) return;
+  if (!Number.isFinite(value)) return;
 
-  if (!Object.is(clampedValue, value)) {
-    range.input.value = String(clampedValue);
-  }
-
-  slider.value = String(clamp(clampedValue, range.min, range.max));
+  const bounds = effectiveRange(range);
+  slider.min = String(bounds.min);
+  slider.max = String(bounds.max);
+  slider.value = String(clamp(value, bounds.min, bounds.max));
 }
 
 function wireSliderRow(
   range: NumericInputRange,
   root: HTMLElement,
-  overrideEnabled: () => boolean,
   options: AddEventListenerOptions | undefined,
 ): void {
   const { row, slider } = createSliderRow(range);
 
   slider.addEventListener("input", () => syncNumberFromSlider(range.input, slider), options);
-  range.input.addEventListener(
-    "input",
-    () => syncSliderFromNumber(range, slider, overrideEnabled()),
-    options,
-  );
+  range.input.addEventListener("input", () => syncSliderFromNumber(range, slider), options);
 
   root.appendChild(row);
 }
@@ -141,7 +134,8 @@ function clampRangeInput(range: NumericInputRange): void {
   const value = toFiniteNumber(range.input.value, NaN);
   if (!Number.isFinite(value)) return;
 
-  range.input.value = String(clamp(value, range.min, range.max));
+  const bounds = effectiveRange(range);
+  range.input.value = String(clamp(value, bounds.min, bounds.max));
   range.input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
@@ -165,7 +159,10 @@ export function wireParamSliders(r: UiRefs, options: WireParamSlidersOptions = {
   r.sliderRootEl.replaceChildren();
 
   for (const range of ranges) {
-    wireSliderRow(range, r.sliderRootEl, isOverrideOn, eventOptions);
+    wireSliderRow(range, r.sliderRootEl, eventOptions);
+  }
+  for (const input of numberInputsInParamForm()) {
+    input.addEventListener("change", () => renderParamFieldValidation(input), eventOptions);
   }
 
   r.overrideModeEl?.addEventListener(

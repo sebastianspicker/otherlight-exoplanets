@@ -85,6 +85,25 @@ export const defaultPatchInputs = (starRadius: number): DefaultPatchInputs => {
   };
 };
 
+export type PatchSlotToggles = {
+  circle: HTMLInputElement | null;
+  ellipse: HTMLInputElement | null;
+};
+
+/** Per-slot brightness-patch switches, found next to the patch inputs in the parameter form. */
+export function patchSlotToggles(r: Pick<UiRefs, "p1x" | "p2x">): PatchSlotToggles {
+  const doc = r.p1x.ownerDocument;
+  return {
+    circle: doc.getElementById("p1Enabled") as HTMLInputElement | null,
+    ellipse: doc.getElementById("p2Enabled") as HTMLInputElement | null,
+  };
+}
+
+/** A slot without its own switch (older markup) counts as enabled. */
+export function isPatchSlotEnabled(toggle: HTMLInputElement | null): boolean {
+  return toggle ? toggle.checked : true;
+}
+
 function clampFreeformInput(text: string): string {
   return text.slice(0, MAX_FREEFORM_INPUT_CHARS);
 }

@@ -3,6 +3,7 @@
 // UI input helpers + sanitizers.
 
 import { clamp, toFiniteNumber, ECC_MAX } from "../../domain/model/units";
+import { markLoadedNumericValue } from "./scenarioControlRanges";
 
 type PlotMode = "physical" | "measured";
 type PlotTrackingMode = "fixed" | "dynamic" | "live";
@@ -36,8 +37,10 @@ export function readNumberInput(el: HTMLInputElement, fallback: number): number 
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** Writes a loaded scenario value exactly; range checks accept it even outside normal bounds. */
 export function writeNumberInput(el: HTMLInputElement, value: number): void {
   el.value = Number.isFinite(value) ? String(value) : "";
+  markLoadedNumericValue(el, value);
 }
 
 export function readCheckbox(el: HTMLInputElement): boolean {

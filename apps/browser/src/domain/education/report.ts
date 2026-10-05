@@ -191,9 +191,10 @@ const formulaCardLine = (formula: ReportFormulas[number]): string => {
   return `- ${formula.title}: ${formula.latex} = ${formula.value}${formulaUnitSuffix(formula.unit)}`;
 };
 
-const appendFormulaCards = (lines: string[], formulas: ReportFormulas): void => {
+const appendFormulaCards = (lines: string[], allFormulas: ReportFormulas): void => {
   lines.push("");
   lines.push("## Formula Cards");
+  const formulas = allFormulas.filter((formula) => Number.isFinite(formula.value));
   if (formulas.length === 0) {
     lines.push("- no formulas");
     return;

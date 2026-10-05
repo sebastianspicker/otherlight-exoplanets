@@ -84,6 +84,7 @@ export function wireBootstrapResetHandlers(deps: BootstrapResetHandlersDeps): vo
             await applyScenarioParams(scenarioDeps, state.scenarioDefaults, {
               syncUi: true,
               resetNoise: true,
+              resetBinaryLab: false,
             });
             if (paramForm) clearParamValidationUi(paramForm, paramErrorSummary);
             setParamsDirty(false);

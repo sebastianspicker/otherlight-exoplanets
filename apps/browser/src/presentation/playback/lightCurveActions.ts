@@ -8,8 +8,21 @@ import {
 } from "./fixedPreviewCache";
 import type { ChromaticOverlay } from "./chromaticOverlay";
 import type { LightCurvePlot } from "../render/lightCurve/lightCurvePlot";
+import type { LightCurveOverlayPoint } from "../render/lightCurve/lightCurvePlotTypes";
 
-type LightCurveActionState = {
+/** Every overlay history the dynamic visualization redraws next to the primary trace. */
+const OVERLAY_HISTORY_KEYS = [
+  "physicalHistory",
+  "measuredHistory",
+  "componentBaselineHistory",
+  "componentTransitHistory",
+  "componentScatterHistory",
+] as const;
+
+type OverlayHistoryKey = (typeof OVERLAY_HISTORY_KEYS)[number];
+type OverlayHistories = Partial<Record<OverlayHistoryKey, LightCurveOverlayPoint[]>>;
+
+type LightCurveActionState = OverlayHistories & {
   fixedPreviewKey?: FixedPreviewKey;
   fixedPreviewPresentation?: FixedPreviewPresentation;
   previewGeneration?: number;
@@ -47,6 +60,7 @@ export function wireBootstrapLightCurveActions(deps: BootstrapLightCurveActionDe
         range?: { lo: number; hi: number };
         rangeMode?: string | null;
         overlay?: ReturnType<ChromaticOverlay["snapshot"]>;
+        histories: OverlayHistories;
       }
     | undefined;
   const options = { signal };
@@ -63,6 +77,7 @@ export function wireBootstrapLightCurveActions(deps: BootstrapLightCurveActionDe
         range: state.fixedPlotYRange,
         rangeMode: state.fixedPlotYRangeMode,
         overlay: state.chromaticOverlay?.snapshot(),
+        histories: takeOverlayHistories(state),
       };
       invalidateFixedPreview(state);
       state.fixedPreviewPresentation = undefined;
@@ -106,6 +121,7 @@ export function wireBootstrapLightCurveActions(deps: BootstrapLightCurveActionDe
         state.fixedPlotYRangeMode = clearedMetadata.rangeMode;
         plot.setOptions({ manualYRange: clearedMetadata.range });
         if (clearedMetadata.overlay) state.chromaticOverlay?.restore(clearedMetadata.overlay);
+        Object.assign(state, clearedMetadata.histories);
       }
       clearedMetadata = undefined;
       plot.draw();
@@ -135,6 +151,16 @@ export function wireBootstrapLightCurveActions(deps: BootstrapLightCurveActionDe
     },
     options,
   );
+}
+
+/** Detaches the overlay histories for undo and leaves empty ones behind. */
+function takeOverlayHistories(state: OverlayHistories): OverlayHistories {
+  const taken: OverlayHistories = {};
+  for (const key of OVERLAY_HISTORY_KEYS) {
+    taken[key] = state[key];
+    state[key] = [];
+  }
+  return taken;
 }
 
 function downloadCsv(csv: string): void {

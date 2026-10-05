@@ -272,8 +272,14 @@ public struct DOP853Integrator: Sendable {
       rhsEvaluations: budget.rhsEvaluations)
   }
 
-  /// Estimates a stable first adaptive step using the current scale and derivatives.
-  private func initialStep(
+  /// Error-estimator order of DOP853 as SciPy declares it; the step exponent is 1 / (order + 1).
+  static let errorEstimatorOrder = 7.0
+
+  /// Selects the first adaptive step exactly as SciPy 1.18.0 `select_initial_step` (Hairer II.4).
+  ///
+  /// `h0` is bounded by the interval only; the maximum step applies to the final choice, and the
+  /// result is `min(100 h0, h1, interval, max_step)` without an extra lower floor.
+  func initialStep(
     time: Double, state: [Double], derivative: [Double], finalTime: Double, direction: Double,
     evaluate: (_ time: Double, _ state: [Double]) throws -> [Double]
   ) throws -> Double {
@@ -283,15 +289,18 @@ public struct DOP853Integrator: Sendable {
     }
     let d0 = rms(zip(state, scale).map { $0 / $1 })
     let d1 = rms(zip(derivative, scale).map { $0 / $1 })
-    let h0 = min(span, min(configuration.maximumStep, min(d0, d1) < 1e-5 ? 1e-6 : 0.01 * d0 / d1))
+    let h0 = min(d0 < 1e-5 || d1 < 1e-5 ? 1e-6 : 0.01 * d0 / d1, span)
     let trial = zip(state, derivative).map { $0 + direction * h0 * $1 }
     let derivative1 = try evaluate(time + direction * h0, trial)
-    let d2 = rms(
-      zip(derivative1, derivative).map { abs($0 - $1) / h0 }.enumerated().map {
-        $0.element / scale[$0.offset]
-      })
-    let h1 = max(d1, d2) <= 1e-15 ? max(1e-6, h0 * 1e-3) : pow(0.01 / max(d1, d2), 1.0 / 9.0)
-    return max(10 * Double.ulpOfOne, min(span, min(configuration.maximumStep, min(100 * h0, h1))))
+    let d2 =
+      rms(
+        zip(derivative1, derivative).enumerated().map {
+          abs($0.element.0 - $0.element.1) / scale[$0.offset]
+        }) / h0
+    let h1 =
+      d1 <= 1e-15 && d2 <= 1e-15
+      ? max(1e-6, h0 * 1e-3) : pow(0.01 / max(d1, d2), 1 / (Self.errorEstimatorOrder + 1))
+    return min(min(100 * h0, h1), min(span, configuration.maximumStep))
   }
 
   /// Computes one DOP853 tableau step and its terminal derivative.

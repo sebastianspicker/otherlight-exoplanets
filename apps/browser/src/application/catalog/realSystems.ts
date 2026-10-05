@@ -254,7 +254,38 @@ function mapSnapshotSystemToParams(entry: RealSystemSnapshotEntry): BrowserScena
   };
 
   delete base.moon;
+  applyNeutralRealSystemEffects(base);
   return base;
+}
+
+// The catalog carries geometry only: no albedo, temperature, activity, moon, or instrument data.
+// Didactic defaults (a 6000 ppm reflected phase curve, day-night visibility, the exomoon
+// timing ghost) would otherwise be presented as properties of the real system, so every
+// optional photometric and dynamical effect starts disabled.
+const NEUTRAL_REAL_SYSTEM_PHOTOMETRY = [
+  "phaseCurve",
+  "moonPhaseCurve",
+  "dayNightVisibility",
+  "forwardScattering",
+  "atmosphereTransmission",
+  "stellarVariability",
+  "spotEvolution",
+  "stellarSurface",
+  "instrument",
+  "instrumentNoise",
+] as const;
+
+function applyNeutralRealSystemEffects(base: BrowserScenarioDraft): void {
+  const photometry = base.star.photometry;
+  if (photometry) {
+    for (const key of NEUTRAL_REAL_SYSTEM_PHOTOMETRY) {
+      const effect = photometry[key];
+      if (effect) effect.enabled = false;
+    }
+    photometry.brightnessPatches = [];
+  }
+  const timingShape = base.dynamics?.exomoonTimingShape;
+  if (timingShape) timingShape.enabled = false;
 }
 
 function realSystemScalars(entry: RealSystemSnapshotEntry): RealSystemScalars {

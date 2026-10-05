@@ -12,8 +12,9 @@ import { initNoiseState } from "../application/runtime/noise";
 import { cloneParams } from "../domain/model/clone";
 import type { ScenarioFlowState } from "../presentation/scenario/scenarioFlow";
 import { createTransitHistoryState } from "../application/runtime/transitHistory";
+import type { WorkspaceSettingsState } from "../presentation/workspace/workspaceRestore";
 
-export type BootstrapAppState = ScenarioFlowState & FrameLoopState;
+export type BootstrapAppState = ScenarioFlowState & FrameLoopState & WorkspaceSettingsState;
 
 export function createBootstrapAppState(defaultScenario: BrowserScenarioDraft): BootstrapAppState {
   const appState: BootstrapAppState = {
@@ -22,6 +23,7 @@ export function createBootstrapAppState(defaultScenario: BrowserScenarioDraft): 
     didacticsRuntime: initDidacticsRuntime(cloneParams(defaultScenario), 0),
     noise: initNoiseState(cloneParams(defaultScenario)),
     binaryLabState: createBinaryLabState(DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab),
+    workspaceScenarioSettings: {},
     running: false,
     t: 0,
     last: performance.now(),

@@ -73,7 +73,7 @@
       "required": ["id", "kind", "label", "active"],
       "properties": {
         "id": { "type": "string" },
-        "kind": { "enum": ["transit", "mutual-event", "conjunction", "timing"] },
+        "kind": { "enum": ["transit", "mutual-event", "conjunction", "timing", "secondary-eclipse"] },
         "label": { "type": "string" },
         "active": { "type": "boolean" }
       },

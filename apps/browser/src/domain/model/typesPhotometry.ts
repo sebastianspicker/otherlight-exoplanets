@@ -13,8 +13,4 @@ export type {
   ThermalModelAdvancedParams,
 } from "./typesPhotometryPhase";
 export type { PhotometryParams } from "./typesPhotometryMeasurement";
-export type {
-  BrightnessPatch,
-  StellarVariabilityParams,
-  StellarVariabilityPhaseModel,
-} from "./typesPhotometrySurface";
+export type { BrightnessPatch, StellarVariabilityParams } from "./typesPhotometrySurface";

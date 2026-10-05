@@ -91,10 +91,32 @@ function applyGeneralLabMoon(base: BrowserScenarioDraft, moon: MoonBodyV4 | unde
   delete base.moon;
 }
 
+/**
+ * The Browser form edits one planet, at most one moon, and a dark companion
+ * star in general-lab mode. Richer documents fail closed instead of being
+ * silently reduced to that shape.
+ */
+function unrepresentableGeneralLabContent(config: EducationScenarioV4): string[] {
+  const issues: string[] = [];
+  const { planets, moons, stars } = config.bodies;
+  if (planets.length > 1) issues.push(`${planets.length} planets (the Browser edits one)`);
+  if (moons.length > 1) issues.push(`${moons.length} moons (the Browser edits at most one)`);
+  if ((stars[1].luminosityScale ?? 0) > 0) {
+    issues.push(`a luminous second star "${stars[1].id}" (the Browser has no general-lab editor for it)`);
+  }
+  return issues;
+}
+
 function toGeneralLabDraft(
   config: EducationScenarioV4,
   defaultParams: BrowserScenarioDraft,
 ): BrowserScenarioDraft {
+  const unsupported = unrepresentableGeneralLabContent(config);
+  if (unsupported.length > 0) {
+    throw new Error(
+      `This general-lab scenario contains content the Browser cannot represent: ${unsupported.join("; ")}.`,
+    );
+  }
   const base = cloneParams(defaultParams);
   const starA = deepClone(config.bodies.stars[0]);
   const primaryPlanet = config.bodies.planets[0] ? deepClone(config.bodies.planets[0]) : undefined;

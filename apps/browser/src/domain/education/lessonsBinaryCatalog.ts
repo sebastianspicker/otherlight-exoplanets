@@ -90,8 +90,23 @@ export const BINARY_LESSONS: LessonSpec[] = [
         id: "binary-step-2",
         title: "Reveal the sky and revise the model",
         prompt:
-          "Reveal the sky, compare it against your pre-reveal claim, and decide whether geometry, luminosity ratio, or both explain the deeper eclipse.",
-        checks: [{ id: "binary-b-low", label: "b < 0.4", kind: "range", signal: "bPlanet", max: 0.4 }],
+          "Reveal the sky, compare it against your pre-reveal claim, and decide whether geometry, luminosity ratio, or both explain the deeper eclipse. Classify the eclipse: with k = R_B/R_A it is total or annular for b < 1 - k and partial for 1 - k < b < 1 + k.",
+        checks: [
+          {
+            id: "binary-eclipse-occurs",
+            label: "b < 1 + k (the stars overlap on the sky)",
+            kind: "signal-bound",
+            signal: "bPlanet",
+            below: "transitContactLimit",
+          },
+          {
+            id: "binary-eclipse-partial",
+            label: "b > 1 - k (partial eclipse)",
+            kind: "signal-bound",
+            signal: "bPlanet",
+            above: "totalEclipseLimit",
+          },
+        ],
         phases: [
           observePhase({
             id: "binary-step-2-observe",
@@ -100,7 +115,7 @@ export const BINARY_LESSONS: LessonSpec[] = [
               "Reveal the sky and record what the eclipse chord and luminous-body ordering actually look like.",
             eventTarget: "planetMidTransit",
             checklist: [
-              "Is the occulting chord central or grazing?",
+              "Is the eclipse partial (b > 1 - k) or total/annular (b < 1 - k)?",
               "Which star is being eclipsed at the selected event?",
               "Does the revealed geometry support your earlier claim?",
             ],

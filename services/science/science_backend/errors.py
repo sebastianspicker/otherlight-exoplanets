@@ -37,6 +37,10 @@ class DatasetCapacityError(ScientificBackendError):
     """An imported dataset would exceed a declared process-memory quota."""
 
 
+class DatasetTooLargeError(DatasetCapacityError):
+    """One dataset or upload exceeds a per-dataset byte, sample, or node limit."""
+
+
 class DatasetInUseError(ScientificBackendError):
     """A queued or running job currently retains an imported dataset."""
 

@@ -336,7 +336,7 @@ final class OtherlightTests: XCTestCase {
     XCTAssertTrue(restored.isDetachedBinaryLab)
     XCTAssertTrue(restored.isBinaryLabSkyVisible)
     XCTAssertEqual(restored.binaryLab?.hypothesis, .primaryEclipseDeepest)
-    XCTAssertEqual(document.workspace.productContext.lab, "binary-eclipse")
+    XCTAssertEqual(document.workspace.productContext.lab, "binary-stars")
   }
 
   /// Ensures accepted workspace state round-trips and unsupported schema versions fail clearly.
@@ -553,8 +553,7 @@ final class OtherlightTests: XCTestCase {
     XCTAssertEqual(request.seriesKey.samples, 64)
     XCTAssertEqual(
       request.seriesKey.centerSeconds,
-      scenario.epochSeconds + scenario.planet.orbit.periodSeconds / 4,
-      accuracy: 1e-9)
+      SimulationEngine.estimatedTransitCentreSeconds(for: scenario), accuracy: 1e-9)
     XCTAssertEqual(request.timeSeconds, 42)
   }
 

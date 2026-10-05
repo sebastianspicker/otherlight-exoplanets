@@ -1,13 +1,18 @@
 /** Computes native V4 stellar visibility and variability components. */
 import { clamp01 } from "../../model/units";
+import type { OrbitElements } from "../../model/types";
+import { vSub } from "../../orbits/vec3";
+import type { StellarVariabilityGeometry } from "../../photometry/stellarVariability";
 import { stellarVariabilityFlux } from "../../photometry/stellarVariability";
 import {
   photometricOcculterForBody,
   starVisibilityFromOcculters,
   starVisibilityFromOpaqueOcculters,
 } from "./nativePhotometry";
+import type { VisibilityOcculter, VisibilityRing, VisibilityStarSurface } from "./nativePhotometryTypes";
+import { starParentForBody } from "./nativeModelRelations";
 import type { NativeBodyState, NativeSnapshot } from "./nativeSnapshot";
-import type { EducationScenarioV4 } from "./types";
+import type { EducationScenarioV4, PlanetBodyV4 } from "./types";
 
 export type VisibilityBundle = {
   byStar: Map<string, number>;
@@ -57,7 +62,7 @@ export function computeStellarComponents(
 ): StellarComponents {
   const stellarBaseline = luminousStars.reduce((sum, star) => sum + star.luminosity, 0);
   const stellarFromBinaryEclipses = stellarFluxAfterBinaryEclipses(luminousStars, visibility);
-  const stellarVariability = stellarSurfaceVariability(config, tObsSec);
+  const stellarVariability = stellarSurfaceVariability(config, snap, tObsSec);
   const stellarAfterAllOccultations = stellarFluxAfterAllOccultations(luminousStars, visibility);
   const primaryBinaryVis = visibility.byStarBinary.get(snap.stars[0]?.id ?? "") ?? 1;
   const primaryAllVis = visibility.byStar.get(snap.stars[0]?.id ?? "") ?? 1;
@@ -102,8 +107,9 @@ const visibilityForStar = (
   frontStars: NativeBodyState[],
   nonStars: NativeBodyState[],
 ): { visible: number; binaryVisible: number; nOcculters: number } => {
+  const surface = starSurfaceFor(config, snap, star);
   if (config.mode === "detached-binary-lab" && nonStars.length === 0) {
-    const binaryVisible = starVisibilityFromOpaqueOcculters(config, star, frontStars);
+    const binaryVisible = starVisibilityFromOpaqueOcculters(config, star, frontStars, surface);
     return { visible: binaryVisible, binaryVisible, nOcculters: 0 };
   }
   const occulters = [...nonStars, ...frontStars];
@@ -113,9 +119,10 @@ const visibilityForStar = (
       star,
       occulters
         .filter((occulter) => occulter.sky.z > star.sky.z)
-        .map((occulter) => photometricOcculterForBody(config, occulter)),
+        .map((occulter) => occulterWithRing(config, occulter)),
+      surface,
     ),
-    binaryVisible: starVisibilityFromOpaqueOcculters(config, star, frontStars),
+    binaryVisible: starVisibilityFromOpaqueOcculters(config, star, frontStars, surface),
     nOcculters:
       star.id === snap.stars[0]?.id
         ? occulters.filter((occulter) => occulter.kind !== "star" && occulter.sky.z > star.sky.z).length
@@ -123,18 +130,80 @@ const visibilityForStar = (
   };
 };
 
-const stellarSurfaceVariability = (config: EducationScenarioV4, tObsSec: number): number => {
+// Brightness patches are painted on the primary star's projected disk (as the canvas draws them).
+const starSurfaceFor = (
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+  star: NativeBodyState,
+): VisibilityStarSurface | undefined =>
+  star.id === snap.stars[0]?.id ? { brightnessPatches: config.photometry?.brightnessPatches } : undefined;
+
+const occulterWithRing = (config: EducationScenarioV4, body: NativeBodyState): VisibilityOcculter => {
+  const occulter = photometricOcculterForBody(config, body);
+  const ring = body.kind === "planet" ? visibilityRingForBody(body) : undefined;
+  return ring ? { ...occulter, ring } : occulter;
+};
+
+// Ring radii are metres in the body frame, the same unit as sky-plane coordinates; a fully
+// transparent ring is dropped so the circle-only fast paths still apply.
+const visibilityRingForBody = (body: NativeBodyState): VisibilityRing | undefined => {
+  const rings = body.source.rings;
+  if (!rings) return undefined;
+  const opacity = Number.isFinite(rings.opacity) ? clamp01(rings.opacity as number) : 1;
+  const rInner = Number.isFinite(rings.innerRadius) ? Math.max(0, rings.innerRadius) : 0;
+  if (!(opacity > 0 && Number.isFinite(rings.outerRadius) && rings.outerRadius > rInner)) return undefined;
+  return { rInner, rOuter: rings.outerRadius, inc: rings.inclination, angle: rings.positionAngle, opacity };
+};
+
+const stellarSurfaceVariability = (
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+  tObsSec: number,
+): number => {
   const surface = config.photometry?.stellarSurface;
+  const companion = variabilityCompanion(config, snap);
   return (
     stellarVariabilityFlux({
       t: tObsSec,
-      orbit: config.bodies.planets[0]?.orbit ?? config.orbits.binary,
+      orbit: companion?.orbit,
       model: config.photometry?.stellarVariability,
+      geometry: companion?.geometry,
     }) +
     granulationFlux(surface, tObsSec) +
     activityCycleFlux(surface, tObsSec)
   );
 };
+
+type VariabilityCompanion = { orbit: OrbitElements; geometry: StellarVariabilityGeometry };
+
+// Beaming and ellipsoidal terms are phased from the first planet relative to its star; a system
+// without planets uses the binary relative orbit (star B relative to star A).
+const variabilityCompanion = (
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+): VariabilityCompanion | undefined => {
+  const planet = snap.planets[0];
+  const planetStar = planet ? starParentForBody(snap, planet, snap.stars[0]) : undefined;
+  if (planet && planetStar) {
+    return companionState(snap, planetStar, planet, (planet.source as PlanetBodyV4).orbit);
+  }
+  const [starA, starB] = snap.stars;
+  return starA && starB ? companionState(snap, starA, starB, config.orbits.binary) : undefined;
+};
+
+const companionState = (
+  snap: NativeSnapshot,
+  star: NativeBodyState,
+  companion: NativeBodyState,
+  orbit: OrbitElements,
+): VariabilityCompanion => ({
+  orbit,
+  geometry: {
+    rRel: vSub(companion.rAbs, star.rAbs),
+    vRel: vSub(companion.vAbs, star.vAbs),
+    observerDir: snap.observerDir,
+  },
+});
 
 const granulationFlux = (surface: StellarSurfaceConfig | undefined, tObsSec: number): number =>
   surface?.enabled && Number.isFinite(surface.granulationSigma)

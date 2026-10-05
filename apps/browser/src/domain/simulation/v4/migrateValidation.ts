@@ -1,4 +1,10 @@
-/** Performs ordered structural validation of V4 runtime configuration. */
+/**
+ * Performs ordered structural validation of V4 runtime configuration.
+ *
+ * Mirrors contracts/education-v4/scenario.schema.json: objects the schema
+ * closes with `additionalProperties: false` reject unknown keys here, and
+ * objects it leaves open (bodies, orbits, photometry, didactics, ...) stay open.
+ */
 import { isValidStaticOrbit } from "./orbitSanitizer";
 
 type UnknownRecord = Record<string, unknown>;
@@ -17,12 +23,43 @@ type ValidationIds = {
 type IdentifiedRecord = UnknownRecord & { id: string };
 type HierarchyRecord = UnknownRecord & { childId: string; parentId: string };
 
-const STAR_FINITE_FIELDS = ["luminosityScale", "teffK", "loggCgs", "metallicityDex"] as const;
+const STAR_FINITE_FIELDS = ["teffK", "loggCgs", "metallicityDex"] as const;
+const SCENARIO_KEYS = [
+  "version",
+  "mode",
+  "runtime",
+  "observer",
+  "bodies",
+  "orbits",
+  "photometry",
+  "dynamics",
+  "didactics",
+  "binaryLab",
+] as const;
+const RUNTIME_KEYS = ["mode", "executionMode", "referenceSubsteps"] as const;
+const BODIES_KEYS = ["stars", "planets", "moons"] as const;
+const ORBITS_KEYS = ["binary", "hierarchy"] as const;
+const HIERARCHY_KEYS = ["childId", "parentId", "relation"] as const;
+const OPEN_OBJECT_FIELDS = ["observer", "photometry", "dynamics", "didactics", "binaryLab"] as const;
 const isObject = (value: unknown): value is UnknownRecord => typeof value === "object" && value !== null;
+const isPlainObject = (value: unknown): value is UnknownRecord => isObject(value) && !Array.isArray(value);
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 const isNonEmptyString = (value: unknown): value is string => typeof value === "string" && value.length > 0;
 const arrayOrEmpty = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const isFiniteVec3 = (value: unknown): boolean =>
+  isObject(value) && isFiniteNumber(value.x) && isFiniteNumber(value.y) && isFiniteNumber(value.z);
+
+function rejectUnknownKeys(
+  value: UnknownRecord,
+  allowed: readonly string[],
+  path: string,
+  errors: string[],
+): void {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) errors.push(`${path} has unsupported field "${key}"`);
+  }
+}
 
 function collectSpectralBandpassIssues(photometry: unknown): string[] {
   if (!isObject(photometry)) return [];
@@ -48,16 +85,30 @@ function validateTopLevelFields(input: UnknownRecord, errors: string[]): void {
   if (input.mode !== "general-lab" && input.mode !== "detached-binary-lab") {
     errors.push('mode must be "general-lab" or "detached-binary-lab"');
   }
+  rejectUnknownKeys(input, SCENARIO_KEYS, "config", errors);
+  for (const field of OPEN_OBJECT_FIELDS) {
+    if (input[field] !== undefined && !isPlainObject(input[field])) {
+      errors.push(`${field} must be an object when provided`);
+    }
+  }
+  if (
+    isPlainObject(input.observer) &&
+    input.observer.dir !== undefined &&
+    !isFiniteVec3(input.observer.dir)
+  ) {
+    errors.push("observer.dir must be a finite {x, y, z} vector");
+  }
   errors.push(...collectSpectralBandpassIssues(input.photometry));
 }
 
 function validateRuntime(input: UnknownRecord, errors: string[]): void {
   if (input.runtime === undefined) return;
-  if (!isObject(input.runtime)) {
+  if (!isPlainObject(input.runtime)) {
     errors.push("runtime must be an object when provided");
     return;
   }
   const runtime = input.runtime;
+  rejectUnknownKeys(runtime, RUNTIME_KEYS, "runtime", errors);
   if (runtime.mode !== undefined && runtime.mode !== "realtime" && runtime.mode !== "reference") {
     errors.push('runtime.mode must be "realtime" or "reference"');
   }
@@ -68,20 +119,23 @@ function validateRuntime(input: UnknownRecord, errors: string[]): void {
   ) {
     errors.push('runtime.executionMode must be "interactive" or "scientific-browser"');
   }
-  if (runtime.referenceSubsteps !== undefined && !isFiniteNumber(runtime.referenceSubsteps)) {
-    errors.push("runtime.referenceSubsteps must be finite when provided");
+  const substeps = runtime.referenceSubsteps;
+  if (substeps !== undefined && (!Number.isInteger(substeps) || (substeps as number) < 1)) {
+    errors.push("runtime.referenceSubsteps must be an integer >= 1 when provided");
   }
 }
 
 function validationCollections(input: UnknownRecord, errors: string[]): ValidationCollections | undefined {
-  if (!isObject(input.bodies)) {
+  if (!isPlainObject(input.bodies)) {
     errors.push("bodies must be an object");
     return undefined;
   }
-  if (!isObject(input.orbits)) {
+  if (!isPlainObject(input.orbits)) {
     errors.push("orbits must be an object");
     return undefined;
   }
+  rejectUnknownKeys(input.bodies, BODIES_KEYS, "bodies", errors);
+  rejectUnknownKeys(input.orbits, ORBITS_KEYS, "orbits", errors);
   return {
     stars: input.bodies.stars,
     planets: input.bodies.planets,
@@ -101,18 +155,38 @@ function validateCollectionShapes(collections: ValidationCollections, errors: st
   if (!Array.isArray(collections.hierarchy)) errors.push("orbits.hierarchy must be an array");
 }
 
-function identifiedRecord(value: unknown, error: string, errors: string[]): IdentifiedRecord | undefined {
-  if (!isObject(value) || !isNonEmptyString(value.id)) {
-    errors.push(error);
+function isKnownId(id: string, ids: ValidationIds): boolean {
+  return ids.starIds.has(id) || ids.planetIds.has(id) || ids.moonIds.has(id);
+}
+
+function identifiedBody(
+  value: unknown,
+  kind: "star" | "planet" | "moon",
+  ids: ValidationIds,
+  errors: string[],
+): IdentifiedRecord | undefined {
+  if (!isPlainObject(value) || !isNonEmptyString(value.id)) {
+    errors.push(`each ${kind} must define a non-empty id`);
     return undefined;
   }
-  return value as IdentifiedRecord;
+  const record = value as IdentifiedRecord;
+  if (isKnownId(record.id, ids))
+    errors.push(`body id "${record.id}" must be unique across stars, planets, and moons`);
+  if (!isFiniteNumber(record.r) || record.r <= 0)
+    errors.push(`${kind} "${record.id}" must define finite r > 0`);
+  if (record.m !== undefined && (!isFiniteNumber(record.m) || record.m < 0))
+    errors.push(`${kind} "${record.id}" has invalid m (must be finite and >= 0)`);
+  return record;
 }
 
 function validateStar(star: unknown, ids: ValidationIds, errors: string[]): void {
-  const record = identifiedRecord(star, "each star must define a non-empty id", errors);
+  const record = identifiedBody(star, "star", ids, errors);
   if (!record) return;
   ids.starIds.add(record.id);
+  const luminosityScale = record.luminosityScale;
+  if (luminosityScale !== undefined && (!isFiniteNumber(luminosityScale) || luminosityScale < 0)) {
+    errors.push(`star "${record.id}" has invalid luminosityScale (must be finite and >= 0)`);
+  }
   for (const field of STAR_FINITE_FIELDS) {
     if (record[field] !== undefined && !isFiniteNumber(record[field])) {
       errors.push(`star "${record.id}" has invalid ${field}`);
@@ -124,7 +198,7 @@ function validateStar(star: unknown, ids: ValidationIds, errors: string[]): void
 }
 
 function validatePlanet(planet: unknown, ids: ValidationIds, errors: string[]): void {
-  const record = identifiedRecord(planet, "each planet must define a non-empty id", errors);
+  const record = identifiedBody(planet, "planet", ids, errors);
   if (!record) return;
   ids.planetIds.add(record.id);
   if (!isValidStaticOrbit(record.orbit)) {
@@ -147,7 +221,7 @@ function validatePlanet(planet: unknown, ids: ValidationIds, errors: string[]): 
 }
 
 function validateMoon(moon: unknown, ids: ValidationIds, errors: string[]): void {
-  const record = identifiedRecord(moon, "each moon must define a non-empty id", errors);
+  const record = identifiedBody(moon, "moon", ids, errors);
   if (!record) return;
   ids.moonIds.add(record.id);
   if (!isValidStaticOrbit(record.orbit)) {
@@ -159,11 +233,12 @@ function validateMoon(moon: unknown, ids: ValidationIds, errors: string[]): void
 }
 
 function validateHierarchyLink(link: unknown, ids: ValidationIds, errors: string[]): void {
-  if (!isObject(link) || !isNonEmptyString(link.childId) || !isNonEmptyString(link.parentId)) {
+  if (!isPlainObject(link) || !isNonEmptyString(link.childId) || !isNonEmptyString(link.parentId)) {
     errors.push("each hierarchy link must define non-empty childId and parentId");
     return;
   }
   const record = link as HierarchyRecord;
+  rejectUnknownKeys(record, HIERARCHY_KEYS, `hierarchy link "${record.childId}"`, errors);
   if (record.relation !== "orbits") {
     errors.push(`hierarchy link "${record.childId}" must use relation "orbits"`);
   }

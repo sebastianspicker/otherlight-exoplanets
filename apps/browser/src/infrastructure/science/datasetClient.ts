@@ -15,6 +15,7 @@ import {
   assertScienceDatasetList,
 } from "./datasetValidation";
 import { ScienceValidationError } from "./validation";
+import { readBoundedResponseBody } from "./boundedResponseBody";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
 const JSON_MEDIA_TYPE = "application/json";
@@ -223,33 +224,14 @@ async function readBoundedJson(response: Response): Promise<unknown> {
 }
 
 async function readBoundedBody(response: Response): Promise<Uint8Array> {
-  const reader = response.body?.getReader();
-  if (!reader) return new Uint8Array();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    while (true) {
-      const next = await reader.read();
-      if (next.done) break;
-      length += next.value.byteLength;
-      if (length > MAX_SCIENCE_DATASET_RESPONSE_BYTES) {
-        await reader.cancel();
-        throw new ScienceBackendError("V6 dataset backend response exceeds the JSON size limit.", {
-          status: response.status,
-        });
-      }
-      chunks.push(next.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const combined = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return combined;
+  return readBoundedResponseBody(
+    response,
+    MAX_SCIENCE_DATASET_RESPONSE_BYTES,
+    () =>
+      new ScienceBackendError("V6 dataset backend response exceeds the JSON size limit.", {
+        status: response.status,
+      }),
+  );
 }
 
 function abortError(): DOMException {

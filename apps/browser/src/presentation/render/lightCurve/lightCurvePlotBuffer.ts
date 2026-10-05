@@ -31,8 +31,13 @@ export function setLightCurveCapacity(state: LightCurveHistoryState, capacity: n
 export function pushLightCurveSample(state: LightCurveHistoryState, sample: LightCurveSample): void {
   if (!Number.isFinite(sample.flux)) return;
 
-  state.flux.push(sample.flux);
   const nextTime = Number.isFinite(sample.t) ? (sample.t as number) : Number.NaN;
+  // The history is time-ordered: earliest/latest caches, viewport windows, and the trace assume
+  // it. A sample earlier than the latest one (a backward seek) restarts the trace from there.
+  if (Number.isFinite(nextTime) && nextTime < resolveLatestFiniteTime(state, getActiveLength(state))) {
+    truncateLightCurveHistoryAfter(state, nextTime);
+  }
+  state.flux.push(sample.flux);
   state.t.push(nextTime);
   if (Number.isFinite(nextTime)) {
     state.finiteTimeCount++;
@@ -44,6 +49,25 @@ export function pushLightCurveSample(state: LightCurveHistoryState, sample: Ligh
     state.latestFiniteTimeIndex = state.t.length - 1;
   }
   trimToCapacity(state);
+}
+
+/** Drops trailing samples later than `tSec` so the next push keeps the history monotonic. */
+function truncateLightCurveHistoryAfter(state: LightCurveHistoryState, tSec: number): void {
+  let end = state.flux.length;
+  let removedFiniteCount = 0;
+  while (end > state.startIndex && !(state.t[end - 1] <= tSec)) {
+    if (Number.isFinite(state.t[end - 1])) removedFiniteCount++;
+    end--;
+  }
+  if (end === state.flux.length) return;
+  state.flux.length = end;
+  state.t.length = end;
+  state.finiteTimeCount = Math.max(0, state.finiteTimeCount - removedFiniteCount);
+  if (state.earliestFiniteTimeIndex >= end) {
+    state.earliestFiniteTimeIndex = -1;
+    state.earliestFiniteTime = Number.NaN;
+  }
+  refreshLatestFiniteTime(state, getActiveLength(state));
 }
 
 export function clearLightCurveHistory(state: LightCurveHistoryState): void {

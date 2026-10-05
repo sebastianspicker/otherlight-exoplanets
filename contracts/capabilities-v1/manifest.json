@@ -11,7 +11,7 @@
       "title": "Shareable product route state",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/presentation/workspace/productHistory.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -35,7 +35,7 @@
       "title": "Portable .otherlight workspace document",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/infrastructure/workspace/workspaceDocument.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -59,7 +59,7 @@
       "title": "Preset and committed real-system catalog",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/application/catalog/presets.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -83,7 +83,7 @@
       "title": "Start, pause, reset, speed, transit jump, and zoom",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/presentation/playback/frameLoop.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -110,7 +110,7 @@
       "title": "Interactive and deterministic reference runtime modes",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/domain/simulation/v4/referenceRuntime.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -134,7 +134,7 @@
       "title": "Essential and advanced parameter editing",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/presentation/scenario/params/read.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -158,7 +158,7 @@
       "title": "Detached-binary preview photometry",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/domain/simulation/v4/binaryBaseline.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -182,7 +182,7 @@
       "title": "Atmosphere and scattering preview photometry",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/domain/simulation/v4/nativePhotometryAtmosphere.ts"]
       },
       "macos": {
         "status": "unavailable",
@@ -206,7 +206,7 @@
       "title": "Synthetic instrument-noise preview",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/domain/photometry/instrumentNoise.ts"]
       },
       "macos": {
         "status": "unavailable",
@@ -230,7 +230,7 @@
       "title": "Sky, light-curve, O-C, summaries, overlays, and tracking",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/presentation/render/sky/sceneBodies.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -254,7 +254,7 @@
       "title": "Phased responses, hints, checks, comparison, rubric, and report",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/domain/education/engine.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -278,7 +278,7 @@
       "title": "Binary hypothesis and guarded reveal workflow",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/domain/education/binaryLab.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -302,7 +302,7 @@
       "title": "Light-curve history, clear, undo, and CSV",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/presentation/render/lightCurve/lightCurvePlotBuffer.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -326,7 +326,7 @@
       "title": "O-C body, unit, trend, statistics, clear, undo, and CSV",
       "website": {
         "status": "available",
-        "evidence": []
+        "evidence": ["apps/browser/src/presentation/timing/ocPlot.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -351,7 +351,7 @@
       "website": {
         "status": "available",
         "availability": "capability-gated",
-        "evidence": []
+        "evidence": ["apps/browser/src/infrastructure/science/client.ts"]
       },
       "macos": {
         "status": "experimental",
@@ -376,7 +376,7 @@
       "website": {
         "status": "available",
         "availability": "capability-gated",
-        "evidence": []
+        "evidence": ["apps/browser/src/presentation/science/scienceWorkspace.ts"]
       },
       "macos": {
         "status": "experimental",

@@ -125,7 +125,6 @@
     "dynamics": {
       "exomoonTimingShape": {
         "enabled": true,
-        "tRef": 0,
         "velDt": 2,
         "moonOmegaDot": 0,
         "moonIncDot": 0,

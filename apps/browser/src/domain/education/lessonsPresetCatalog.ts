@@ -36,7 +36,7 @@ export const PRESET_LESSONS: LessonSpec[] = [
         id: "kepler-step-1",
         title: "Achieve a near-central transit",
         prompt:
-          "Adjust the orbital inclination i so that the projected impact parameter b stays below 0.2. Recall that b = (a cos i) / R* for a circular orbit.",
+          "Adjust the orbital inclination i so that the transit impact parameter b (the closest sky-plane approach of the planet to the stellar center, in units of R*) stays below 0.2. Recall that b = (a cos i) / R* for a circular orbit.",
         checks: [{ id: "b-low", label: "b < 0.2", kind: "range", signal: "bPlanet", max: 0.2 }],
         phases: [
           workedExamplePhase(
@@ -232,8 +232,16 @@ export const PRESET_LESSONS: LessonSpec[] = [
         id: "exomoon-step-1",
         title: "Bring the moon into front-of-star geometry",
         prompt:
-          "Adjust the moon inclination so that the moon can actually cross the stellar disk. You are looking for a finite, front-of-star moon impact parameter.",
-        checks: [{ id: "b-moon-low", label: "b_moon < 1.1", kind: "range", signal: "bMoon", max: 1.1 }],
+          "Adjust the moon inclination so that the moon can actually cross the stellar disk. The moon overlaps the star when its closest approach b_moon is below 1 + R_m/R*.",
+        checks: [
+          {
+            id: "b-moon-low",
+            label: "b_moon < 1 + R_m/R* (moon overlaps the stellar disk)",
+            kind: "signal-bound",
+            signal: "bMoon",
+            below: "moonContactLimit",
+          },
+        ],
         phases: [
           workedExamplePhase(
             "exomoon-step-1-example",
@@ -284,11 +292,11 @@ export const PRESET_LESSONS: LessonSpec[] = [
         id: "exomoon-step-2",
         title: "Separate the moon signal from the planet transit",
         prompt:
-          "Change the moon spacing until the moon's transit center is measurably offset from the planet's transit center. This creates a distinct leading or trailing moon signature.",
+          "Change the moon spacing until the moon's transit center is measurably offset from the planet's transit center. This creates a distinct leading or trailing moon signature. Read the offset while the moon is crossing the star.",
         checks: [
           {
             id: "moon-lead-lag",
-            label: "|Δt_moon-planet| >= 600 s",
+            label: "|Δt_moon-planet| >= 600 s (read during the moon transit)",
             kind: "distance",
             signal: "moonLeadLagSec",
             target: 0,
@@ -359,14 +367,21 @@ export const PRESET_LESSONS: LessonSpec[] = [
         id: "ld-step-1",
         title: "Apply a strong limb-darkening profile",
         prompt:
-          "Increase u1 and u2 to create a pronounced centre-to-limb brightness variation, while keeping a transit visible in the light curve.",
+          "Increase u1 and u2 to create a pronounced centre-to-limb brightness variation (u1 + u2 >= 0.7, i.e. the limb at most 30% as bright as the center), while keeping the planet on a transiting chord.",
         checks: [
           {
-            id: "transit-on",
-            label: "transit factor F < 1 (transit in progress)",
+            id: "ld-strong",
+            label: "u1 + u2 >= 0.7 (limb at most 30% of center brightness)",
             kind: "range",
-            signal: "fluxTransitFactor",
-            max: 0.9999,
+            signal: "limbDarkeningStrength",
+            min: 0.7,
+          },
+          {
+            id: "transit-on",
+            label: "b < 1 + Rp/R* (planet transits)",
+            kind: "signal-bound",
+            signal: "bPlanet",
+            below: "transitContactLimit",
           },
         ],
         phases: [
@@ -406,16 +421,16 @@ export const PRESET_LESSONS: LessonSpec[] = [
       },
       {
         id: "ld-step-2",
-        title: "Compare observed depth to the geometric prediction",
+        title: "Compare the transit shape to a uniform disk",
         prompt:
-          "With strong limb darkening, the physical transit depth will deviate from (Rp/R*)^2 because the occulted flux depends on where the planet crosses the disk. Note the difference and consider which direction it shifts.",
+          "A uniform disk gives a flat transit bottom of depth (Rp/R*)^2. With strong limb darkening the occulted brightness falls toward the limb, so mid-transit is deeper than the bottom a quarter of the duration later (a U shape). Keep the chord central enough that mid-transit is at least 5% deeper, and consider which direction the mid-transit depth shifts from (Rp/R*)^2.",
         checks: [
           {
-            id: "depth-nonzero",
-            label: "delta_physical > 0 (depth is measurable)",
+            id: "ld-curvature",
+            label: "mid-transit depth >= 1.05 x depth at a quarter duration (U-shaped bottom)",
             kind: "range",
-            signal: "depthObserved",
-            min: 1e-6,
+            signal: "transitCurvatureRatio",
+            min: 1.05,
           },
         ],
       },

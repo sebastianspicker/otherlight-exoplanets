@@ -90,7 +90,7 @@ export type RenderOcculterGeometry =
 
 type RenderEventMarker = {
   id: string;
-  kind: "transit" | "mutual-event" | "conjunction" | "timing";
+  kind: "transit" | "mutual-event" | "conjunction" | "timing" | "secondary-eclipse";
   label: string;
   active: boolean;
 };

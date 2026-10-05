@@ -1,7 +1,7 @@
 {
   "contractVersion": "education-v4/1",
   "generator": "scripts/export-native-parity-fixtures.mjs",
-  "sourceRevision": "a9dc8c5e0a4d76490fb86bce4432e42581a905f0+dirty",
+  "sourceRevision": "b6a41856ce923a711d45b3143cbf6504d4c87bdb+dirty",
   "comparisonPolicy": {
     "exactFields": ["scenario.version", "scenario.mode", "renderSignals.events", "warningFlags"],
     "floating": {
@@ -197,7 +197,6 @@
         "dynamics": {
           "exomoonTimingShape": {
             "enabled": true,
-            "tRef": 0,
             "velDt": 2,
             "moonOmegaDot": 0,
             "moonIncDot": 0,
@@ -234,12 +233,12 @@
           "kinematics": {
             "planetSky": {
               "x": 0,
-              "y": 2400000000,
+              "y": 2358444365.199153,
               "z": 0
             },
             "moonSky": {
               "x": 0,
-              "y": 2610000000,
+              "y": 2568444365.199153,
               "z": 0
             }
           },
@@ -257,7 +256,7 @@
                 "kind": "circle",
                 "center": {
                   "x": 0,
-                  "y": 2400000000,
+                  "y": 2399964172.913329,
                   "z": 0
                 },
                 "radius": 150000000
@@ -267,7 +266,7 @@
                 "kind": "circle",
                 "center": {
                   "x": 0,
-                  "y": 2610000000,
+                  "y": 2609964172.913329,
                   "z": 0
                 },
                 "radius": 50000000
@@ -296,6 +295,12 @@
                 "id": "conjunction",
                 "kind": "conjunction",
                 "label": "Conjunction",
+                "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
                 "active": false
               }
             ]
@@ -306,28 +311,28 @@
           "timeSec": 7946.126912235764,
           "kinematics": {
             "planetSky": {
-              "x": -17771206.943325296,
-              "y": 1697056274.8477142,
-              "z": 1696963224.1754024
+              "x": -17490672.736031093,
+              "y": 1667720993.8421237,
+              "z": 1667605896.3563228
             },
             "moonSky": {
-              "x": 139939419.78254515,
-              "y": 1558393524.9192162,
-              "z": 1696963224.1754024
+              "x": 140219953.98983935,
+              "y": 1529058243.9136257,
+              "z": 1667605896.3563228
             }
           },
           "flux": {
-            "total": 1.0008227983218365,
+            "total": 1.0008228079686845,
             "transitFactor": 1,
             "stellarPreTransit": 1,
-            "planetPhase": 0.000589872461156028,
-            "moonPhase": 0.0002329258606805889
+            "planetPhase": 0.0005898799420716496,
+            "moonPhase": 0.00023292802661286827
           },
           "timing": {
-            "planetTransitCenterSec": 18061.23127154538,
-            "planetTransitDurationSec": 10074.141490848084,
-            "planetIngressSec": 13024.160526121339,
-            "planetEgressSec": 23098.30201696942
+            "planetTransitCenterSec": 18060.53340256289,
+            "planetTransitDurationSec": 10073.249176340521,
+            "planetIngressSec": 13023.908814392631,
+            "planetEgressSec": 23097.15799073315
           },
           "renderSignals": {
             "occulters": [
@@ -335,8 +340,8 @@
                 "body": "planet",
                 "kind": "circle",
                 "center": {
-                  "x": -17771206.943325296,
-                  "y": 1697056274.8477142,
+                  "x": -17798113.192337636,
+                  "y": 1697079931.4303794,
                   "z": 1696963224.1754024
                 },
                 "radius": 150000000
@@ -345,8 +350,8 @@
                 "body": "moon",
                 "kind": "circle",
                 "center": {
-                  "x": 139939419.78254515,
-                  "y": 1558393524.9192162,
+                  "x": 139912513.5335328,
+                  "y": 1558417181.5018814,
                   "z": 1696963224.1754024
                 },
                 "radius": 50000000
@@ -375,6 +380,12 @@
                 "id": "conjunction",
                 "kind": "conjunction",
                 "label": "Conjunction",
+                "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
                 "active": false
               }
             ]
@@ -385,32 +396,32 @@
           "timeSec": 15892.253824471529,
           "kinematics": {
             "planetSky": {
-              "x": -25132281.87898955,
-              "y": 1.4695761589768239e-7,
-              "z": 2399868406.477229
+              "x": -24661963.08769379,
+              "y": 4586.259944520404,
+              "z": 2358350875.3204536
             },
             "moonSky": {
-              "x": -233404559.92428538,
-              "y": -26882302.688255336,
-              "z": 2399868406.477229
+              "x": -232934241.13298962,
+              "y": -26877716.428310964,
+              "z": 2358350875.3204536
             }
           },
           "flux": {
-            "total": 0.9393186942336598,
+            "total": 0.9393186941410745,
             "transitFactor": 0.9388684964644253,
             "stellarPreTransit": 1,
-            "planetPhase": 0.0003000007310737905,
-            "moonPhase": 0.00015019703816061795
+            "planetPhase": 0.0003000007279776537,
+            "moonPhase": 0.000150196948671628
           },
           "timing": {
-            "planetTransitCenterSec": 15892.253824471529,
-            "planetTransitDurationSec": 7127.034210481838,
-            "planetIngressSec": 12328.73671923061,
-            "planetEgressSec": 19455.77092971245,
-            "moonTransitCenterSec": 15840.663049736497,
-            "moonTransitDurationSec": 4138.861712486919,
-            "moonIngressSec": 13771.232193493037,
-            "moonEgressSec": 17910.093905979957
+            "planetTransitCenterSec": 15892.272132008364,
+            "planetTransitDurationSec": 7127.57935777524,
+            "planetIngressSec": 12328.482453120743,
+            "planetEgressSec": 19456.061810895982,
+            "moonTransitCenterSec": 15840.66644565252,
+            "moonTransitDurationSec": 4139.147781785289,
+            "moonIngressSec": 13771.092554759874,
+            "moonEgressSec": 17910.240336545165
           },
           "renderSignals": {
             "occulters": [
@@ -418,8 +429,8 @@
                 "body": "planet",
                 "kind": "circle",
                 "center": {
-                  "x": -25132281.87898955,
-                  "y": 1.4695761589768239e-7,
+                  "x": -25096749.550624676,
+                  "y": 4586.259944522946,
                   "z": 2399868406.477229
                 },
                 "radius": 150000000
@@ -428,8 +439,8 @@
                 "body": "moon",
                 "kind": "circle",
                 "center": {
-                  "x": -233404559.92428538,
-                  "y": -26882302.688255336,
+                  "x": -233369027.5959205,
+                  "y": -26877716.42831096,
                   "z": 2399868406.477229
                 },
                 "radius": 50000000
@@ -459,6 +470,12 @@
                 "kind": "conjunction",
                 "label": "Conjunction",
                 "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
+                "active": false
               }
             ]
           },
@@ -468,14 +485,14 @@
           "timeSec": 31784.507648943058,
           "kinematics": {
             "planetSky": {
-              "x": -3.077816855837358e-9,
-              "y": -2400000000,
-              "z": 2.938991162367198e-7
+              "x": -9097.055298318068,
+              "y": -2358445539.3822775,
+              "z": 2.888146850727552e-7
             },
             "moonSky": {
-              "x": 53322270.6665348,
-              "y": -2603117540.9731145,
-              "z": 2.938991162367198e-7
+              "x": 53313173.61123648,
+              "y": -2561563080.355392,
+              "z": 2.888146850727552e-7
             }
           },
           "flux": {
@@ -491,8 +508,8 @@
                 "body": "planet",
                 "kind": "circle",
                 "center": {
-                  "x": -3.077816855837358e-9,
-                  "y": -2400000000,
+                  "x": -9097.05529831812,
+                  "y": -2399965347.0964537,
                   "z": 2.938991162367198e-7
                 },
                 "radius": 150000000
@@ -501,8 +518,8 @@
                 "body": "moon",
                 "kind": "circle",
                 "center": {
-                  "x": 53322270.6665348,
-                  "y": -2603117540.9731145,
+                  "x": 53313173.61123648,
+                  "y": -2603082888.069568,
                   "z": 2.938991162367198e-7
                 },
                 "radius": 50000000
@@ -531,6 +548,12 @@
                 "id": "conjunction",
                 "kind": "conjunction",
                 "label": "Conjunction",
+                "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
                 "active": false
               }
             ]
@@ -665,7 +688,6 @@
         "dynamics": {
           "exomoonTimingShape": {
             "enabled": false,
-            "tRef": 0,
             "velDt": 2,
             "moonOmegaDot": 0,
             "moonIncDot": 0,
@@ -702,7 +724,7 @@
           "kinematics": {
             "planetSky": {
               "x": 0,
-              "y": 2400000000,
+              "y": 2358487153.2565346,
               "z": 0
             }
           },
@@ -750,6 +772,12 @@
                 "kind": "conjunction",
                 "label": "Conjunction",
                 "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
+                "active": false
               }
             ]
           },
@@ -759,9 +787,9 @@
           "timeSec": 7946.126912235764,
           "kinematics": {
             "planetSky": {
-              "x": -17771206.943325296,
-              "y": 1697056274.8477142,
-              "z": 1696963224.1754024
+              "x": -17463818.03070668,
+              "y": 1667702259.409052,
+              "z": 1667610818.2360313
             }
           },
           "flux": {
@@ -814,6 +842,12 @@
                 "kind": "conjunction",
                 "label": "Conjunction",
                 "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
+                "active": false
               }
             ]
           },
@@ -823,9 +857,9 @@
           "timeSec": 15892.253824471529,
           "kinematics": {
             "planetSky": {
-              "x": -25132281.87898955,
-              "y": 1.4695761589768239e-7,
-              "z": 2399868406.477229
+              "x": -24697568.30984119,
+              "y": 1.4441568715328842e-7,
+              "z": 2358357835.90949
             }
           },
           "flux": {
@@ -878,6 +912,12 @@
                 "kind": "conjunction",
                 "label": "Conjunction",
                 "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
+                "active": false
               }
             ]
           },
@@ -887,9 +927,9 @@
           "timeSec": 31784.507648943058,
           "kinematics": {
             "planetSky": {
-              "x": -3.077816855837358e-9,
-              "y": -2400000000,
-              "z": 2.938991162367198e-7
+              "x": -3.024579797737012e-9,
+              "y": -2358487153.2565346,
+              "z": 2.888155374990636e-7
             }
           },
           "flux": {
@@ -935,6 +975,12 @@
                 "id": "conjunction",
                 "kind": "conjunction",
                 "label": "Conjunction",
+                "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
                 "active": false
               }
             ]
@@ -1150,7 +1196,6 @@
         "dynamics": {
           "exomoonTimingShape": {
             "enabled": true,
-            "tRef": 0,
             "velDt": 2,
             "moonOmegaDot": 0,
             "moonIncDot": 0,
@@ -1187,12 +1232,12 @@
           "kinematics": {
             "planetSky": {
               "x": 0,
-              "y": 2400000000,
+              "y": 2358444365.199153,
               "z": 0
             },
             "moonSky": {
               "x": 0,
-              "y": 2610000000,
+              "y": 2568444365.199153,
               "z": 0
             }
           },
@@ -1210,7 +1255,7 @@
                 "kind": "circle",
                 "center": {
                   "x": 0,
-                  "y": 2400000000,
+                  "y": 2399964172.913329,
                   "z": 0
                 },
                 "radius": 150000000
@@ -1220,7 +1265,7 @@
                 "kind": "circle",
                 "center": {
                   "x": 0,
-                  "y": 2610000000,
+                  "y": 2609964172.913329,
                   "z": 0
                 },
                 "radius": 50000000
@@ -1249,6 +1294,12 @@
                 "id": "conjunction",
                 "kind": "conjunction",
                 "label": "Conjunction",
+                "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
                 "active": false
               }
             ]
@@ -1259,28 +1310,28 @@
           "timeSec": 7946.126912235764,
           "kinematics": {
             "planetSky": {
-              "x": -17771206.943325296,
-              "y": 1697056274.8477142,
-              "z": 1696963224.1754024
+              "x": -17490672.736031093,
+              "y": 1667720993.8421237,
+              "z": 1667605896.3563228
             },
             "moonSky": {
-              "x": 139939419.78254515,
-              "y": 1558393524.9192162,
-              "z": 1696963224.1754024
+              "x": 140219953.98983935,
+              "y": 1529058243.9136257,
+              "z": 1667605896.3563228
             }
           },
           "flux": {
-            "total": 1.0008227983218365,
+            "total": 1.0008228079686845,
             "transitFactor": 1,
             "stellarPreTransit": 1,
-            "planetPhase": 0.000589872461156028,
-            "moonPhase": 0.0002329258606805889
+            "planetPhase": 0.0005898799420716496,
+            "moonPhase": 0.00023292802661286827
           },
           "timing": {
-            "planetTransitCenterSec": 18061.23127154538,
-            "planetTransitDurationSec": 10074.141490848084,
-            "planetIngressSec": 13024.160526121339,
-            "planetEgressSec": 23098.30201696942
+            "planetTransitCenterSec": 18060.53340256289,
+            "planetTransitDurationSec": 10073.249176340521,
+            "planetIngressSec": 13023.908814392631,
+            "planetEgressSec": 23097.15799073315
           },
           "renderSignals": {
             "occulters": [
@@ -1288,8 +1339,8 @@
                 "body": "planet",
                 "kind": "circle",
                 "center": {
-                  "x": -17771206.943325296,
-                  "y": 1697056274.8477142,
+                  "x": -17798113.192337636,
+                  "y": 1697079931.4303794,
                   "z": 1696963224.1754024
                 },
                 "radius": 150000000
@@ -1298,8 +1349,8 @@
                 "body": "moon",
                 "kind": "circle",
                 "center": {
-                  "x": 139939419.78254515,
-                  "y": 1558393524.9192162,
+                  "x": 139912513.5335328,
+                  "y": 1558417181.5018814,
                   "z": 1696963224.1754024
                 },
                 "radius": 50000000
@@ -1328,6 +1379,12 @@
                 "id": "conjunction",
                 "kind": "conjunction",
                 "label": "Conjunction",
+                "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
                 "active": false
               }
             ]
@@ -1338,32 +1395,32 @@
           "timeSec": 15892.253824471529,
           "kinematics": {
             "planetSky": {
-              "x": -25132281.87898955,
-              "y": 1.4695761589768239e-7,
-              "z": 2399868406.477229
+              "x": -24661963.08769379,
+              "y": 4586.259944520404,
+              "z": 2358350875.3204536
             },
             "moonSky": {
-              "x": -233404559.92428538,
-              "y": -26882302.688255336,
-              "z": 2399868406.477229
+              "x": -232934241.13298962,
+              "y": -26877716.428310964,
+              "z": 2358350875.3204536
             }
           },
           "flux": {
-            "total": 0.9356789365539427,
+            "total": 0.9356789364613575,
             "transitFactor": 0.9352287387847082,
             "stellarPreTransit": 1,
-            "planetPhase": 0.0003000007310737905,
-            "moonPhase": 0.00015019703816061795
+            "planetPhase": 0.0003000007279776537,
+            "moonPhase": 0.000150196948671628
           },
           "timing": {
-            "planetTransitCenterSec": 15892.253824471529,
-            "planetTransitDurationSec": 7127.034210481838,
-            "planetIngressSec": 12328.73671923061,
-            "planetEgressSec": 19455.77092971245,
-            "moonTransitCenterSec": 15840.663049736497,
-            "moonTransitDurationSec": 4138.861712486919,
-            "moonIngressSec": 13771.232193493037,
-            "moonEgressSec": 17910.093905979957
+            "planetTransitCenterSec": 15892.272132008364,
+            "planetTransitDurationSec": 7127.57935777524,
+            "planetIngressSec": 12328.482453120743,
+            "planetEgressSec": 19456.061810895982,
+            "moonTransitCenterSec": 15840.66644565252,
+            "moonTransitDurationSec": 4139.147781785289,
+            "moonIngressSec": 13771.092554759874,
+            "moonEgressSec": 17910.240336545165
           },
           "renderSignals": {
             "occulters": [
@@ -1371,8 +1428,8 @@
                 "body": "planet",
                 "kind": "circle",
                 "center": {
-                  "x": -25132281.87898955,
-                  "y": 1.4695761589768239e-7,
+                  "x": -25096749.550624676,
+                  "y": 4586.259944522946,
                   "z": 2399868406.477229
                 },
                 "radius": 150000000
@@ -1381,8 +1438,8 @@
                 "body": "moon",
                 "kind": "circle",
                 "center": {
-                  "x": -233404559.92428538,
-                  "y": -26882302.688255336,
+                  "x": -233369027.5959205,
+                  "y": -26877716.42831096,
                   "z": 2399868406.477229
                 },
                 "radius": 50000000
@@ -1412,6 +1469,12 @@
                 "kind": "conjunction",
                 "label": "Conjunction",
                 "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
+                "active": false
               }
             ]
           },
@@ -1421,14 +1484,14 @@
           "timeSec": 31784.507648943058,
           "kinematics": {
             "planetSky": {
-              "x": -3.077816855837358e-9,
-              "y": -2400000000,
-              "z": 2.938991162367198e-7
+              "x": -9097.055298318068,
+              "y": -2358445539.3822775,
+              "z": 2.888146850727552e-7
             },
             "moonSky": {
-              "x": 53322270.6665348,
-              "y": -2603117540.9731145,
-              "z": 2.938991162367198e-7
+              "x": 53313173.61123648,
+              "y": -2561563080.355392,
+              "z": 2.888146850727552e-7
             }
           },
           "flux": {
@@ -1444,8 +1507,8 @@
                 "body": "planet",
                 "kind": "circle",
                 "center": {
-                  "x": -3.077816855837358e-9,
-                  "y": -2400000000,
+                  "x": -9097.05529831812,
+                  "y": -2399965347.0964537,
                   "z": 2.938991162367198e-7
                 },
                 "radius": 150000000
@@ -1454,8 +1517,8 @@
                 "body": "moon",
                 "kind": "circle",
                 "center": {
-                  "x": 53322270.6665348,
-                  "y": -2603117540.9731145,
+                  "x": 53313173.61123648,
+                  "y": -2603082888.069568,
                   "z": 2.938991162367198e-7
                 },
                 "radius": 50000000
@@ -1484,6 +1547,12 @@
                 "id": "conjunction",
                 "kind": "conjunction",
                 "label": "Conjunction",
+                "active": false
+              },
+              {
+                "id": "secondary-eclipse",
+                "kind": "secondary-eclipse",
+                "label": "Secondary eclipse active",
                 "active": false
               }
             ]

@@ -9,6 +9,7 @@ export function renderBrightnessPatchControls(): string {
 
         <details data-ui-tier="expert">
           <summary>Patch 1 (circle)</summary>
+          <label class="inline" for="p1Enabled">Include patch 1 <input id="p1Enabled" type="checkbox" checked /></label>
           <div class="grid">
             <label for="p1x">x <input id="p1x" type="number" step="1000000" value="-195000000" /></label>
             <label for="p1y">y <input id="p1y" type="number" step="1000000" value="153000000" /></label>
@@ -19,6 +20,7 @@ export function renderBrightnessPatchControls(): string {
 
         <details data-ui-tier="expert">
           <summary>Patch 2 (ellipse)</summary>
+          <label class="inline" for="p2Enabled">Include patch 2 <input id="p2Enabled" type="checkbox" checked /></label>
           <div class="grid">
             <label for="p2x">x <input id="p2x" type="number" step="1000000" value="230000000" /></label>
             <label for="p2y">y <input id="p2y" type="number" step="1000000" value="-118000000" /></label>

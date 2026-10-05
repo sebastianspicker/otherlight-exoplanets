@@ -9,6 +9,7 @@ import type { OcBody, OcCsvOptions, OcTrendMode, OcUnit } from "./ocPlotTypes";
 export type { OcBody, OcCsvOptions, OcTrendMode, OcUnit } from "./ocPlotTypes";
 
 type OcPoint = { x: number; y: number; centerSec: number };
+type OcStatsOptions = { unit?: OcUnit; trendMode?: OcTrendMode; periodSec?: number };
 type OcFit = NonNullable<ReturnType<typeof fitLinearEphemeris>>;
 type OcPanelStats = {
   body: OcBody;
@@ -28,6 +29,7 @@ type OcCsvRowContext = {
   trendMode: OcTrendMode;
   scale: number;
   fitByCenter: Map<number, number>;
+  epochByCenter: Map<number, number>;
 };
 type OcRenderOptions = {
   unit: OcUnit;
@@ -65,20 +67,25 @@ function fmtWithUnit(v: number | undefined, unit: OcUnit): string {
   return fmt(typeof v === "number" ? v * s : undefined);
 }
 
-function collectFiniteOcPoints(series: TransitHistorySeries): OcPoint[] {
-  // Use epoch index k (ordinal 0,1,2,...) for the x-coordinate of the linear fit,
-  // not the absolute time.  Fitting O-C vs absolute time produces a slope whose
-  // numerical value is dominated by the magnitude of t, making it meaningless.
-  // The epoch number avoids this and gives a slope in seconds/epoch.
-  let k = 0;
-  const out: Array<{ x: number; y: number; centerSec: number }> = [];
+/**
+ * Collects finite O-C points with their transit epoch as the fit coordinate.
+ *
+ * Fitting O-C against absolute time gives a slope dominated by the magnitude of t, so
+ * the x-coordinate is the epoch E = round((center - center0) / P), giving a slope in
+ * seconds/epoch. Recorded events are not consecutive epochs: at high time speed transits
+ * are skipped, so the ordinal of the recorded event is used only when no period is known.
+ */
+export function collectFiniteOcPoints(series: TransitHistorySeries, periodSec?: number): OcPoint[] {
+  const period = finite(periodSec);
+  const out: OcPoint[] = [];
+  let center0: number | undefined;
   for (const e of series.events) {
     const oc = finite(e.ocSec);
     const center = finite(e.centerSec);
-    if (oc !== undefined && center !== undefined) {
-      out.push({ x: k, y: oc, centerSec: center });
-      k++;
-    }
+    if (oc === undefined || center === undefined) continue;
+    center0 ??= center;
+    const epoch = period && period > 0 ? Math.round((center - center0) / period) : out.length;
+    out.push({ x: epoch, y: oc, centerSec: center });
   }
   return out;
 }
@@ -116,7 +123,7 @@ function fitLinearEphemeris(points: Array<{ x: number; y: number }>):
 export function formatOcPanelStats(
   state: TransitHistoryState,
   body: OcBody,
-  opts: { unit?: OcUnit; trendMode?: OcTrendMode } = {},
+  opts: OcStatsOptions = {},
 ): string {
   const stats = ocPanelStats(state, body, opts);
   if (stats.trendMode === "raw") return formatRawOcPanelStats(stats);
@@ -124,15 +131,11 @@ export function formatOcPanelStats(
   return formatDetrendedOcPanelStats(stats);
 }
 
-function ocPanelStats(
-  state: TransitHistoryState,
-  body: OcBody,
-  opts: { unit?: OcUnit; trendMode?: OcTrendMode },
-): OcPanelStats {
+function ocPanelStats(state: TransitHistoryState, body: OcBody, opts: OcStatsOptions): OcPanelStats {
   const unit = opts.unit ?? "s";
   const trendMode = opts.trendMode ?? "raw";
   const series = getOcSeries(state, body);
-  const points = collectFiniteOcPoints(series);
+  const points = collectFiniteOcPoints(series, opts.periodSec);
   const fit = ocPanelFit(points, trendMode);
   const n = series.events.length;
   return {
@@ -168,10 +171,10 @@ function formatDetrendedOcPanelStats(stats: OcPanelStats): string {
 export function formatOcFitSummary(
   state: TransitHistoryState,
   body: OcBody,
-  opts: { unit?: OcUnit } = {},
+  opts: { unit?: OcUnit; periodSec?: number } = {},
 ): string {
   const unit = opts.unit ?? "s";
-  const points = collectFiniteOcPoints(getOcSeries(state, body));
+  const points = collectFiniteOcPoints(getOcSeries(state, body), opts.periodSec);
   const fit = fitLinearEphemeris(points);
   if (!fit) return `${body} fit: n/a`;
   const slopePerEpoch = fit.slope;
@@ -183,13 +186,14 @@ function buildOcCsv(state: TransitHistoryState, body: OcBody, opts: OcCsvOptions
   const trendMode = opts.trendMode ?? "raw";
   const scale = unitScale(unit);
   const series = getOcSeries(state, body);
-  const points = collectFiniteOcPoints(series);
+  const points = collectFiniteOcPoints(series, opts.periodSec);
   const fit = fitLinearEphemeris(points);
   const fitByCenter = fitValuesByCenter(points, fit);
-  const context: OcCsvRowContext = { body, unit, trendMode, scale, fitByCenter };
+  const epochByCenter = new Map(points.map((point) => [point.centerSec, point.x]));
+  const context: OcCsvRowContext = { body, unit, trendMode, scale, fitByCenter, epochByCenter };
 
   const header =
-    "body,index,center_sec,oc_raw_sec,oc_fit_sec,oc_residual_sec,oc_display,duration_sec,ingress_sec,egress_sec,detected_at_sec,unit,trend_mode";
+    "body,index,epoch,center_sec,oc_raw_sec,oc_fit_sec,oc_residual_sec,oc_display,duration_sec,ingress_sec,egress_sec,detected_at_sec,unit,trend_mode";
   const rows = series.events.map((event, index) => ocCsvRow(event, index, context));
   return `${header}\n${rows.join("\n")}\n`;
 }
@@ -215,6 +219,7 @@ function ocCsvRow(
   return [
     context.body,
     String(index),
+    csvValue(context.epochByCenter.get(event.centerSec)),
     String(event.centerSec),
     csvValue(raw),
     csvValue(fitSec),
@@ -264,7 +269,7 @@ export function renderOcHistoryCanvas(
   canvas: HTMLCanvasElement | null,
   state: TransitHistoryState,
   body: OcBody,
-  opts: { unit?: OcUnit; trendMode?: OcTrendMode } = {},
+  opts: OcStatsOptions = {},
 ): void {
   const renderOptions = ocRenderOptions(opts);
   const metrics = canvas ? prepareOcCanvas(canvas) : undefined;
@@ -273,7 +278,7 @@ export function renderOcHistoryCanvas(
   drawOcBackground(ctx, w, h);
 
   const series = getOcSeries(state, body);
-  const points = collectFiniteOcPoints(series);
+  const points = collectFiniteOcPoints(series, opts.periodSec);
   const fit = ocPanelFit(points, renderOptions.trendMode);
   const pointsY = ocDisplayPoints(points, fit, renderOptions.trendMode, renderOptions.scale);
   drawOcPlotFrame({

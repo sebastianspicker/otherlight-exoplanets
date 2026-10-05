@@ -117,13 +117,21 @@ The propagation path retains only the time and radial-velocity columns needed fo
 Arrow publication plus the run manifest; the public Python `run_forward` function
 still returns full positions, velocities, and photocentre values.
 
+The Browser Scientific workspace polls a submitted job every 250 ms for the first
+5 s and every 1 s afterwards. It allows each job 105 s (the 60 s wall-time limit
+plus a 45 s margin for artifact writing) from its first `running` status, and
+8 x 105 s = 840 s while it is `queued`, so the overall bound is 945 s. When the
+budget runs out it cancels the job through `DELETE /v1/jobs/{id}` and says so in
+the run status.
+
 Forward jobs are bounded to three bodies, 100,000 samples, 500,000 accepted
 integration steps, 8,000,000 right-hand-side evaluations, and 60 seconds. Sample
 times must be finite, unique, and representable as a strictly increasing IEEE-754
 grid, and body centres must be non-overlapping initially. Each accepted DOP853
 dense numerical trajectory is certified outside finite-radius contact with
 bounded, outward-rounded interval arithmetic; contact or an indeterminate proof
-fails the job. That certificate covers the numerical interpolant within its
+fails the job. Contact is judged only on the accepted trajectory, never on
+integrator trial stages. That certificate covers the numerical interpolant within its
 declared tolerances, not the exact physical trajectory. The service does not model
 impacts, mergers, tides, rotational multipoles, relativity, radiation forces,
 softening, or time-scale conversion.
@@ -154,6 +162,7 @@ From the repository root with the development environment active:
 python -m ruff format --check services/science
 python -m ruff check services/science
 python -m pyright --pythonpath "$VIRTUAL_ENV/bin/python" services/science
+PYTHONPATH=services/science python -m pytest services/science/tests  # local, unpublished suite
 ```
 
 Run latency and traced-memory measurements separately. The benchmark reports
@@ -192,7 +201,8 @@ PYTHONPATH=services/science python -m science_backend.artifact_cache .science-ca
 | `artifact-writer-capacity-exhausted`                         | Reduce the forward sample count; one Arrow writer exceeded its independent 64 MiB temporary-file limit.                             |
 | `409 dataset-in-use`                                         | Wait for the referencing V2 job to finish or cancel before deletion. No current V2 job route acquires datasets.                     |
 | `409 dataset-quota-exceeded`                                 | Delete an unused imported dataset or restart the session-scoped service.                                                            |
-| `413 dataset-too-large`                                      | Keep the exact uncompressed JSON upload at or below 8 MiB.                                                                          |
+| `409 job-state-invalid`                                      | The service or dataset registry is closed; restart the service.                                                                     |
+| `413 dataset-too-large`                                      | Keep one upload at or below 8 MiB, 100,000 normalized samples, and 1,000,000 JSON nodes (also applies to `/v1/jobs` bodies).        |
 | `415 unsupported-media-type`                                 | Use the exact V6 dataset JSON media type without content encoding.                                                                  |
 | A job fails at contact or a work budget                      | Reduce the requested span or sampling and use a physically non-overlapping scenario.                                                |
 

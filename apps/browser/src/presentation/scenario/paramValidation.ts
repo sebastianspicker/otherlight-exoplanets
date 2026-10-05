@@ -8,7 +8,7 @@ import {
 } from "../../domain/model/transitComputeBudget";
 import type { UiRefs } from "../shell/refs";
 import { readUIIntoParams } from "./params/read";
-import { scenarioNormalRange } from "./scenarioControlRanges";
+import { scenarioNormalRange, widenRangeForLoadedValue } from "./scenarioControlRanges";
 
 export type ParamUiMeta = {
   id: string;
@@ -68,6 +68,9 @@ const HARD_POSITIVE_IDS = new Set([
   "relC",
   "exoVelDt",
 ]);
+
+// Blank means "use the documented default" for these fields (exoTRef: the planet transit epoch).
+const OPTIONAL_BLANK_IDS = new Set(["exoTRef"]);
 
 const normalizedText = (value: string | null | undefined): string => {
   return (value ?? "").replace(/\s+/g, " ").trim();
@@ -137,14 +140,50 @@ export const getParamUiMeta = (input: HTMLInputElement): ParamUiMeta => {
   };
 };
 
+type FieldErrorFactory = (message: (label: string) => string) => ParamValidationError;
+
+function normalRangeBounds(input: HTMLInputElement): { min?: number; max?: number } {
+  const scenarioRange = scenarioNormalRange(input.id);
+  const min = scenarioRange?.min ?? finiteAttribute(input, "min");
+  const max = scenarioRange?.max ?? finiteAttribute(input, "max");
+  if (min === undefined || max === undefined) return { min, max };
+  // A loaded scenario value outside the normal range stays valid until edited away.
+  return widenRangeForLoadedValue({ min, max }, input);
+}
+
+function rangeError(
+  input: HTMLInputElement,
+  value: number,
+  overrideRanges: boolean,
+  createError: FieldErrorFactory,
+): ParamValidationError | undefined {
+  const { min, max } = normalRangeBounds(input);
+  if (overrideRanges) {
+    // Override mode lifts the normal range but keeps non-negative quantities physical.
+    if (min !== undefined && min >= 0 && value < 0) {
+      return createError((label) => `${label} must be at least 0.`);
+    }
+    return undefined;
+  }
+  if (min !== undefined && value < min) {
+    return createError((label) => `${label} must be at least ${min}.`);
+  }
+  if (max !== undefined && value > max) {
+    return createError((label) => `${label} must be no more than ${max}.`);
+  }
+  return undefined;
+}
+
 function inputError(input: HTMLInputElement, overrideRanges: boolean): ParamValidationError | undefined {
   const raw = input.value.trim();
   const value = input.valueAsNumber;
-  const createError = (message: (label: string) => string): ParamValidationError => {
+  const createError: FieldErrorFactory = (message) => {
     const label = getParamUiMeta(input).label;
     return { fieldId: input.id, label, message: message(label) };
   };
-  if (!raw) return createError((label) => `${label} is required.`);
+  if (!raw) {
+    return OPTIONAL_BLANK_IDS.has(input.id) ? undefined : createError((label) => `${label} is required.`);
+  }
   if (!Number.isFinite(value)) {
     return createError((label) => `${label} must be a finite number.`);
   }
@@ -157,16 +196,7 @@ function inputError(input: HTMLInputElement, overrideRanges: boolean): ParamVali
   if (input.id === "nSubsamples" && !Number.isInteger(value)) {
     return createError((label) => `${label} must be a whole number.`);
   }
-  const scenarioRange = scenarioNormalRange(input.id);
-  const min = scenarioRange?.min ?? finiteAttribute(input, "min");
-  const max = scenarioRange?.max ?? finiteAttribute(input, "max");
-  if (!overrideRanges && min !== undefined && value < min) {
-    return createError((label) => `${label} must be at least ${min}.`);
-  }
-  if (!overrideRanges && max !== undefined && value > max) {
-    return createError((label) => `${label} must be no more than ${max}.`);
-  }
-  return undefined;
+  return rangeError(input, value, overrideRanges, createError);
 }
 
 function compatibilityErrors(
@@ -228,13 +258,15 @@ function compatibilityErrors(
   return errors;
 }
 
+function overrideRangesEnabled(form: HTMLFormElement | null): boolean {
+  return Boolean((form?.elements.namedItem("overrideMode") as HTMLInputElement | null)?.checked);
+}
+
 function validateParamForm(
   form: HTMLFormElement,
   candidateParams?: BrowserScenarioDraft,
 ): ParamValidationError[] {
-  const overrideRanges = Boolean(
-    (form.elements.namedItem("overrideMode") as HTMLInputElement | null)?.checked,
-  );
+  const overrideRanges = overrideRangesEnabled(form);
   const errors = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="number"]'))
     .filter((input) => !input.disabled)
     .flatMap((input) => {
@@ -268,6 +300,37 @@ export function clearParamValidationUi(form: HTMLFormElement, summary: HTMLEleme
   }
 }
 
+function clearFieldError(input: HTMLInputElement): void {
+  const errorId = `${input.id}-error`;
+  if (input.getAttribute("aria-describedby") === errorId) {
+    input.removeAttribute("aria-invalid");
+    input.removeAttribute("aria-describedby");
+  }
+  input.ownerDocument.getElementById(errorId)?.remove();
+}
+
+function showFieldError(input: HTMLInputElement, error: ParamValidationError): void {
+  const errorId = `${error.fieldId}-error`;
+  input.setAttribute("aria-invalid", "true");
+  input.setAttribute("aria-describedby", errorId);
+  const message = document.createElement("span");
+  message.id = errorId;
+  message.className = "field-error";
+  message.textContent = error.message;
+  input.insertAdjacentElement("afterend", message);
+}
+
+/**
+ * Validates one committed numeric field and shows or clears its inline error.
+ * The typed value is never rewritten, so invalid input stays available for correction.
+ */
+export function renderParamFieldValidation(input: HTMLInputElement): void {
+  clearFieldError(input);
+  if (input.disabled || !input.id) return;
+  const error = inputError(input, overrideRangesEnabled(input.form));
+  if (error) showFieldError(input, error);
+}
+
 export function renderParamValidationErrors(
   form: HTMLFormElement,
   errors: ParamValidationError[],
@@ -277,14 +340,7 @@ export function renderParamValidationErrors(
   for (const error of errors) {
     const input = form.elements.namedItem(error.fieldId);
     if (!(input instanceof HTMLInputElement)) continue;
-    const errorId = `${error.fieldId}-error`;
-    input.setAttribute("aria-invalid", "true");
-    input.setAttribute("aria-describedby", errorId);
-    const message = document.createElement("span");
-    message.id = errorId;
-    message.className = "field-error";
-    message.textContent = error.message;
-    input.insertAdjacentElement("afterend", message);
+    showFieldError(input, error);
   }
   if (summary) {
     const heading = document.createElement("strong");

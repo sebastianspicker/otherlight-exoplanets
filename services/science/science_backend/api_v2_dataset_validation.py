@@ -9,7 +9,7 @@ from math import isfinite, pi
 from types import MappingProxyType
 from typing import Any
 
-from .errors import ContractError, DatasetCapacityError
+from .errors import ContractError, DatasetTooLargeError
 
 MAX_DATASET_BYTES = 8 * 1024 * 1024
 MAX_DATASET_SAMPLES = 100_000
@@ -43,7 +43,7 @@ def parse_dataset_bytes(source: bytes) -> dict[str, Any]:
     """Decode one bounded UTF-8 JSON object without accepting duplicate keys."""
 
     if len(source) > MAX_DATASET_BYTES:
-        raise DatasetCapacityError(
+        raise DatasetTooLargeError(
             f"dataset upload exceeds the {MAX_DATASET_BYTES}-byte limit"
         )
     try:
@@ -58,7 +58,7 @@ def parse_dataset_bytes(source: bytes) -> dict[str, Any]:
         )
     except ContractError:
         raise
-    except (json.JSONDecodeError, RecursionError) as error:
+    except (ValueError, RecursionError) as error:
         raise ContractError("dataset body must be one valid JSON document") from error
     if not isinstance(value, dict):
         raise ContractError("dataset body must be a JSON object")
@@ -73,7 +73,7 @@ def _validate_json_shape(value: Any) -> None:
         current, depth = stack.pop()
         nodes += 1
         if nodes > MAX_JSON_NODES:
-            raise DatasetCapacityError(
+            raise DatasetTooLargeError(
                 f"dataset JSON exceeds the {MAX_JSON_NODES}-node limit"
             )
         if depth > MAX_JSON_DEPTH:
@@ -183,7 +183,7 @@ def _common(payload: dict[str, Any], required: set[str]) -> str:
     if payload["schemaVersion"] != "science-dataset-v2":
         raise ContractError("dataset.schemaVersion must be 'science-dataset-v2'")
     kind = payload["kind"]
-    if kind not in DATASET_KINDS:
+    if not isinstance(kind, str) or kind not in DATASET_KINDS:
         raise ContractError("dataset.kind is unsupported")
     return kind
 
@@ -206,7 +206,7 @@ def validate_dataset(payload: dict[str, Any]) -> tuple[str, int]:
         _common(payload, set())
         raise ContractError("dataset.kind is unsupported")
     if count > MAX_DATASET_SAMPLES:
-        raise DatasetCapacityError(
+        raise DatasetTooLargeError(
             f"dataset contains more than {MAX_DATASET_SAMPLES} normalized samples"
         )
     return kind, count

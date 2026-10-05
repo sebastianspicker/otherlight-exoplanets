@@ -217,9 +217,11 @@ function readExomoonTimingShapeFromUI(
   r: UiRefs,
   prev: SystemDynamicsParams["exomoonTimingShape"],
 ): SystemDynamicsParams["exomoonTimingShape"] {
+  // A blank or non-finite tRef stays undefined so the domain uses the planet transit epoch.
+  const tRef = readNumberInput(r.exoTRef, Number.NaN);
   return {
     enabled: true,
-    tRef: sanitizeFinite(readNumberInput(r.exoTRef, valueOr(prev?.tRef, 0)), 0),
+    ...(Number.isFinite(tRef) ? { tRef } : {}),
     velDt: sanitizePositive(readNumberInput(r.exoVelDt, valueOr(prev?.velDt, 2)), 1e-6, 1e9),
     moonOmegaDot: sanitizeFinite(readNumberInput(r.exoMoonOmegaDot, valueOr(prev?.moonOmegaDot, 0)), 0),
     moonIncDot: sanitizeFinite(readNumberInput(r.exoMoonIncDot, valueOr(prev?.moonIncDot, 0)), 0),

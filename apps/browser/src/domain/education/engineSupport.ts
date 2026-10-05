@@ -5,15 +5,16 @@ import type {
   AssessmentRubricV2,
   DidacticCheckResult,
   DidacticSignals,
-  DidacticInterpretation,
   LessonPhaseSpec,
   LessonSpec,
   RubricCriterionV2,
 } from "../model/types";
 import type { NumericSignals } from "./engineNumericSignals";
+import { depthMatchesGeometry } from "./engineInterpretation";
 import { getLessonStepPhases } from "./lessons";
 
 export { collectNumericSignals } from "./engineNumericSignals";
+export { buildInterpretation } from "./engineInterpretation";
 
 type LessonCheckRule = LessonSpec["steps"][number]["checks"][number];
 
@@ -30,6 +31,8 @@ const DEFAULT_RUBRIC_CRITERIA: RubricCriterionV2[] = [
 const PASSED_STATUS_BY_SIGNAL: Partial<Record<LessonCheckRule["signal"], string>> = {
   bPlanet: "The main transit chord is in the target geometry.",
   bMoon: "The moon is crossing the star from the learner's line of sight.",
+  limbDarkeningStrength: "The stellar disk is clearly darker at the limb than at the center.",
+  transitCurvatureRatio: "The transit bottom is rounded the way limb darkening predicts.",
   moonLeadLagSec: "The moon signal is temporally separated from the planet dip.",
   combinedFluxDrop: "The combined stellar light curve shows a measurable eclipse.",
   rvStar: "The stellar reflex velocity is large enough to be discussed.",
@@ -42,11 +45,13 @@ const PASSED_STATUS_BY_SIGNAL: Partial<Record<LessonCheckRule["signal"], string>
 // in DidacticSignals are safe since cached objects are never mutated).
 const _hintLevelsCache = new Map<string, { L1: string[]; L2: string[]; L3: string[] }>();
 
+// A mismatch is only meaningful while a transit is observed and a geometric prediction exists.
 function hasDepthMismatch(params: { depthApprox: number; depthObserved: number }): boolean {
   return (
     Number.isFinite(params.depthApprox) &&
-    Number.isFinite(params.depthObserved) &&
-    Math.abs(params.depthObserved - params.depthApprox) > 0.2
+    params.depthApprox > 0 &&
+    params.depthObserved > 0 &&
+    !depthMatchesGeometry(params)
   );
 }
 
@@ -123,8 +128,7 @@ export function buildMisconceptions(params: {
       severity: "warn",
     });
   }
-  const d = Math.abs(params.depthObserved - params.depthApprox);
-  if (Number.isFinite(d) && d > 0.2) {
+  if (hasDepthMismatch(params)) {
     out.push({
       id: "depth-equals-ratio",
       message: "Depth is treated as purely (Rp/Rs)^2 although limb-darkening/geometry can dominate.",
@@ -151,18 +155,37 @@ function failedRangeStatus(rule: LessonCheckRule, observed: number, expected: st
   if (rule.signal === "combinedFluxDrop") {
     return `The eclipse is still too shallow to read clearly. Current drop ${observed.toFixed(3)}; target ${expected}.`;
   }
+  if (rule.signal === "limbDarkeningStrength") {
+    return `Increase u1 and u2 in expert mode. Current u1 + u2 = ${formatObserved(observed)}; target ${expected}.`;
+  }
   return `Keep adjusting until the observed value fits ${expected}.`;
+}
+
+function formatObserved(observed: number): string {
+  return Number.isFinite(observed) ? observed.toFixed(3) : "n/a";
+}
+
+function failedBoundStatus(rule: LessonCheckRule, observed: number, expected: string): string {
+  if (rule.signal === "bMoon") {
+    return `The moon's closest approach b_moon = ${formatObserved(observed)} does not overlap the star. Target ${expected}.`;
+  }
+  return `The closest approach b = ${formatObserved(observed)} is outside ${expected}.`;
 }
 
 function failedCheckStatus(rule: LessonCheckRule, observed: number, expected: string): string {
   if (rule.kind === "range") return failedRangeStatus(rule, observed, expected);
+  if (rule.kind === "signal-bound") return failedBoundStatus(rule, observed, expected);
   if (rule.kind === "distance" && rule.signal === "moonLeadLagSec") {
-    return "Increase moon spacing until the moon dip leads or trails the planet more clearly.";
+    return Number.isFinite(observed)
+      ? "Increase moon spacing until the moon dip leads or trails the planet more clearly."
+      : "The moon is not in transit now. Jump to the moon mid-transit to read the lead/lag.";
   }
   if (rule.kind === "signal-approx") {
-    return "The measured lesson signal still does not match the geometric prediction closely enough.";
+    return observed > 0
+      ? "The measured lesson signal still does not match the geometric prediction closely enough."
+      : "No transit is in progress. Jump to mid-transit to read the depth.";
   }
-  return `This check still fails. Compare observed=${Number.isFinite(observed) ? observed.toFixed(3) : "n/a"} with ${expected}.`;
+  return `This check still fails. Compare observed=${formatObserved(observed)} with ${expected}.`;
 }
 
 function buildCheckStatusText(
@@ -174,196 +197,97 @@ function buildCheckStatusText(
   return passed ? passedCheckStatus(rule.signal) : failedCheckStatus(rule, observed, expected);
 }
 
-/**
- * Map the current lesson, check results, and numeric signals to a structured
- * {@link DidacticInterpretation} with a headline, observation sentence, and next action.
- */
-type InterpretationEvaluation = ReturnType<typeof evaluateChecks>;
-
-function interpretKepler(
-  evalResult: InterpretationEvaluation,
-  signals: NumericSignals,
-): DidacticInterpretation {
-  if (!Number.isFinite(signals.bPlanet)) {
-    return {
-      headline: "There is no front-of-star planet transit yet.",
-      observation: "The current observer/chord geometry does not produce a valid planet impact parameter.",
-      nextAction: "Raise the planet inclination until the planet crosses the visible stellar disk.",
-    };
-  }
-  if (evalResult.stepId === "kepler-step-1") {
-    return signals.bPlanet <= 0.2
-      ? {
-          headline: "You reached a near-central transit.",
-          observation: `The planet impact parameter is ${signals.bPlanet.toFixed(2)}, so the chord stays close to the stellar center.`,
-          nextAction: "Keep this geometry and now compare the physical depth against (Rp/R*)^2.",
-        }
-      : {
-          headline: "The transit is still too grazing.",
-          observation: `The current impact parameter is ${signals.bPlanet.toFixed(2)}, so the chord is still too far from the center.`,
-          nextAction: "Increase planet inclination to push the chord inward.",
-        };
-  }
-  return Math.abs(signals.depthObserved - signals.depthApprox) <= 0.2
-    ? {
-        headline: "Geometry and depth now tell the same story.",
-        observation: `The physical depth ${signals.depthObserved.toFixed(3)} is close to the geometric estimate ${signals.depthApprox.toFixed(3)}.`,
-        nextAction:
-          "Use ingress and egress to explain why central transits best match the simple radius-ratio formula.",
-      }
-    : {
-        headline: "The depth still disagrees with the simple radius-ratio estimate.",
-        observation: `Observed depth ${signals.depthObserved.toFixed(3)} differs from the geometric estimate ${signals.depthApprox.toFixed(3)}.`,
-        nextAction:
-          "Inspect whether the chord is grazing or whether limb darkening is changing the occulted brightness.",
-      };
-}
-
-function interpretExomoon(
-  evalResult: InterpretationEvaluation,
-  signals: NumericSignals,
-): DidacticInterpretation {
-  if (evalResult.stepId === "exomoon-step-1") {
-    return Number.isFinite(signals.bMoon) && signals.bMoon <= 1.1
-      ? {
-          headline: "The moon is now in front-of-star geometry.",
-          observation: `The moon impact parameter is ${signals.bMoon.toFixed(2)}, so the moon can contribute its own transit feature.`,
-          nextAction:
-            "Now separate the moon timing from the planet timing so the moon feature becomes readable.",
-        }
-      : {
-          headline: "The moon is still missing the stellar disk.",
-          observation: "Its projected chord is still too tilted or too far from the visible stellar disk.",
-          nextAction: "Reduce moon inclination until the moon also crosses in front of the star.",
-        };
-  }
-  return Number.isFinite(signals.moonLeadLagSec) && Math.abs(signals.moonLeadLagSec) >= 600
-    ? {
-        headline: "The moon signal is no longer buried inside the planet dip.",
-        observation: `The moon transit center is offset from the planet by ${signals.moonLeadLagSec.toFixed(0)} s.`,
-        nextAction:
-          "Compare moon-on versus moon-off to identify which shoulder or dip belongs to the moon alone.",
-      }
-    : {
-        headline: "The moon signal still overlaps too strongly with the planet transit.",
-        observation:
-          "The moon and planet are still transiting too close together in time to separate cleanly.",
-        nextAction: "Increase moon spacing so the moon leads or trails the planet more clearly.",
-      };
-}
-
-function interpretBinary(
-  evalResult: InterpretationEvaluation,
-  signals: NumericSignals,
-): DidacticInterpretation {
-  if (evalResult.stepId === "binary-step-1") {
-    return signals.combinedFluxDrop >= 0.01
-      ? {
-          headline: "The combined light curve now shows a readable stellar eclipse.",
-          observation: `The total binary flux drops by ${(signals.combinedFluxDrop * 100).toFixed(1)}% from the combined baseline.`,
-          nextAction:
-            "Use the eclipse chord and the reveal-sky step to decide whether the event is central or grazing.",
-        }
-      : {
-          headline: "The binary eclipse is still too shallow to teach from cleanly.",
-          observation:
-            "The combined stellar flux has not dropped enough yet to make the eclipse morphology obvious.",
-          nextAction: "Stay near eclipse and compare the black-box curve to the revealed geometry.",
-        };
-  }
-  return Number.isFinite(signals.bPlanet) && signals.bPlanet <= 0.4
-    ? {
-        headline: "The binary eclipse chord is close to central.",
-        observation: `The projected impact parameter proxy is ${signals.bPlanet.toFixed(2)}, so the occulting chord is no longer grazing.`,
-        nextAction:
-          "Relate the deeper eclipse to both geometry and the luminosity contrast between the two stars.",
-      }
-    : {
-        headline: "The binary eclipse is still geometrically grazing.",
-        observation: `The projected chord remains too far from the center (b ≈ ${Number.isFinite(signals.bPlanet) ? signals.bPlanet.toFixed(2) : "n/a"}).`,
-        nextAction:
-          "Use the reveal-sky step to compare your flux-only hypothesis against the actual eclipse chord.",
-      };
-}
-
-function interpretCurveReading(signals: NumericSignals): DidacticInterpretation {
-  return signals.depthObserved > 0
-    ? {
-        headline: "The curve landmarks are readable.",
-        observation:
-          "The physical curve contains a visible drop and recovery, so ingress, mid-transit, and egress can be named from evidence rather than guesswork.",
-        nextAction:
-          "Use the event jumps and describe exactly what changes first on the curve and on the stellar disk at each landmark.",
-      }
-    : {
-        headline: "There is no readable transit landmark yet.",
-        observation:
-          "Without an active physical transit, the light curve does not yet support landmark-based reading.",
-        nextAction: "Restore a visible transit before trying to identify ingress, mid-transit, and egress.",
-      };
-}
-
-function interpretLimbDarkening(signals: NumericSignals): DidacticInterpretation {
-  return signals.depthObserved > 0
-    ? {
-        headline: "You have a visible transit to study limb darkening.",
-        observation:
-          "The lesson surface is ready: ingress, egress, and depth can now be compared against the geometric prediction.",
-        nextAction:
-          "Switch to expert mode and increase u1/u2, then compare ingress/egress shape rather than only depth.",
-      }
-    : {
-        headline: "There is no useful transit shape to study yet.",
-        observation:
-          "Without an active transit, limb-darkening changes will not produce a readable ingress/egress signature.",
-        nextAction: "Restore a visible transit first, then strengthen limb darkening in expert mode.",
-      };
-}
-
-function interpretDefault(signals: NumericSignals): DidacticInterpretation {
-  return signals.rvStar > 0.01
-    ? {
-        headline: "The system now shows a measurable dynamical signal.",
-        observation: `|RV*| is ${signals.rvStar.toFixed(3)} m/s and TDV ratio is ${Number.isFinite(signals.tdvRatio) ? signals.tdvRatio.toFixed(4) : "n/a"}.`,
-        nextAction:
-          "Compare this setup against an unperturbed one to separate timing effects from pure photometry.",
-      }
-    : {
-        headline: "The perturbation is still too subtle.",
-        observation:
-          "The current setup has not yet produced a strong enough RV or timing deviation to teach from clearly.",
-        nextAction: "Increase perturber mass or shorten the relevant orbital timescale in expert mode.",
-      };
-}
-
-export function buildInterpretation(
-  lesson: LessonSpec,
-  evalResult: InterpretationEvaluation,
-  signals: NumericSignals,
-): DidacticInterpretation {
-  switch (lesson.id) {
-    case "kepler-geometry":
-      return interpretKepler(evalResult, signals);
-    case "exomoon-transit-lab":
-      return interpretExomoon(evalResult, signals);
-    case "binary-eclipse-lab":
-      return interpretBinary(evalResult, signals);
-    case "curve-reading-lab":
-      return interpretCurveReading(signals);
-    case "limb-darkening-lab":
-      return interpretLimbDarkening(signals);
-    default:
-      return interpretDefault(signals);
-  }
-}
-
 export function currentStepPhases(lesson: LessonSpec, stepIndex: number): LessonPhaseSpec[] {
   return getLessonStepPhases(lesson, stepIndex);
 }
 
 export function clampIndex(value: number | undefined, max: number): number {
   if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(value as number, max));
+  return Math.max(0, Math.min(Math.trunc(value as number), max));
+}
+
+type RuleOutcome = { passed: boolean; expected: string };
+type RangeRule = Extract<LessonCheckRule, { kind: "range" }>;
+type ApproxRule = Extract<LessonCheckRule, { kind: "approx" }>;
+type SignalApproxRule = Extract<LessonCheckRule, { kind: "signal-approx" }>;
+type SignalBoundRule = Extract<LessonCheckRule, { kind: "signal-bound" }>;
+type DistanceRule = Extract<LessonCheckRule, { kind: "distance" }>;
+
+function evaluateRangeRule(rule: RangeRule, observed: number): RuleOutcome {
+  const minOk = rule.min === undefined || observed >= rule.min;
+  const maxOk = rule.max === undefined || observed <= rule.max;
+  return {
+    passed: Number.isFinite(observed) && minOk && maxOk,
+    expected: `[${rule.min ?? "-inf"}, ${rule.max ?? "+inf"}]`,
+  };
+}
+
+function evaluateApproxRule(rule: ApproxRule, observed: number): RuleOutcome {
+  const delta = Math.abs(observed - rule.target);
+  return {
+    passed: Number.isFinite(observed) && Number.isFinite(delta) && delta <= rule.tolerance,
+    expected: `${rule.target} ± ${rule.tolerance}`,
+  };
+}
+
+// Relative tolerance, and the observed signal must be positive (e.g. a transit is in progress).
+function evaluateSignalApproxRule(
+  rule: SignalApproxRule,
+  observed: number,
+  signals: NumericSignals,
+): RuleOutcome {
+  const reference = signals[rule.referenceSignal];
+  const delta = Math.abs(observed - reference);
+  return {
+    passed:
+      Number.isFinite(reference) &&
+      observed > 0 &&
+      Number.isFinite(delta) &&
+      delta <= rule.tolerance * Math.abs(reference),
+    expected: `${rule.referenceSignal} ± ${rule.tolerance * 100}%`,
+  };
+}
+
+function boundValue(signals: NumericSignals, name: SignalBoundRule["above"], fallback: number): number {
+  return name ? signals[name] : fallback;
+}
+
+function evaluateSignalBoundRule(
+  rule: SignalBoundRule,
+  observed: number,
+  signals: NumericSignals,
+): RuleOutcome {
+  const lower = boundValue(signals, rule.above, Number.NEGATIVE_INFINITY);
+  const upper = boundValue(signals, rule.below, Number.POSITIVE_INFINITY);
+  const lowerText = Number.isFinite(lower) ? lower.toFixed(3) : "-inf";
+  const upperText = Number.isFinite(upper) ? upper.toFixed(3) : "+inf";
+  return {
+    passed: Number.isFinite(observed) && !Number.isNaN(lower + upper) && observed > lower && observed < upper,
+    expected: `(${lowerText}, ${upperText})`,
+  };
+}
+
+function evaluateDistanceRule(rule: DistanceRule, observed: number): RuleOutcome {
+  const delta = Math.abs(observed - rule.target);
+  return {
+    passed: Number.isFinite(observed) && Number.isFinite(delta) && delta >= rule.minAbsDelta,
+    expected: `|x-${rule.target}| >= ${rule.minAbsDelta}`,
+  };
+}
+
+function evaluateRule(rule: LessonCheckRule, observed: number, signals: NumericSignals): RuleOutcome {
+  switch (rule.kind) {
+    case "range":
+      return evaluateRangeRule(rule, observed);
+    case "approx":
+      return evaluateApproxRule(rule, observed);
+    case "signal-approx":
+      return evaluateSignalApproxRule(rule, observed, signals);
+    case "signal-bound":
+      return evaluateSignalBoundRule(rule, observed, signals);
+    default:
+      return evaluateDistanceRule(rule, observed);
+  }
 }
 
 /**
@@ -382,40 +306,13 @@ export function evaluateChecks(
   stepTitle: string;
   prompt: string;
 } {
-  const safeIndex = Math.max(0, Math.min(stepIndex, Math.max(lesson.steps.length - 1, 0)));
-  const step = lesson.steps[safeIndex];
+  const step = lesson.steps[clampIndex(stepIndex, Math.max(lesson.steps.length - 1, 0))];
   const checks: DidacticCheckResult[] = [];
   let passedCount = 0;
 
   for (const rule of step.checks) {
     const observed = signals[rule.signal];
-    let passed: boolean;
-    let expected: string;
-
-    if (rule.kind === "range") {
-      const minOk = rule.min === undefined || observed >= rule.min;
-      const maxOk = rule.max === undefined || observed <= rule.max;
-      passed = Number.isFinite(observed) && minOk && maxOk;
-      expected = `[${rule.min ?? "-inf"}, ${rule.max ?? "+inf"}]`;
-    } else if (rule.kind === "approx") {
-      const delta = Math.abs(observed - rule.target);
-      passed = Number.isFinite(observed) && Number.isFinite(delta) && delta <= rule.tolerance;
-      expected = `${rule.target} ± ${rule.tolerance}`;
-    } else if (rule.kind === "signal-approx") {
-      const reference = signals[rule.referenceSignal];
-      const delta = Math.abs(observed - reference);
-      passed =
-        Number.isFinite(observed) &&
-        Number.isFinite(reference) &&
-        Number.isFinite(delta) &&
-        delta <= rule.tolerance;
-      expected = `${rule.referenceSignal} ± ${rule.tolerance}`;
-    } else {
-      const delta = Math.abs(observed - rule.target);
-      passed = Number.isFinite(observed) && Number.isFinite(delta) && delta >= rule.minAbsDelta;
-      expected = `|x-${rule.target}| >= ${rule.minAbsDelta}`;
-    }
-
+    const { passed, expected } = evaluateRule(rule, observed, signals);
     checks.push({
       id: rule.id,
       label: rule.label,
@@ -439,6 +336,46 @@ export function evaluateChecks(
   };
 }
 
+// Relative depth agreement; undefined (NaN) when no transit is observed or no prediction exists.
+function depthConsistencyScore(depthApprox: number, depthObserved: number): number {
+  if (!(Number.isFinite(depthApprox) && depthApprox > 0 && depthObserved > 0)) return Number.NaN;
+  return Math.max(0, 1 - Math.min(1, Math.abs(depthObserved - depthApprox) / depthApprox));
+}
+
+type RubricBreakdownEntry = { id: string; label: string; weight: number; score: number };
+type RubricMetricArgs = { checksScore: number; depthApprox: number; depthObserved: number; tdvRatio: number };
+
+function resolveRubricCriteria(rubric: AssessmentRubricV2 | undefined): RubricCriterionV2[] {
+  return Array.isArray(rubric?.criteria) && rubric!.criteria!.length > 0
+    ? rubric!.criteria!
+    : DEFAULT_RUBRIC_CRITERIA;
+}
+
+function resolveRubricPassScore(rubric: AssessmentRubricV2 | undefined): number {
+  return Number.isFinite(rubric?.passScore) ? Math.min(1, Math.max(0, rubric!.passScore as number)) : 0.7;
+}
+
+function rubricMetricScore(metric: RubricCriterionV2["metric"], args: RubricMetricArgs): number {
+  if (metric === "check-pass-rate") return Math.min(1, Math.max(0, args.checksScore));
+  if (metric === "depth-consistency") return depthConsistencyScore(args.depthApprox, args.depthObserved);
+  const tdvDelta = Number.isFinite(args.tdvRatio) ? Math.abs(args.tdvRatio - 1) : 0;
+  return Math.min(1, tdvDelta * 10);
+}
+
+// Unscorable criteria (e.g. depth while no transit is observed) are left out of the weighting.
+function rubricBreakdown(criteria: RubricCriterionV2[], args: RubricMetricArgs): RubricBreakdownEntry[] {
+  const breakdown: RubricBreakdownEntry[] = [];
+  for (const criterion of criteria) {
+    const weight =
+      Number.isFinite(criterion.weight) && criterion.weight > 0 ? (criterion.weight as number) : 0;
+    if (weight <= 0) continue;
+    const score = rubricMetricScore(criterion.metric, args);
+    if (!Number.isFinite(score)) continue;
+    breakdown.push({ id: criterion.id, label: criterion.label, weight, score });
+  }
+  return breakdown;
+}
+
 export function evaluateRubricV2(args: {
   rubric?: AssessmentRubricV2;
   checksScore: number;
@@ -446,50 +383,11 @@ export function evaluateRubricV2(args: {
   depthObserved: number;
   tdvRatio: number;
 }): DidacticSignals["rubricV2"] | undefined {
-  const enabled = args.rubric?.enabled ?? true;
-  if (!enabled) return undefined;
-  const criteria =
-    Array.isArray(args.rubric?.criteria) && args.rubric!.criteria!.length > 0
-      ? args.rubric!.criteria!
-      : DEFAULT_RUBRIC_CRITERIA;
-  const passScore = Number.isFinite(args.rubric?.passScore)
-    ? Math.min(1, Math.max(0, args.rubric!.passScore as number))
-    : 0.7;
-
-  const scoreForMetric = (metric: RubricCriterionV2["metric"]): number => {
-    if (metric === "check-pass-rate") return Math.min(1, Math.max(0, args.checksScore));
-    if (metric === "depth-consistency") {
-      const delta = Math.abs(args.depthObserved - args.depthApprox);
-      return Math.max(0, 1 - Math.min(1, delta));
-    }
-    const tdvDelta = Number.isFinite(args.tdvRatio) ? Math.abs(args.tdvRatio - 1) : 0;
-    return Math.min(1, tdvDelta * 10);
-  };
-
-  const breakdown: Array<{ id: string; label: string; weight: number; score: number }> = [];
-  let weightSum = 0;
-  let weightedScore = 0;
-  for (const criterion of criteria) {
-    const weight =
-      Number.isFinite(criterion.weight) && criterion.weight > 0 ? (criterion.weight as number) : 0;
-    if (weight <= 0) continue;
-    const score = scoreForMetric(criterion.metric);
-    breakdown.push({
-      id: criterion.id,
-      label: criterion.label,
-      weight,
-      score,
-    });
-    weightSum += weight;
-    weightedScore += score * weight;
-  }
+  if (!(args.rubric?.enabled ?? true)) return undefined;
+  const breakdown = rubricBreakdown(resolveRubricCriteria(args.rubric), args);
+  const weightSum = breakdown.reduce((sum, entry) => sum + entry.weight, 0);
   if (breakdown.length === 0 || weightSum <= 0) return undefined;
-
-  const score = weightedScore / weightSum;
-  return {
-    score,
-    pass: score >= passScore,
-    passScore,
-    breakdown,
-  };
+  const score = breakdown.reduce((sum, entry) => sum + entry.score * entry.weight, 0) / weightSum;
+  const passScore = resolveRubricPassScore(args.rubric);
+  return { score, pass: score >= passScore, passScore, breakdown };
 }

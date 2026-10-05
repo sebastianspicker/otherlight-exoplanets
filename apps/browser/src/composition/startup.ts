@@ -42,8 +42,10 @@ export async function finalizeBootstrapStartup(deps: BootstrapStartupDeps): Prom
     setAppStatus,
   } = deps;
 
+  let loaded = false;
   try {
     await applyActive();
+    loaded = true;
     if (warnEl) warnEl.textContent = uiWarningText(state.params) ?? "";
     if (applyProductLessonSelection(refs.didLessonSelect, initialLesson, corrections)) {
       setRestoringHistory(true);
@@ -60,10 +62,13 @@ export async function finalizeBootstrapStartup(deps: BootstrapStartupDeps): Prom
   if (!isDisposed()) {
     startFrame();
     writeProductHistory("replace");
-    if (corrections.length > 0) {
-      setAppStatus(`Some shared settings were corrected. ${corrections.join(" ")}`);
-    } else {
-      setAppStatus("Ready. Current context is reflected in the shareable URL.");
-    }
+    // A failed startup scenario already reported its error and exposed retry; keep that status.
+    if (loaded) setAppStatus(startupStatus(corrections));
   }
+}
+
+function startupStatus(corrections: string[]): string {
+  return corrections.length > 0
+    ? `Some shared settings were corrected. ${corrections.join(" ")}`
+    : "Ready. Current context is reflected in the shareable URL.";
 }

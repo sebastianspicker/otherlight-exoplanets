@@ -215,7 +215,7 @@ const renderFormulaList = (refs: UiRefs, signals: DidacticSignals | undefined): 
   const container = refs.didFormulaList;
   if (!container) return;
   container.replaceChildren();
-  const formulas = signals?.formulas ?? [];
+  const formulas = (signals?.formulas ?? []).filter((formula) => Number.isFinite(formula.value));
   container.hidden = formulas.length === 0;
   for (const formula of formulas) {
     const row = document.createElement("div");

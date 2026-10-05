@@ -31,7 +31,7 @@ function loadObserverAndStarIntoUI(p: BrowserScenarioDraft, r: UiRefs): void {
 function loadExomoonTimingIntoUI(p: BrowserScenarioDraft, r: UiRefs): void {
   const exo = p.dynamics?.exomoonTimingShape;
   r.exoEnabled.checked = Boolean(exo?.enabled);
-  writeNumberInput(r.exoTRef, valueOr(exo?.tRef, 0));
+  writeNumberInput(r.exoTRef, valueOr(exo?.tRef, Number.NaN));
   writeNumberInput(r.exoVelDt, valueOr(exo?.velDt, 2));
   writeNumberInput(r.exoMoonOmegaDot, valueOr(exo?.moonOmegaDot, 0));
   writeNumberInput(r.exoMoonIncDot, valueOr(exo?.moonIncDot, 0));

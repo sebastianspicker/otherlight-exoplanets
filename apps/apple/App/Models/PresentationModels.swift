@@ -255,9 +255,9 @@ struct PlaybackClockPolicy: Sendable {
     periodSeconds = scenario.planet.orbit.periodSeconds
   }
 
-  /// Returns the nominal transit time used to center plots and playback.
+  /// Returns the engine's estimated transit centre used to center plots and playback.
   static func transitFocus(for scenario: EducationScenarioV4) -> Double {
-    scenario.epochSeconds + scenario.planet.orbit.periodSeconds / 4
+    SimulationEngine.estimatedTransitCentreSeconds(for: scenario)
   }
 
   /// Advances, wraps, or clamps time while preventing long suspension jumps.

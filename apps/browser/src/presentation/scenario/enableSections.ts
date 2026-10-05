@@ -3,6 +3,7 @@
  */
 import { setDisabled } from "../shell/dom";
 import type { UiRefs } from "../shell/refs";
+import { isPatchSlotEnabled, patchSlotToggles } from "./params/common";
 
 export function syncMoonInputsEnabled(r: UiRefs): void {
   const en = r.moonEnabled.checked;
@@ -40,18 +41,23 @@ export function syncLDInputsEnabled(r: UiRefs): void {
 
 export function syncPatchInputsEnabled(r: UiRefs): void {
   const en = r.patchesEnabled.checked;
+  const slots = patchSlotToggles(r);
+  if (slots.circle) setDisabled(slots.circle, !en);
+  if (slots.ellipse) setDisabled(slots.ellipse, !en);
+  const circleOn = en && isPatchSlotEnabled(slots.circle);
+  const ellipseOn = en && isPatchSlotEnabled(slots.ellipse);
 
-  setDisabled(r.p1x, !en);
-  setDisabled(r.p1y, !en);
-  setDisabled(r.p1r, !en);
-  setDisabled(r.p1f, !en);
+  setDisabled(r.p1x, !circleOn);
+  setDisabled(r.p1y, !circleOn);
+  setDisabled(r.p1r, !circleOn);
+  setDisabled(r.p1f, !circleOn);
 
-  setDisabled(r.p2x, !en);
-  setDisabled(r.p2y, !en);
-  setDisabled(r.p2rx, !en);
-  setDisabled(r.p2ry, !en);
-  setDisabled(r.p2angle, !en);
-  setDisabled(r.p2f, !en);
+  setDisabled(r.p2x, !ellipseOn);
+  setDisabled(r.p2y, !ellipseOn);
+  setDisabled(r.p2rx, !ellipseOn);
+  setDisabled(r.p2ry, !ellipseOn);
+  setDisabled(r.p2angle, !ellipseOn);
+  setDisabled(r.p2f, !ellipseOn);
 }
 
 export function syncSpotEvolutionEnabled(r: UiRefs): void {

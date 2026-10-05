@@ -48,11 +48,21 @@ function sanitizedLearningState(
   };
 }
 
+// A phase index that belonged to a clamped (missing) step, or lies beyond the step's own
+// phases, restarts that step instead of jumping to its last phase.
+function safePhaseIndexFor(prev: LearningState, lesson: ActiveLesson, safeStepIndex: number): number {
+  if (!Number.isFinite(prev.stepIndex) || safeStepIndex !== Math.trunc(prev.stepIndex)) return 0;
+  const maxPhaseIndex = Math.max(currentStepPhases(lesson, safeStepIndex).length - 1, 0);
+  const phaseIndex = prev.phaseIndex ?? 0;
+  return Number.isFinite(phaseIndex) && phaseIndex >= 0 && phaseIndex <= maxPhaseIndex
+    ? Math.trunc(phaseIndex)
+    : 0;
+}
+
 function normalizedLearningState(prev: LearningState, lesson: ActiveLesson): LearningState {
   const maxStepIndex = Math.max(lesson.steps.length - 1, 0);
   const safeStepIndex = clampIndex(prev.stepIndex, maxStepIndex);
-  const phases = currentStepPhases(lesson, safeStepIndex);
-  const safePhaseIndex = clampIndex(prev.phaseIndex ?? 0, Math.max(phases.length - 1, 0));
+  const safePhaseIndex = safePhaseIndexFor(prev, lesson, safeStepIndex);
   const passedStepIds = Array.isArray(prev.passedStepIds) ? prev.passedStepIds : [];
 
   if (learningStateAlreadyNormalized(prev, safeStepIndex, safePhaseIndex)) {
@@ -60,6 +70,15 @@ function normalizedLearningState(prev: LearningState, lesson: ActiveLesson): Lea
   }
 
   return sanitizedLearningState(prev, safeStepIndex, safePhaseIndex, passedStepIds);
+}
+
+/**
+ * Clamps a restored or stored learning state to its own lesson's step and phase ranges.
+ * Unknown lessons are returned unchanged.
+ */
+export function normalizeLearningState(state: LearningState): LearningState {
+  const lesson = getLessonById(state.lessonId);
+  return lesson ? normalizedLearningState(state, lesson) : state;
 }
 
 export function resolveLearningState(system: BrowserScenarioDraft, tSec: number): LearningState {

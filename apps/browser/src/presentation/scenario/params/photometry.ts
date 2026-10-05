@@ -4,7 +4,6 @@
 import type {
   AtmosphereTransmissionParams,
   BrightnessPatch,
-  LimbDarkeningModel,
   PhaseCurveParams,
   PhotometryParams,
   BrowserScenarioDraft,
@@ -18,24 +17,29 @@ import {
 } from "../../../domain/model/transitComputeBudget";
 import { readCheckbox, readNumberInput, readSelect, sanitizeFinite, sanitizePositive } from "../inputs";
 import type { UiRefs } from "../../shell/refs";
-import { ensurePhotometry, getQuadraticLDFromModel, parseNumberList, parseQuadraticBands } from "./common";
+import {
+  defaultPatchInputs,
+  ensurePhotometry,
+  isPatchSlotEnabled,
+  parseNumberList,
+  patchSlotToggles,
+  type DefaultPatchInputs,
+} from "./common";
+import { readLimbDarkeningModelFromUI } from "./limbDarkening";
 export { loadPhotometryIntoUI } from "./photometryLoad";
 
-import { defaultPatchInputs } from "./common";
-
-function buildPatchesFromUI(r: UiRefs): BrightnessPatch[] {
-  const defaults = defaultPatchInputs(sanitizePositive(readNumberInput(r.starR, 6.957e8), 1, 1e12));
-  const patches: BrightnessPatch[] = [];
-
-  patches.push({
+function readCirclePatchFromUI(r: UiRefs, defaults: DefaultPatchInputs): BrightnessPatch {
+  return {
     shape: "circle",
     x: sanitizeFinite(readNumberInput(r.p1x, defaults.p1x), defaults.p1x),
     y: sanitizeFinite(readNumberInput(r.p1y, defaults.p1y), defaults.p1y),
     r: sanitizePositive(readNumberInput(r.p1r, defaults.p1r), 0, 1e12),
     factor: sanitizePositive(readNumberInput(r.p1f, defaults.p1f), 0, 1e6),
-  });
+  };
+}
 
-  patches.push({
+function readEllipsePatchFromUI(r: UiRefs, defaults: DefaultPatchInputs): BrightnessPatch {
+  return {
     shape: "ellipse",
     x: sanitizeFinite(readNumberInput(r.p2x, defaults.p2x), defaults.p2x),
     y: sanitizeFinite(readNumberInput(r.p2y, defaults.p2y), defaults.p2y),
@@ -43,8 +47,17 @@ function buildPatchesFromUI(r: UiRefs): BrightnessPatch[] {
     ry: sanitizePositive(readNumberInput(r.p2ry, defaults.p2ry), 0, 1e12),
     angle: sanitizeFinite(readNumberInput(r.p2angle, defaults.p2angle), defaults.p2angle),
     factor: sanitizePositive(readNumberInput(r.p2f, defaults.p2f), 0, 1e6),
-  });
+  };
+}
 
+// Only enabled patch slots are read, so a scenario with one patch round-trips
+// without gaining the template's second patch.
+function buildPatchesFromUI(r: UiRefs): BrightnessPatch[] {
+  const defaults = defaultPatchInputs(sanitizePositive(readNumberInput(r.starR, 6.957e8), 1, 1e12));
+  const slots = patchSlotToggles(r);
+  const patches: BrightnessPatch[] = [];
+  if (isPatchSlotEnabled(slots.circle)) patches.push(readCirclePatchFromUI(r, defaults));
+  if (isPatchSlotEnabled(slots.ellipse)) patches.push(readEllipsePatchFromUI(r, defaults));
   return patches;
 }
 
@@ -142,25 +155,7 @@ function readLimbDarkeningFromUI(ph: PhotometryParams, r: UiRefs): void {
     delete ph.limbDarkeningModel;
     return;
   }
-
-  const prevModel = valueOr(ph.limbDarkeningModel, {}) as LimbDarkeningModel;
-  const prevQ = getQuadraticLDFromModel(prevModel);
-  const u1 = sanitizeFinite(readNumberInput(r.ldU1, valueOr(prevQ?.u1, 0.35)), 0.35);
-  const u2 = sanitizeFinite(readNumberInput(r.ldU2, valueOr(prevQ?.u2, 0.25)), 0.25);
-  const bandpassRaw = r.ldBandpass.value.trim();
-  const bands = readQuadraticBandsFromUI(r);
-
-  ph.limbDarkeningModel = {
-    ...prevModel,
-    bandpass: bandpassRaw.length > 0 ? bandpassRaw : undefined,
-    default: { kind: "quadratic", u1, u2 },
-    bands,
-  };
-}
-
-function readQuadraticBandsFromUI(r: UiRefs): ReturnType<typeof parseQuadraticBands> | undefined {
-  const bandsText = valueOr(r.ldBands.value, "");
-  return bandsText.trim().length > 0 ? parseQuadraticBands(bandsText) : undefined;
+  ph.limbDarkeningModel = readLimbDarkeningModelFromUI(valueOr(ph.limbDarkeningModel, {}), r);
 }
 
 function readBrightnessPatchesFromUI(ph: PhotometryParams, r: UiRefs): void {

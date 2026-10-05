@@ -189,6 +189,17 @@ export function pushHistorySamples(
   pushComponentHistorySamples(state, components, tSec);
 }
 
+/** Drops overlay-history samples later than `tSec`, e.g. before resuming from a backward seek. */
+export function truncateHistorySamplesAfter(state: FrameLoopVisualizationState, tSec: number): void {
+  const keep = (history: LightCurveOverlayPoint[] | undefined) =>
+    history?.filter((sample) => sample.t <= tSec);
+  state.physicalHistory = keep(state.physicalHistory);
+  state.measuredHistory = keep(state.measuredHistory);
+  state.componentBaselineHistory = keep(state.componentBaselineHistory);
+  state.componentTransitHistory = keep(state.componentTransitHistory);
+  state.componentScatterHistory = keep(state.componentScatterHistory);
+}
+
 export function buildVisualizationSetters(
   plot: LightCurvePlot,
   renderer: Canvas2DRenderer,

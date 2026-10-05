@@ -102,12 +102,11 @@ public enum TransitScienceAuthoring {
       let moonInput = try input(id: "moon", kind: .moon, moon: moon, path: "education.moon")
       let outer = try relativeState(
         orbit: education.planet.orbit, totalMass: star.mass + planet.mass + moonInput.mass,
-        at: education.epochSeconds, path: "education.planet.orbit")
+        path: "education.planet.orbit")
       let (starState, subsystemState) = split(
         primary: star, secondaryMass: planet.mass + moonInput.mass, relative: outer)
       let inner = try relativeState(
-        orbit: moon.orbit, totalMass: planet.mass + moonInput.mass, at: education.epochSeconds,
-        path: "education.moon.orbit")
+        orbit: moon.orbit, totalMass: planet.mass + moonInput.mass, path: "education.moon.orbit")
       let (planetState, moonState) = split(
         primary: planet, secondaryMass: moonInput.mass, relative: inner, centre: subsystemState)
       return [
@@ -116,7 +115,7 @@ public enum TransitScienceAuthoring {
       ]
     }
     let relative = try relativeState(
-      orbit: education.planet.orbit, totalMass: star.mass + planet.mass, at: education.epochSeconds,
+      orbit: education.planet.orbit, totalMass: star.mass + planet.mass,
       path: "education.planet.orbit")
     let (starState, planetState) = split(
       primary: star, secondaryMass: planet.mass, relative: relative)
@@ -137,7 +136,7 @@ public enum TransitScienceAuthoring {
       path: "education.detachedBinary.secondary")
     let relative = try relativeState(
       orbit: binary.relativeOrbit, totalMass: primary.mass + secondary.mass,
-      at: education.epochSeconds, path: "education.detachedBinary.relativeOrbit")
+      path: "education.detachedBinary.relativeOrbit")
     let (primaryState, secondaryState) = split(
       primary: primary, secondaryMass: secondary.mass, relative: relative)
     return [try body(primary, state: primaryState), try body(secondary, state: secondaryState)]
@@ -165,16 +164,20 @@ public enum TransitScienceAuthoring {
     return shortest
   }
 
-  /// Checks the V4 period against the Newtonian mass relation before using its static state.
+  /// Checks the V4 period against the Newtonian mass relation and states the orbit at the epoch.
+  ///
+  /// As the Browser compiler's `resolvedState`, the state is evaluated at the scenario epoch
+  /// (zero elapsed seconds) with the mass-consistent period, so the authored epoch-of-periapsis
+  /// time maps to the mean anomaly that period implies.
   private static func relativeState(
-    orbit: KeplerOrbit, totalMass: Double, at seconds: Double, path: String
+    orbit: KeplerOrbit, totalMass: Double, path: String
   ) throws -> RelativeState {
     let semiMajor = try positive(orbit.semiMajorAxisMetres, "\(path).semiMajorAxisMetres")
     let mass = try positive(totalMass, "\(path).totalMass")
     let period = try positive(orbit.periodSeconds, "\(path).periodSeconds")
     guard orbit.eccentricity.isFinite, orbit.eccentricity >= 0, orbit.eccentricity < 1,
       orbit.inclinationRadians.isFinite, orbit.argumentOfPeriapsisRadians.isFinite,
-      orbit.meanAnomalyAtEpochRadians.isFinite, seconds.isFinite
+      orbit.meanAnomalyAtEpochRadians.isFinite
     else { throw ScienceAuthoringError.invalid(path, "finite bound-orbit elements") }
     let expected =
       2 * Double.pi * sqrt(pow(semiMajor, 3) / (ScienceLimits.gravitationalConstant * mass))
@@ -182,8 +185,11 @@ public enum TransitScienceAuthoring {
       throw ScienceAuthoringError.invalid(
         path, "a period consistent with the two-body masses and semi-major axis")
     }
-    let position = orbit.position(at: seconds)
-    let velocity = orbit.velocity(at: seconds)
+    var resolved = orbit
+    resolved.periodSeconds = expected
+    resolved.meanAnomalyAtEpochRadians = orbit.meanAnomalyAtEpochRadians * period / expected
+    let position = resolved.position(at: 0)
+    let velocity = resolved.velocity(at: 0)
     try assertFinite(position, path: "\(path).position")
     try assertFinite(velocity, path: "\(path).velocity")
     return .init(position: position, velocity: velocity)

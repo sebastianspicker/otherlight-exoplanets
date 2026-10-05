@@ -208,10 +208,16 @@ public struct NativeDOP853ForwardPropagator: ScientificForwardPropagating {
           let dy = state[other + 1] - state[base + 1]
           let dz = state[other + 2] - state[base + 2]
           let distanceSquared = dx * dx + dy * dy + dz * dz
-          let contactDistance = bodies[left].radiusM + bodies[right].radiusM
-          guard distanceSquared.isFinite, distanceSquared > contactDistance * contactDistance else {
+          // Mirrors the Python RHS: trial stages reject only a singular zero or non-finite
+          // separation. Finite-radius contact is decided on the accepted trajectory by the
+          // initial-state check and the dense Bernstein certificate, never on a trial stage.
+          guard distanceSquared.isFinite else {
             throw ScienceContractError.unsupportedExecution(
-              "finite-radius collision detected during native propagation")
+              "Newtonian acceleration became non-finite")
+          }
+          guard distanceSquared > 0 else {
+            throw ScienceContractError.unsupportedExecution(
+              "DOP853 evaluated a singular zero-separation state")
           }
           let inverseDistanceCubed = 1 / (distanceSquared * sqrt(distanceSquared))
           let scale =

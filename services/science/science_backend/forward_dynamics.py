@@ -159,7 +159,7 @@ def newtonian_derivative(
             state_vector(state, index * 6 + 3) for index in range(len(bodies))
         ]
         accelerations = [
-            acceleration(bodies, positions, index, time) for index in range(len(bodies))
+            acceleration(bodies, positions, index) for index in range(len(bodies))
         ]
         return [
             value
@@ -173,7 +173,7 @@ def newtonian_derivative(
 
 
 def acceleration(
-    bodies: tuple[Body, ...], positions: list[Vector3], index: int, time: float
+    bodies: tuple[Body, ...], positions: list[Vector3], index: int
 ) -> Vector3:
     acceleration_value = [0.0, 0.0, 0.0]
     for other, other_position in enumerate(positions):
@@ -181,10 +181,9 @@ def acceleration(
             continue
         displacement = subtract(other_position, positions[index])
         distance = norm(displacement)
-        contact = bodies[index].radius_m + bodies[other].radius_m
-        if distance <= contact:
-            raise CollisionDomainError(
-                f"finite-radius contact between {bodies[index].id!r} and {bodies[other].id!r} at offset {time} s"
+        if distance == 0.0:
+            raise CapabilityUnavailableError(
+                "DOP853 evaluated a singular zero-separation state"
             )
         factor = G_SI * bodies[other].mass_kg / distance**3
         for axis in range(3):

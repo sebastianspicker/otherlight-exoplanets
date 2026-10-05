@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from contextlib import asynccontextmanager
@@ -10,14 +11,21 @@ from typing import Any
 from .__about__ import __version__
 from .api_service import V5ApiService
 from .api_v2_datasets import V6DatasetRegistry
-from .api_v2_http import UnsupportedDatasetMediaType, register_v2_routes
+from .api_v2_http import (
+    UnsupportedDatasetMediaType,
+    declared_content_length,
+    read_bounded_body,
+    register_v2_routes,
+)
 from .artifact_store import open_verified_artifact
 from .errors import (
     CapabilityUnavailableError,
     ContractError,
     DatasetCapacityError,
     DatasetInUseError,
+    DatasetTooLargeError,
     JobCapacityError,
+    JobStateError,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -97,11 +105,17 @@ def register_error_handlers(app: Any, validation_type: Any) -> None:
             "job-capacity-exhausted", str(failure), 429, headers={"Retry-After": "1"}
         )
 
+    @app.exception_handler(JobStateError)
+    async def job_state_error(_: Any, failure: JobStateError):
+        return error("job-state-invalid", str(failure), 409)
+
+    @app.exception_handler(DatasetTooLargeError)
+    async def dataset_too_large_error(_: Any, failure: DatasetTooLargeError):
+        return error("dataset-too-large", str(failure), 413)
+
     @app.exception_handler(DatasetCapacityError)
     async def dataset_capacity_error(_: Any, failure: DatasetCapacityError):
-        status = 413 if "byte limit" in str(failure) else 409
-        code = "dataset-too-large" if status == 413 else "dataset-quota-exceeded"
-        return error(code, str(failure), status)
+        return error("dataset-quota-exceeded", str(failure), 409)
 
     @app.exception_handler(DatasetInUseError)
     async def dataset_in_use_error(_: Any, failure: DatasetInUseError):
@@ -130,14 +144,45 @@ def register_error_handlers(app: Any, validation_type: Any) -> None:
         )
 
 
-def register_base_routes(app: Any, jobs: V5ApiService, streaming_response: Any) -> None:
+def require_json_content_type(raw_headers: Any) -> None:
+    content_types = [
+        value for name, value in raw_headers if name.lower() == b"content-type"
+    ]
+    media_type = (
+        content_types[0].split(b";", 1)[0].strip().lower() if content_types else b""
+    )
+    if len(content_types) != 1 or media_type != b"application/json":
+        raise ContractError("request Content-Type must be application/json")
+
+
+def register_base_routes(
+    app: Any, jobs: V5ApiService, streaming_response: Any, request_type: Any
+) -> None:
+    from starlette.concurrency import (  # pyright: ignore[reportMissingImports]
+        run_in_threadpool,
+    )
+
     @app.get("/v1/capabilities")
     def capabilities():
         return jobs.capabilities()
 
-    @app.post("/v1/jobs", status_code=201)
-    def submit(payload: dict[str, Any]):
-        return jobs.submit(payload)
+    async def submit(request: Any):
+        raw_headers = request.scope.get("headers", ())
+        require_json_content_type(raw_headers)
+        declared = declared_content_length(raw_headers, "request")
+        body = await read_bounded_body(request, declared, "request")
+        try:
+            payload = json.loads(body)
+        except (ValueError, RecursionError) as failure:
+            raise ContractError("request body must be one valid JSON document") from (
+                failure
+            )
+        if not isinstance(payload, dict):
+            raise ContractError("request body must be a JSON object")
+        return await run_in_threadpool(jobs.submit, payload)
+
+    submit.__annotations__["request"] = request_type
+    app.post("/v1/jobs", status_code=201)(submit)
 
     @app.get("/v1/artifacts/{artifact_id}")
     def artifact(artifact_id: str):
@@ -214,7 +259,7 @@ def create_app(
         allow_headers=["accept", "content-type"],
     )
     register_error_handlers(app, validation_error)
-    register_base_routes(app, jobs, streaming_response)
+    register_base_routes(app, jobs, streaming_response, request_type)
     register_job_routes(app, jobs)
     register_v2_routes(app, datasets, request_type)
 

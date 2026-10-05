@@ -1,7 +1,13 @@
 /** Restores validated workspace documents without broadening bootstrap persistence wiring. */
 
-import { toBrowserScenarioDraftFromEducationScenarioV4 } from "../../domain/simulation/v4";
+import {
+  toBrowserScenarioDraftFromEducationScenarioV4,
+  type RuntimeExecutionModeV4,
+} from "../../domain/simulation/v4";
+import type { BrowserScenarioDraft } from "../../domain/model/types";
+import { createBinaryLabState } from "../../domain/education/binaryLab";
 import { SCENARIO_DEFAULTS } from "../../application/catalog/defaults";
+import { DEFAULT_BINARY_LAB_CONFIG_V4 } from "../../application/catalog/binaryLab";
 import { readUiMode, syncUiModeVisibility } from "../shell/mode";
 import { readProductMode, syncProductModeVisibility } from "../shell/productMode";
 import type { UiRefs } from "../shell/refs";
@@ -20,7 +26,21 @@ import {
   type ScenarioFlowState,
 } from "../scenario/scenarioFlow";
 
-type RestoreState = Pick<ScenarioFlowState, "params" | "didacticsRuntime" | "binaryLabState">;
+/**
+ * Education V4 settings that the authoring form has no control for. They are
+ * carried from an opened workspace into the runtime and back into the next save;
+ * an empty object means the compiler defaults.
+ */
+type WorkspaceScenarioSettings = {
+  referenceSubsteps?: number;
+  executionMode?: RuntimeExecutionModeV4;
+  binaryLabEnabled?: boolean;
+};
+
+export type WorkspaceSettingsState = { workspaceScenarioSettings: WorkspaceScenarioSettings };
+
+type RestoreState = Pick<ScenarioFlowState, "params" | "didacticsRuntime" | "binaryLabState"> &
+  WorkspaceSettingsState;
 
 type RestoreWorkspaceArgs = {
   refs: UiRefs;
@@ -51,6 +71,20 @@ export function workspaceProductControls(refs: UiRefs) {
     realSystemSelect: refs.realSystemSelect,
     realSystemMeta: refs.realSystemMeta,
   };
+}
+
+function scenarioSettingsFromWorkspace(workspace: WorkspaceDocumentV1): WorkspaceScenarioSettings {
+  const { runtime, binaryLab } = workspace.education.scenario;
+  return {
+    ...(runtime?.referenceSubsteps === undefined ? {} : { referenceSubsteps: runtime.referenceSubsteps }),
+    ...(runtime?.executionMode === undefined ? {} : { executionMode: runtime.executionMode }),
+    ...(binaryLab?.enabled === undefined ? {} : { binaryLabEnabled: binaryLab.enabled }),
+  };
+}
+
+function restoreRuntimeModeControl(refs: UiRefs, workspace: WorkspaceDocumentV1): void {
+  const mode = workspace.education.scenario.runtime?.mode;
+  if (mode && refs.runtimeModeSelect) refs.runtimeModeSelect.value = mode;
 }
 
 function restoreGuidedLabState(
@@ -91,12 +125,40 @@ function restoreScientificControls(workspace: WorkspaceDocumentV1): void {
   seed.valueAsNumber = workspace.scientific.request.seed;
 }
 
+async function applyRestoredScenario(
+  args: RestoreWorkspaceArgs,
+  workspace: WorkspaceDocumentV1,
+  draft: BrowserScenarioDraft,
+): Promise<void> {
+  const previousSettings = args.state.workspaceScenarioSettings;
+  args.state.workspaceScenarioSettings = scenarioSettingsFromWorkspace(workspace);
+  restoreRuntimeModeControl(args.refs, workspace);
+  try {
+    await applyScenarioParams(args.scenarioDeps, draft, {
+      syncUi: true,
+      resetNoise: true,
+      keepWorkspaceSettings: true,
+    });
+  } catch (error) {
+    args.state.workspaceScenarioSettings = previousSettings;
+    throw error;
+  }
+  args.state.binaryLabState = createBinaryLabState(
+    workspace.education.scenario.binaryLab ?? DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab,
+  );
+}
+
 export async function restoreWorkspace(args: RestoreWorkspaceArgs, text: string): Promise<void> {
-  // Parse before changing controls or runtime state so malformed files leave the live workspace intact.
+  // Parse and convert before changing controls or runtime state so malformed or
+  // unrepresentable files leave the live workspace intact.
   const workspace = parseWorkspaceDocumentJson(text);
   if (workspace.scientific && workspace.scientific.request.startOffsetSec !== 0) {
     throw new Error("This website can restore Scientific workspaces only when startOffsetSec is zero.");
   }
+  const draft = toBrowserScenarioDraftFromEducationScenarioV4(
+    workspace.education.scenario,
+    SCENARIO_DEFAULTS,
+  );
   await withScenarioApplyGuard(args.applyGuard, args.refs, args.warnEl, async () => {
     const parsed = { state: workspace.productContext, corrections: [] as string[] };
     args.setRestoringHistory(true);
@@ -107,14 +169,9 @@ export async function restoreWorkspace(args: RestoreWorkspaceArgs, text: string)
       syncProductModeVisibility(readProductMode(args.refs.productModeSelect.value));
       syncUiModeVisibility(readUiMode(args.refs.uiModeSelect.value));
       args.syncModeNavigation();
-      await applyScenarioParams(
-        args.scenarioDeps,
-        toBrowserScenarioDraftFromEducationScenarioV4(workspace.education.scenario, SCENARIO_DEFAULTS),
-        {
-          syncUi: true,
-          resetNoise: true,
-        },
-      );
+      await applyRestoredScenario(args, workspace, draft);
+      // After the scenario apply, so the restored request is pinned to the restored scenario.
+      args.profileController.restoreScientificRequest(workspace.scientific?.request);
       restoreGuidedLabState(args, workspace.education.guidedLab, parsed.corrections);
       args.syncBinaryUi();
       args.renderDidacticsSurface();

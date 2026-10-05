@@ -166,13 +166,15 @@ def identifier(value: Any, path: str) -> str:
 
 
 def number(value: Any, path: str) -> float:
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or not isfinite(float(value))
-    ):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ContractError(f"{path} must be a finite number")
-    return float(value)
+    try:
+        result = float(value)
+    except OverflowError as error:
+        raise ContractError(f"{path} must be a finite number") from error
+    if not isfinite(result):
+        raise ContractError(f"{path} must be a finite number")
+    return result
 
 
 def positive(value: Any, path: str) -> float:

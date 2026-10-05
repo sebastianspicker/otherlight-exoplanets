@@ -17,7 +17,7 @@ function sanitizeBinaryStarPhotometry(
 ): BinaryStarPhotometryParams {
   const out: BinaryStarPhotometryParams = {
     luminosityScale: isFiniteNumber(photometry?.luminosityScale)
-      ? Math.max(0, photometry.luminosityScale)
+      ? photometry.luminosityScale
       : fallback.luminosityScale,
   };
   if (isFiniteNumber(photometry?.teffK)) out.teffK = photometry.teffK;
@@ -63,6 +63,19 @@ export function sanitizeEducationScenarioV4(config: EducationScenarioV4): Educat
   return clone;
 }
 
+/**
+ * Clamps a negative draft luminosity to zero. Only editable draft input is
+ * clamped; a V4 scenario with a negative value is rejected by validation.
+ */
+function draftBinaryPhotometry(
+  photometry: BinaryStarPhotometryParams | undefined,
+): BinaryStarPhotometryParams | undefined {
+  if (!photometry || !isFiniteNumber(photometry.luminosityScale) || photometry.luminosityScale >= 0) {
+    return photometry;
+  }
+  return { ...photometry, luminosityScale: 0 };
+}
+
 function fallbackPassbandFromInput(input: BrowserScenarioDraft): string | undefined {
   return input.star?.photometry?.limbDarkeningModel?.bandpass;
 }
@@ -77,7 +90,7 @@ function primaryBinaryPhotometry(
       loggCgs: input.star?.photometry?.limbDarkeningModel?.stellar?.loggCgs,
       metallicityDex: input.star?.photometry?.limbDarkeningModel?.stellar?.metallicityDex,
       passband: fallbackPassband,
-      ...input.binaryStars?.primary,
+      ...draftBinaryPhotometry(input.binaryStars?.primary),
     },
     { luminosityScale: 1, passband: fallbackPassband },
   );
@@ -88,10 +101,13 @@ function starsFromInput(
   fallbackPassband: string | undefined,
 ): [StarBodyV4, StarBodyV4] {
   const primaryPhotometry = primaryBinaryPhotometry(input, fallbackPassband);
-  const secondaryPhotometry = sanitizeBinaryStarPhotometry(input.binaryStars?.secondary, {
-    luminosityScale: 0,
-    passband: fallbackPassband,
-  });
+  const secondaryPhotometry = sanitizeBinaryStarPhotometry(
+    draftBinaryPhotometry(input.binaryStars?.secondary),
+    {
+      luminosityScale: 0,
+      passband: fallbackPassband,
+    },
+  );
   const primary: StarBodyV4 = {
     id: "star-a",
     r: input.star?.r ?? 1,

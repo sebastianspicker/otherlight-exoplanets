@@ -7,20 +7,15 @@ import type {
   StepObservables,
   StepTimingDiagnostics,
 } from "../../model/types";
-import { impactParameterFromProjectedSky } from "../../orbits/exomoonTiming";
 import { projectToSky } from "../../orbits/frames";
+import { tdvRatioFromSkyPlaneSpeeds } from "../../orbits/exomoonTiming";
 import type { Vec3 } from "../../orbits/vec3";
 import { vIsFinite, vLenSq, vNormalizeOrZero, vSub } from "../../orbits/vec3";
 import { orbitTimingKey } from "../orbitTimingKey";
 import { computeTransitReferenceEpochSec, estimateTransitEventWithDiagnostics } from "../transitTimingSolve";
+import { closestFrontApproach, type ClosestApproach } from "./nativeTransitImpact";
 import type { MoonBodyV4, PlanetBodyV4, EducationScenarioV4 } from "./types";
-import {
-  buildNativeSnapshot,
-  finiteOrDefault,
-  orbitStateAt,
-  type NativeBodyState,
-  type NativeSnapshot,
-} from "./nativeModel";
+import { buildNativeSnapshot, orbitStateAt, type NativeBodyState, type NativeSnapshot } from "./nativeModel";
 
 function sourceOrbit(body: NativeBodyState): OrbitElements | undefined {
   const src = body.source;
@@ -101,12 +96,13 @@ function isBinaryStarBody(snap: NativeSnapshot, body: NativeBodyState): boolean 
   return body.id === snap.stars[1]?.id;
 }
 
-function exactSampleAt(
+type SampleAt = (trialSec: number) => ProjectedSample | undefined;
+
+function bodySampleAt(
   config: EducationScenarioV4,
   obs: Vec3,
   selectBody: (snap: NativeSnapshot) => NativeBodyState | undefined,
-): ((trialSec: number) => ProjectedSample | undefined) | undefined {
-  if (!usesExactTiming(config)) return undefined;
+): SampleAt {
   return (trialSec: number) => {
     const trialSnap = buildNativeSnapshot(config, trialSec);
     const trialStar = trialSnap.stars[0];
@@ -117,6 +113,14 @@ function exactSampleAt(
       vSky: skyVelocity(trialBody, trialStar, obs),
     };
   };
+}
+
+function exactSampleAt(
+  config: EducationScenarioV4,
+  obs: Vec3,
+  selectBody: (snap: NativeSnapshot) => NativeBodyState | undefined,
+): SampleAt | undefined {
+  return usesExactTiming(config) ? bodySampleAt(config, obs, selectBody) : undefined;
 }
 
 function planetPeriodSec(
@@ -162,12 +166,15 @@ function moonReferenceEpochKey(
   snap: NativeSnapshot,
   starRef: NativeBodyState,
   moon: NativeBodyState,
+  planet: NativeBodyState,
 ): string {
   return [
     "moon",
     starRef.r,
     moon.r,
+    planet.r,
     orbitTimingKey("moon-orbit", sourceOrbit(moon)),
+    orbitTimingKey("planet-orbit", sourceOrbit(planet) ?? config.orbits.binary),
     orbitTimingKey("binary", config.orbits.binary),
     snap.observerDir.x,
     snap.observerDir.y,
@@ -200,16 +207,21 @@ function moonTransitReferenceEpochSec(
   snap: NativeSnapshot,
   starRef: NativeBodyState,
   moon: NativeBodyState,
+  planet: NativeBodyState,
   sampleAt: ((trialSec: number) => ProjectedSample | undefined) | undefined,
 ): number | undefined {
-  return cachedTransitReferenceEpochSec(config, moonReferenceEpochKey(config, snap, starRef, moon), () =>
-    computeTransitReferenceEpochSec({
-      rStar: starRef.r,
-      rBody: moon.r,
-      periodSec: sourceOrbit(moon)?.period,
-      t0Sec: sourceOrbit(moon)?.t0,
-      sampleAt,
-    }),
+  // Moon transits recur with the planet's orbital cycle, not the moon's own period.
+  return cachedTransitReferenceEpochSec(
+    config,
+    moonReferenceEpochKey(config, snap, starRef, moon, planet),
+    () =>
+      computeTransitReferenceEpochSec({
+        rStar: starRef.r,
+        rBody: moon.r,
+        periodSec: planetPeriodSec(config, snap, planet),
+        t0Sec: planetT0Sec(config, snap, planet),
+        sampleAt,
+      }),
   );
 }
 
@@ -219,7 +231,7 @@ function estimatePlanetEvent(
   starRef: NativeBodyState,
   planet: NativeBodyState,
   tObsSec: number,
-  sampleAt: ((trialSec: number) => ProjectedSample | undefined) | undefined,
+  sampleAt: SampleAt | undefined,
 ): TransitEstimate {
   const sky = relativeSky(planet, starRef);
   return estimateTransitEventWithDiagnostics({
@@ -239,9 +251,10 @@ function estimateMoonEvent(
   config: EducationScenarioV4,
   snap: NativeSnapshot,
   starRef: NativeBodyState,
+  planet: NativeBodyState,
   moon: NativeBodyState | undefined,
   tObsSec: number,
-  sampleAt: ((trialSec: number) => ProjectedSample | undefined) | undefined,
+  sampleAt: SampleAt | undefined,
 ): TransitEstimate | undefined {
   if (!moon) return undefined;
   return estimateTransitEventWithDiagnostics({
@@ -250,9 +263,9 @@ function estimateMoonEvent(
     rBody: moon.r,
     sky: relativeSky(moon, starRef),
     vSky: skyVelocity(moon, starRef, snap.observerDir),
-    periodSec: sourceOrbit(moon)?.period,
-    t0Sec: sourceOrbit(moon)?.t0,
-    transitReferenceEpochSec: moonTransitReferenceEpochSec(config, snap, starRef, moon, sampleAt),
+    periodSec: planetPeriodSec(config, snap, planet),
+    t0Sec: planetT0Sec(config, snap, planet),
+    transitReferenceEpochSec: moonTransitReferenceEpochSec(config, snap, starRef, moon, planet, sampleAt),
     sampleAt,
   });
 }
@@ -287,10 +300,15 @@ function eventTimingConvergence(
   };
 }
 
-function exomoonTimingReferenceSec(config: EducationScenarioV4): number | undefined {
+// An explicit finite tRef wins; otherwise TDV is referenced to the planet's transit epoch.
+function exomoonTimingReferenceSec(
+  config: EducationScenarioV4,
+  planetTransitReferenceSec: number | undefined,
+): number | undefined {
   const rawTRef = config.dynamics?.exomoonTimingShape?.tRef;
-  if (!usesExactTiming(config)) return finiteOrDefault(rawTRef, 0);
-  return typeof rawTRef === "number" && Number.isFinite(rawTRef) ? rawTRef : undefined;
+  if (typeof rawTRef === "number" && Number.isFinite(rawTRef)) return rawTRef;
+  if (!usesExactTiming(config)) return planetTransitReferenceSec ?? 0;
+  return planetTransitReferenceSec;
 }
 
 function planetReferenceOrbit(
@@ -306,18 +324,110 @@ function planetReferenceOrbit(
 function planetReferenceSkyVelocity(
   config: EducationScenarioV4,
   snap: NativeSnapshot,
+  starRef: NativeBodyState,
   planet: NativeBodyState,
+  referenceSampleAt: SampleAt,
 ): number | undefined {
-  const tRef = exomoonTimingReferenceSec(config);
+  const rawTRef = config.dynamics?.exomoonTimingShape?.tRef;
+  const explicitTRef = typeof rawTRef === "number" && Number.isFinite(rawTRef);
+  const tRef = exomoonTimingReferenceSec(
+    config,
+    // Cached once per config under its own key, so interactive TTV output keeps its linear semantics.
+    // Skipped entirely when an explicit tRef wins.
+    explicitTRef
+      ? undefined
+      : cachedTransitReferenceEpochSec(
+          config,
+          `tdv:${planetReferenceEpochKey(config, snap, starRef, planet)}`,
+          () =>
+            computeTransitReferenceEpochSec({
+              rStar: starRef.r,
+              rBody: planet.r,
+              periodSec: planetPeriodSec(config, snap, planet),
+              t0Sec: planetT0Sec(config, snap, planet),
+              sampleAt: referenceSampleAt,
+            }),
+        ),
+  );
   if (tRef === undefined) return undefined;
   const pRelRef = orbitStateAt(planetReferenceOrbit(config, snap, planet), tRef);
   const projected = projectToSky(pRelRef.v, snap.observerDir);
   return Math.hypot(projected.x, projected.y);
 }
 
-function finiteImpactParameter(sky: RelativeSky | undefined, rStar: number): number | undefined {
-  const raw = sky ? impactParameterFromProjectedSky(sky, rStar) : Number.NaN;
-  return Number.isFinite(raw) ? raw : undefined;
+type TransitImpacts = { bPlanet?: number; bMoon?: number };
+
+const transitImpactCache = new WeakMap<EducationScenarioV4, Map<string, TransitImpacts>>();
+
+// The transit impact parameter is the minimum front-of-star sky separation over one
+// crossing divided by R*, taken from the reference epoch so it does not depend on playback time.
+function planetClosestApproach(
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+  planet: NativeBodyState,
+): ClosestApproach | undefined {
+  const periodSec = planetPeriodSec(config, snap, planet);
+  const t0Sec = planetT0Sec(config, snap, planet) ?? 0;
+  if (!(Number.isFinite(periodSec) && (periodSec as number) > 0 && Number.isFinite(t0Sec))) return undefined;
+  const sampleAt = bodySampleAt(config, snap.observerDir, planetBody);
+  const halfSec = (periodSec as number) / 2;
+  return closestFrontApproach(sampleAt, t0Sec - halfSec, t0Sec + halfSec, 96);
+}
+
+function moonClosestApproach(
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+  starRef: NativeBodyState,
+  planet: NativeBodyState,
+  planetApproach: ClosestApproach,
+): ClosestApproach | undefined {
+  const planetSample = bodySampleAt(config, snap.observerDir, planetBody)(planetApproach.tSec);
+  const vSky = planetSample ? Math.hypot(planetSample.vSky.x, planetSample.vSky.y) : 0;
+  const moonA = snap.moons[0] ? (sourceOrbit(snap.moons[0])?.a ?? 0) : 0;
+  const periodSec = planetPeriodSec(config, snap, planet) ?? Number.POSITIVE_INFINITY;
+  if (!(vSky > 0)) return undefined;
+  const halfSec = Math.min(periodSec / 2, (2 * (starRef.r + planet.r + 2 * moonA)) / vSky);
+  const sampleAt = bodySampleAt(config, snap.observerDir, (trialSnap) => trialSnap.moons[0]);
+  return closestFrontApproach(sampleAt, planetApproach.tSec - halfSec, planetApproach.tSec + halfSec, 192);
+}
+
+function computeTransitImpacts(
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+  starRef: NativeBodyState,
+  planet: NativeBodyState,
+): TransitImpacts {
+  const planetApproach = planetClosestApproach(config, snap, planet);
+  if (!planetApproach || !(starRef.r > 0)) return {};
+  const moonApproach = snap.moons[0]
+    ? moonClosestApproach(config, snap, starRef, planet, planetApproach)
+    : undefined;
+  return {
+    bPlanet: planetApproach.separation / starRef.r,
+    bMoon: moonApproach ? moonApproach.separation / starRef.r : undefined,
+  };
+}
+
+function cachedTransitImpacts(
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+  starRef: NativeBodyState,
+  planet: NativeBodyState,
+): TransitImpacts {
+  const moon = snap.moons[0];
+  const key = moon
+    ? moonReferenceEpochKey(config, snap, starRef, moon, planet)
+    : planetReferenceEpochKey(config, snap, starRef, planet);
+  let cache = transitImpactCache.get(config);
+  if (!cache) {
+    cache = new Map<string, TransitImpacts>();
+    transitImpactCache.set(config, cache);
+  }
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const impacts = computeTransitImpacts(config, snap, starRef, planet);
+  cache.set(key, impacts);
+  return impacts;
 }
 
 function observablesForSnapshot(
@@ -347,22 +457,28 @@ export function computeTimingAndObservables(
   const obs = snap.observerDir;
   const planetSampleAt = exactSampleAt(config, obs, planetBody);
   const moonSampleAt = exactSampleAt(config, obs, (trialSnap) => trialSnap.moons[0]);
+  // The TDV reference epoch is solved once per config (cached) with trial snapshots; TTV reference
+  // epochs keep the per-mode sampler so interactive output stays linear.
+  const planetReferenceSampleAt = bodySampleAt(config, obs, planetBody);
   const pEvent = estimatePlanetEvent(config, snap, starRef, planet, tObsSec, planetSampleAt);
-  const mEvent = estimateMoonEvent(config, snap, starRef, moon, tObsSec, moonSampleAt);
+  const mEvent = estimateMoonEvent(config, snap, starRef, planet, moon, tObsSec, moonSampleAt);
   const timing = timingDiagnostics(pEvent, mEvent);
   const planetVSky = skyVelocity(planet, starRef, obs);
   const vPlanetSky = Math.hypot(planetVSky.x, planetVSky.y);
-  const vPlanetSkyRef = planetReferenceSkyVelocity(config, snap, planet);
-  const tdvRatio = vPlanetSky > 0 && vPlanetSkyRef !== undefined ? vPlanetSkyRef / vPlanetSky : undefined;
+  const vPlanetSkyRef = planetReferenceSkyVelocity(config, snap, starRef, planet, planetReferenceSampleAt);
+  const tdvRatioRaw =
+    vPlanetSkyRef !== undefined ? tdvRatioFromSkyPlaneSpeeds(vPlanetSkyRef, vPlanetSky) : Number.NaN;
+  const tdvRatio = Number.isFinite(tdvRatioRaw) ? tdvRatioRaw : undefined;
   const relPlanetSky = relativeSky(planet, starRef);
   const relMoonSky = moon ? relativeSky(moon, starRef) : undefined;
+  const impacts = cachedTransitImpacts(config, snap, starRef, planet);
 
   return {
     timing,
     observables: observablesForSnapshot(starRef, planet, moon, timing, obs),
     eventTimingConvergence: eventTimingConvergence(pEvent, mEvent),
-    bPlanet: finiteImpactParameter(relPlanetSky, starRef.r),
-    bMoon: finiteImpactParameter(relMoonSky, starRef.r),
+    bPlanet: impacts.bPlanet,
+    bMoon: impacts.bMoon,
     relPlanetSky,
     relMoonSky,
     vPlanetSky,

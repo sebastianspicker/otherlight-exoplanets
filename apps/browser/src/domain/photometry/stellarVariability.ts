@@ -8,17 +8,26 @@
 // Scientific intent / scope:
 // - Implements observer-space light-curve harmonics (not a physical RV + stellar-shape forward model).
 // - Amplitudes are provided directly in "stellar flux units" relative to a normalized baseline ~1.0.
-// - Phase can be derived in two ways:
-//   (A) "linear-period" (default): linear phase from (t - t0) / period (mean-anomaly-like).
-//   (B) "true-anomaly": solves Kepler’s equation to derive true anomaly for eccentric orbits (still a toy mapping).
+// - The harmonic phase phi is geometric, taken from the companion's position and velocity relative
+//   to the star (see signedConjunctionPhaseRad in dayNightVisibility.ts):
+//     z = (rRel . oHat) / |rRel|,  s = -(vRel . oHat) / vNorm,  phi = atan2(s, z)
+//   with vNorm = n a / sqrt(1 - e^2) and n = 2π / period from the companion orbit.
+//   phi = 0 at inferior conjunction (transit), phi = π at superior conjunction, and sin(phi) > 0
+//   while the star approaches the observer. Beaming = A_b sin(phi + offset) is therefore zero at
+//   both conjunctions and positive for an approaching star; ellipsoidal = -A_e cos(2(phi + offset))
+//   has minima at both conjunctions and maxima at quadratures.
+// - StellarVariabilityParams.phaseModel is kept for compatibility but no longer selects the phase;
+//   both "linear-period" and "true-anomaly" use the geometric phase.
+// - Without a companion state the harmonic terms are 0; constant, flare and pulsation terms remain.
 //
 // Stability / clamping policy:
 // - Returns a small additive term, usually |f| << 1.
 // - Applies a configurable stability clamp (default ±1e3) purely as a safety guard.
 
-import type { OrbitElements, StellarVariabilityParams, StellarVariabilityPhaseModel } from "../model/types";
-import { clamp, wrapTo2Pi } from "../model/units";
-import { solveKeplerE, trueAnomalyFromE } from "../orbits/kepler";
+import type { OrbitElements, StellarVariabilityParams } from "../model/types";
+import { clamp, isFiniteNumber, isFinitePositive } from "../model/units";
+import type { Vec3 } from "../orbits/vec3";
+import { signedConjunctionPhaseRad } from "./dayNightVisibility";
 import {
   finiteOrZero,
   hasNoVariability,
@@ -27,82 +36,33 @@ import {
   type StellarVariabilityComponents,
 } from "./stellarVariabilityComponents";
 
-/**
- * Compute an orbital phase angle phi(t) in [0, 2π) from (period, t0).
- *
- * Convention:
- *   phi = wrapTo2Pi( 2π * (t - t0) / period )
- */
-function orbitalPhaseFromPeriod(params: { t: number; period: number; t0: number }): number {
-  const { t, period, t0 } = params;
-
-  if (!Number.isFinite(t) || !Number.isFinite(period) || !Number.isFinite(t0)) return NaN;
-  if (period <= 0) return NaN;
-
-  const phi = (2 * Math.PI * (t - t0)) / period;
-  return wrapTo2Pi(phi);
-}
-
-/**
- * Compute a "true-anomaly phase" phi(t) in [0, 2π) by solving Kepler’s equation.
- *
- * Implementation:
- * - Mean anomaly: M = 2π * (t - t0) / period
- * - Eccentric anomaly: E = solveKeplerE(M, e)
- * - True anomaly: nu = trueAnomalyFromE(E, e)
- * - Return wrapTo2Pi(nu)
- */
-function orbitalPhaseFromTrueAnomaly(params: { t: number; period: number; t0: number; e: number }): number {
-  const { t, period, t0, e } = params;
-
-  if (!Number.isFinite(t) || !Number.isFinite(period) || !Number.isFinite(t0) || !Number.isFinite(e))
-    return NaN;
-  if (period <= 0) return NaN;
-  if (e < 0 || e >= 1) return NaN;
-
-  const M = (2 * Math.PI * (t - t0)) / period;
-  const E = solveKeplerE(M, e);
-  const nu = trueAnomalyFromE(E, e);
-
-  return wrapTo2Pi(nu);
-}
-
-type StellarVariabilityContext = {
-  t: number;
-  orbit: OrbitElements;
-  model: StellarVariabilityParams;
-  period: number;
-  t0: number;
+/** Companion state relative to the varying star; observerDir points from the star toward the observer. */
+export type StellarVariabilityGeometry = {
+  rRel: Vec3;
+  vRel: Vec3;
+  observerDir: Vec3;
 };
 
-function resolveStellarVariabilityContext(params: {
-  t: number;
-  orbit: OrbitElements;
-  model?: StellarVariabilityParams;
-}): StellarVariabilityContext | undefined {
-  const model = params.model;
-  if (!model?.enabled) return undefined;
-  const period = params.orbit?.period;
-  const t0 = params.orbit?.t0;
-  if (!hasValidOrbitalClock(params.t, period, t0)) return undefined;
-  return { t: params.t, orbit: params.orbit, model, period, t0 };
+/** Velocity normalisation n a / sqrt(1 - e^2); undefined when the orbit cannot supply it. */
+function orbitVelocityScale(orbit: OrbitElements | undefined): number | undefined {
+  const period = orbit?.period;
+  const a = orbit?.a;
+  const e = isFiniteNumber(orbit?.e) ? orbit.e : 0;
+  if (!isFinitePositive(period) || !isFinitePositive(a) || !(e >= 0 && e < 1)) return undefined;
+  return (((2 * Math.PI) / period) * a) / Math.sqrt(1 - e * e);
 }
 
-function hasValidOrbitalClock(t: number, period: number, t0: number): boolean {
-  return Number.isFinite(t) && Number.isFinite(period) && period > 0 && Number.isFinite(t0);
-}
-
-function variabilityPhase(context: StellarVariabilityContext): number {
-  const phaseModel: StellarVariabilityPhaseModel = context.model.phaseModel ?? "linear-period";
-  if (phaseModel === "true-anomaly") {
-    return orbitalPhaseFromTrueAnomaly({
-      t: context.t,
-      period: context.period,
-      t0: context.t0,
-      e: context.orbit.e,
-    });
-  }
-  return orbitalPhaseFromPeriod({ t: context.t, period: context.period, t0: context.t0 });
+function variabilityPhase(
+  geometry: StellarVariabilityGeometry | undefined,
+  orbit: OrbitElements | undefined,
+): number | undefined {
+  if (!geometry) return undefined;
+  return signedConjunctionPhaseRad(
+    geometry.rRel,
+    geometry.vRel,
+    geometry.observerDir,
+    orbitVelocityScale(orbit),
+  );
 }
 
 function harmonicVariabilityTerms(
@@ -119,13 +79,13 @@ function harmonicVariabilityTerms(
 }
 
 function combineVariabilityTerms(
-  phi: number,
+  phi: number | undefined,
   model: StellarVariabilityParams,
   components: StellarVariabilityComponents,
 ): number {
   return (
     components.constant +
-    harmonicVariabilityTerms(phi, model, components) +
+    (phi === undefined ? 0 : harmonicVariabilityTerms(phi, model, components)) +
     components.flare +
     components.pulsations
   );
@@ -144,21 +104,20 @@ function combineVariabilityTerms(
  */
 export function stellarVariabilityFlux(params: {
   t: number;
-  orbit: OrbitElements;
+  orbit?: OrbitElements;
   model?: StellarVariabilityParams;
+  geometry?: StellarVariabilityGeometry;
 }): number {
-  const context = resolveStellarVariabilityContext(params);
-  if (!context) return 0;
+  const model = params.model;
+  if (!model?.enabled || !Number.isFinite(params.t)) return 0;
 
-  const components = variabilityComponents(context.t, context.model);
+  const components = variabilityComponents(params.t, model);
   if (hasNoVariability(components)) return 0;
 
-  const phi = variabilityPhase(context);
-  if (!Number.isFinite(phi)) return 0;
-
-  const out = combineVariabilityTerms(phi, context.model, components);
+  const phi = variabilityPhase(params.geometry, params.orbit);
+  const out = combineVariabilityTerms(phi, model, components);
   if (!Number.isFinite(out)) return 0;
 
-  const { min, max } = normalizeClampBounds(context.model);
+  const { min, max } = normalizeClampBounds(model);
   return clamp(out, min, max);
 }

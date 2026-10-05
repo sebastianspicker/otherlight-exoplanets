@@ -6,7 +6,7 @@
     "ui": "essential",
     "source": "preset",
     "scenario": "detached-binary",
-    "lab": "binary-lab",
+    "lab": "binary-stars",
     "lesson": "eclipse-geometry",
     "runtime": "interactive"
   },

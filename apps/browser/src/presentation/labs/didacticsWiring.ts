@@ -2,8 +2,14 @@
  * Connects the didactics controller to its UI.
  */
 import type { BrowserScenarioDraft } from "../../domain/model/types";
-import { compareScenariosAtTime, interpretDidacticComparison } from "../../domain/education";
-import { revealSky, setHypothesis, type BinaryLabState } from "../../domain/education/binaryLab";
+import { interpretDidacticComparison } from "../../domain/education";
+import { compareScenarioConfigsAtTime, nearestPrimaryTransitCentreSec } from "../../domain/education/compare";
+import {
+  isHypothesisLocked,
+  revealSky,
+  setHypothesis,
+  type BinaryLabState,
+} from "../../domain/education/binaryLab";
 import type { UiRefs } from "../shell/refs";
 import type {
   LightCurveBadge,
@@ -27,10 +33,14 @@ import {
   switchDidacticsLesson,
   syncDidacticsControlsFromParams,
   updateDidacticComparison,
+  updateDidacticHypothesis,
   updateDidacticResponse,
   type DidacticsRuntimeState,
 } from "./didactics";
 import { PRESETS, getPresetById } from "../../application/catalog/presets";
+import { DEFAULT_BINARY_LAB_CONFIG_V4 } from "../../application/catalog/binaryLab";
+import { toEducationScenarioV4 } from "../../application/browserScenarioAdapter";
+import { currentDidacticSignals } from "../../application/runtime/didacticSignals";
 import { runWithErrorHandling } from "../shell/runWithErrorHandling";
 import { isBinaryHypothesis } from "../scenario/scenarioFlow";
 import type { AppSimulationRuntime } from "../../application/runtime/v4Runtime";
@@ -229,12 +239,14 @@ function wireCheckButton(context: DidacticsWireContext): void {
     () => {
       runWithErrorHandling(
         () => {
-          const step = getSimulation().step(state.t);
+          // Grade against the live lesson/step in app state; the runtime's didactics
+          // config is a build-time clone that lesson navigation does not update.
+          const frame = getSimulation().step(state.t);
           state.didacticsRuntime = onDidacticSignals(
             state.params,
             state.didacticsRuntime,
-            step.didactics?.signals,
-            step.timing,
+            currentDidacticSignals(state.params, frame),
+            frame.timing,
             state.t,
           );
           renderDidacticSignals(refs, state.didacticsRuntime);
@@ -326,17 +338,40 @@ function wireComparisonControl(context: DidacticsWireContext): void {
   );
 }
 
+type DidacticComparisonResult = ReturnType<typeof compareScenarioConfigsAtTime>;
+
+// A blank time field means "the primary transit or eclipse of scenario A".
+function comparisonTimeSec(
+  refs: UiRefs,
+  configA: ReturnType<AppSimulationRuntime["getConfig"]>,
+  tNowSec: number,
+): number {
+  const raw = refs.didCompareTime?.value.trim() ?? "";
+  const typed = raw === "" ? Number.NaN : Number(raw);
+  if (Number.isFinite(typed)) return typed;
+  const centreSec = nearestPrimaryTransitCentreSec(configA, tNowSec);
+  if (refs.didCompareTime) refs.didCompareTime.value = centreSec.toFixed(0);
+  return centreSec;
+}
+
 function runDidacticComparison(context: DidacticsWireContext): {
-  comparison: ReturnType<typeof compareScenariosAtTime>;
+  comparison: DidacticComparisonResult;
   text: string;
 } {
-  const { refs, state } = context;
+  const { refs, state, getSimulation, currentLessonSimMode } = context;
   const presetB = getPresetById(refs.didComparePreset?.value ?? "default");
-  const tCmp = Number(refs.didCompareTime?.value ?? "0");
-  const comparison = compareScenariosAtTime(
-    state.params,
-    cloneParams(presetB.params),
-    Number.isFinite(tCmp) ? tCmp : 0,
+  // Scenario A is the live runtime's config; B goes through the same adapter path (incl. binary).
+  const configA = getSimulation().getConfig();
+  const configB = toEducationScenarioV4({
+    system: cloneParams(presetB.params),
+    binaryMode: currentLessonSimMode() === "binary-lab",
+    runtimeMode: configA.runtime?.mode ?? "realtime",
+    binaryLabDefaults: DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab,
+  });
+  const comparison = compareScenarioConfigsAtTime(
+    configA,
+    configB,
+    comparisonTimeSec(refs, configA, state.t),
   );
   return {
     comparison,
@@ -349,7 +384,7 @@ function runDidacticComparison(context: DidacticsWireContext): {
 
 function applyDidacticComparisonState(
   state: DidacticsUiState,
-  result: { comparison: ReturnType<typeof compareScenariosAtTime>; text: string },
+  result: { comparison: DidacticComparisonResult; text: string },
 ): void {
   state.didacticsRuntime = updateDidacticComparison(state.didacticsRuntime, result.comparison, result.text);
   state.comparisonCurveSeries = result.comparison.visual?.curveSeries;
@@ -363,19 +398,20 @@ function wireBinaryLabControls(context: DidacticsWireContext): void {
   refs.didHypothesisSelect?.addEventListener(
     "change",
     () => {
-      const selected = refs.didHypothesisSelect!.value;
-      if (isBinaryHypothesis(selected)) {
-        state.binaryLabState = setHypothesis(state.binaryLabState, selected);
-        state.didacticsRuntime = updateDidacticResponse(
-          state.didacticsRuntime,
-          { primary: selected },
-          state.t,
-        );
-        if (warnEl) warnEl.textContent = "";
-      } else {
-        state.binaryLabState = { ...state.binaryLabState, hypothesis: undefined };
-        state.didacticsRuntime = updateDidacticResponse(state.didacticsRuntime, { primary: "" }, state.t);
+      const select = refs.didHypothesisSelect!;
+      if (isHypothesisLocked(state.binaryLabState)) {
+        // The pre-reveal claim is frozen once the sky is visible.
+        select.value = state.binaryLabState.hypothesis ?? "";
+        syncHypothesisLock(refs, state.binaryLabState);
+        return;
       }
+      const selected = select.value;
+      const hypothesis = isBinaryHypothesis(selected) ? selected : undefined;
+      state.binaryLabState = hypothesis
+        ? setHypothesis(state.binaryLabState, hypothesis)
+        : { ...state.binaryLabState, hypothesis: undefined };
+      state.didacticsRuntime = updateDidacticHypothesis(state.didacticsRuntime, hypothesis ?? "", state.t);
+      if (hypothesis && warnEl) warnEl.textContent = "";
       syncBinaryUi();
     },
     listenerOptions,
@@ -385,8 +421,14 @@ function wireBinaryLabControls(context: DidacticsWireContext): void {
     () => {
       state.binaryLabState = revealSky(state.binaryLabState);
       syncBinaryUi();
+      syncHypothesisLock(refs, state.binaryLabState);
       announceDidacticResult("Sky geometry revealed. Compare it with your hypothesis and the light curve.");
     },
     listenerOptions,
   );
+}
+
+function syncHypothesisLock(refs: UiRefs, binaryLabState: BinaryLabState): void {
+  if (refs.didHypothesisSelect && isHypothesisLocked(binaryLabState))
+    refs.didHypothesisSelect.disabled = true;
 }

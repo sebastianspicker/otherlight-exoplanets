@@ -29,13 +29,28 @@ export function createBootstrapDirtyGuard(deps: BootstrapDirtyGuardDeps): Bootst
     if (deps.dirtyState) deps.dirtyState.hidden = !next;
   };
 
+  const confirmDiscardWithoutDialog = (): boolean => {
+    if (typeof window.confirm !== "function") return true;
+    return window.confirm(
+      "Advanced parameter edits have not been applied. Loading another context will discard them.",
+    );
+  };
+
   const requestContextChange = (action: () => void): void => {
-    if (!dirty || !deps.dialog || typeof deps.dialog.showModal !== "function") {
+    if (!dirty) {
       action();
       return;
     }
-    pendingContextChange = action;
-    deps.dialog.showModal();
+    if (deps.dialog && typeof deps.dialog.showModal === "function") {
+      pendingContextChange = action;
+      deps.dialog.showModal();
+      return;
+    }
+    // Without a modal dialog, ask synchronously; clear dirty before acting so
+    // the re-dispatched change event is not intercepted again.
+    if (!confirmDiscardWithoutDialog()) return;
+    setDirty(false);
+    action();
   };
 
   deps.form?.addEventListener(
@@ -73,11 +88,12 @@ export function createBootstrapDirtyGuard(deps: BootstrapDirtyGuardDeps): Bootst
   const guardContextSelect = (select: HTMLSelectElement | null): void => {
     if (!select) return;
     let committedValue = select.value;
+    let redispatching = false;
     select.addEventListener("focus", () => (committedValue = select.value), options);
     select.addEventListener(
       "change",
       (event) => {
-        if (!dirty) {
+        if (redispatching || !dirty) {
           committedValue = select.value;
           return;
         }
@@ -87,7 +103,12 @@ export function createBootstrapDirtyGuard(deps: BootstrapDirtyGuardDeps): Bootst
         requestContextChange(() => {
           select.value = requestedValue;
           committedValue = requestedValue;
-          select.dispatchEvent(new Event("change", { bubbles: true }));
+          redispatching = true;
+          try {
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+          } finally {
+            redispatching = false;
+          }
         });
       },
       { capture: true, signal: deps.signal },

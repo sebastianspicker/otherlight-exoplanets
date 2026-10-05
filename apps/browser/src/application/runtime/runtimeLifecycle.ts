@@ -2,7 +2,7 @@
  * Swaps the active Education runtime and reports its status.
  */
 import type { BrowserScenarioDraft } from "../../domain/model/types";
-import type { RuntimeModeV4 } from "../../domain/simulation/v4";
+import type { RuntimeExecutionModeV4, RuntimeModeV4 } from "../../domain/simulation/v4";
 import type { BinaryLabConfigV4 } from "../../domain/simulation/v4/types";
 import { createSimulationRuntimeV4FromParams, type AppSimulationRuntime } from "./v4Runtime";
 
@@ -10,6 +10,8 @@ type RuntimeBuildArgs = {
   system: BrowserScenarioDraft;
   binaryMode: boolean;
   runtimeMode: RuntimeModeV4;
+  executionMode?: RuntimeExecutionModeV4;
+  referenceSubsteps?: number;
   binaryLabDefaults?: BinaryLabConfigV4;
 };
 

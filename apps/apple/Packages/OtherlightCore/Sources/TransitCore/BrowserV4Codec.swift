@@ -15,6 +15,9 @@ public enum BrowserV4Import {
   }
 
   /// Converts the supported browser V4 DTO into the native model, defaulting only optional V4 fields.
+  ///
+  /// Documents that use Browser V4 features without a native representation throw
+  /// `BrowserV4UnsupportedFeatureError` instead of being silently simplified.
   public static func scenario(from dto: BrowserV4ScenarioDTO, identifier: String) throws
     -> EducationScenarioV4
   {
@@ -29,7 +32,9 @@ public enum BrowserV4Import {
     guard let star = dto.bodies.stars.first else {
       throw ValidationError([.nonPositive(field: "bodies.stars")])
     }
-    let limb = dto.photometry?.limbDarkeningModel?.default
+    let unsupported = BrowserV4FeatureGate.unsupportedFeatures(in: dto, mode: mode)
+    guard unsupported.isEmpty else { throw BrowserV4UnsupportedFeatureError(features: unsupported) }
+    let limb = limbDarkening(dto.photometry?.limbDarkeningModel, star: star)
     if mode == .detachedBinaryLab {
       return try detachedBinaryScenario(
         dto, identifier: identifier, star: star, limb: limb)
@@ -40,17 +45,31 @@ public enum BrowserV4Import {
     let scenario = EducationScenarioV4(
       identifier: identifier,
       star: .init(
-        radiusMetres: star.r, massKilograms: star.m, limbDarkeningU1: limb?.u1 ?? 0.3,
-        limbDarkeningU2: limb?.u2 ?? 0.2),
+        radiusMetres: star.r, massKilograms: star.m ?? 0, limbDarkeningU1: limb.u1,
+        limbDarkeningU2: limb.u2),
       planet: .init(
-        radiusMetres: planet.r, massKilograms: planet.m, orbit: orbit(planet.orbit)),
+        radiusMetres: planet.r, massKilograms: planet.m ?? 0, orbit: orbit(planet.orbit)),
       moon: dto.bodies.moons.first.map {
-        .init(radiusMetres: $0.r, massKilograms: $0.m, orbit: orbit($0.orbit))
+        .init(radiusMetres: $0.r, massKilograms: $0.m ?? 0, orbit: orbit($0.orbit))
       },
-      gridResolution: dto.photometry?.gridRes ?? 220,
+      gridResolution: dto.photometry?.gridRes ?? defaultGridResolution,
       planetPhase: phase(dto.photometry?.phaseCurve),
-      moonPhase: phase(dto.photometry?.moonPhaseCurve))
+      moonPhase: phase(dto.photometry?.moonPhaseCurve),
+      dayNightVisibility: dayNight(dto.photometry?.dayNightVisibility))
     return try validated(scenario)
+  }
+
+  /// Matches the Browser limb-darkened integrator's grid fallback when `gridRes` is absent.
+  static let defaultGridResolution = 60
+
+  /// Resolves a star's quadratic law as the Browser does; absent or empty models are uniform disks.
+  static func limbDarkening(
+    _ model: BrowserV4ScenarioDTO.LimbDarkeningModelDTO?, star: BrowserV4ScenarioDTO.StarDTO
+  ) -> (u1: Double, u2: Double) {
+    switch BrowserV4LimbDarkeningLaw.resolve(model, star: star) {
+    case .quadratic(let u1, let u2): (u1, u2)
+    case .uniform, .unsupported: (0, 0)
+    }
   }
 
   /// Converts V4 orbit fields to the native SI orbit representation.
@@ -61,7 +80,10 @@ public enum BrowserV4Import {
       meanAnomalyAtEpochRadians: -2 * .pi * value.t0 / value.period)
   }
 
-  /// Converts optional V4 phase parameters without inventing a missing curve.
+  /// Converts optional V4 phase parameters with the Browser defaults for absent fields.
+  ///
+  /// Absent `physicalScaling` means scaled amplitudes and absent `thermalModel` means cosine, as
+  /// in the Browser `normalizePhaseCurveModel`.
   static func phase(_ value: BrowserV4ScenarioDTO.PhaseCurveDTO?) -> PhaseCurve? {
     value.map {
       .init(
@@ -71,43 +93,60 @@ public enum BrowserV4Import {
         constantFlux: $0.constant ?? 0,
         reflectedModel: PhaseCurve.ReflectedModel(rawValue: $0.reflModel ?? "")
           ?? (($0.lambertian ?? false) ? .lambert : .cosine),
-        thermalModel: PhaseCurve.ThermalModel(rawValue: $0.thermalModel ?? "") ?? .constant,
-        clampsWeights: $0.clamp ?? true, usesPhysicalScaling: $0.physicalScaling ?? false)
+        thermalModel: PhaseCurve.ThermalModel(rawValue: $0.thermalModel ?? "") ?? .cosine,
+        clampsWeights: $0.clamp ?? true, usesPhysicalScaling: $0.physicalScaling ?? true)
+    }
+  }
+
+  /// Converts the V4 day-night visibility override without resolving its absent fields.
+  static func dayNight(_ value: BrowserV4ScenarioDTO.DayNightVisibilityDTO?) -> DayNightVisibility?
+  {
+    value.map {
+      .init(
+        enabled: $0.enabled ?? false,
+        reflectedModel: $0.reflectedModel.flatMap(PhaseCurve.ReflectedModel.init(rawValue:)),
+        thermalModel: $0.thermalModel.flatMap(PhaseCurve.ThermalModel.init(rawValue:)),
+        clamp: $0.clamp)
     }
   }
 
   /// Converts the detached-binary V4 branch without allowing general-lab defaults to leak in.
+  ///
+  /// Absent masses stay zero (the Browser then keeps the primary fixed), absent luminosity scales
+  /// use the Browser fallbacks 1 and 0.3, and an absent `binaryLab` uses the default gates.
   static func detachedBinaryScenario(
     _ dto: BrowserV4ScenarioDTO, identifier: String, star: BrowserV4ScenarioDTO.StarDTO,
-    limb: BrowserV4ScenarioDTO.LimbDarkeningDTO?
+    limb: (u1: Double, u2: Double)
   ) throws -> EducationScenarioV4 {
     guard let secondary = dto.bodies.stars.dropFirst().first,
-      let binaryOrbit = dto.orbits?.binary,
-      let binaryLab = dto.binaryLab
+      let binaryOrbit = dto.orbits?.binary
     else {
-      throw ValidationError([.nonPositive(field: "bodies.stars/orbits.binary/binaryLab")])
+      throw ValidationError([.nonPositive(field: "bodies.stars/orbits.binary")])
+    }
+    let binaryLab = dto.binaryLab.map {
+      BinaryLabConfiguration(
+        enabled: $0.enabled, hideSkyUntilReveal: $0.hideSkyUntilReveal,
+        requireHypothesis: $0.requireHypothesis,
+        lockParamsUntilHypothesis: $0.lockParamsUntilHypothesis)
     }
     let primary = BinaryStar(
       identifier: star.id,
       star: .init(
-        radiusMetres: star.r, massKilograms: star.m, limbDarkeningU1: limb?.u1 ?? 0.3,
-        limbDarkeningU2: limb?.u2 ?? 0.2), luminosityScale: star.luminosityScale ?? 1)
+        radiusMetres: star.r, massKilograms: star.m ?? 0, limbDarkeningU1: limb.u1,
+        limbDarkeningU2: limb.u2), luminosityScale: star.luminosityScale ?? 1)
     let companion = BinaryStar(
       identifier: secondary.id,
       star: .init(
-        radiusMetres: secondary.r, massKilograms: secondary.m,
-        limbDarkeningU1: limb?.u1 ?? 0.3, limbDarkeningU2: limb?.u2 ?? 0.2),
+        radiusMetres: secondary.r, massKilograms: secondary.m ?? 0,
+        limbDarkeningU1: limb.u1, limbDarkeningU2: limb.u2),
       luminosityScale: secondary.luminosityScale ?? 0.3)
     let scenario = EducationScenarioV4(
       identifier: identifier, star: primary.star,
       planet: .init(radiusMetres: 1, orbit: orbit(binaryOrbit)),
-      gridResolution: dto.photometry?.gridRes ?? 220, mode: .detachedBinaryLab,
+      gridResolution: dto.photometry?.gridRes ?? defaultGridResolution, mode: .detachedBinaryLab,
       detachedBinary: .init(
         primary: primary, secondary: companion, relativeOrbit: orbit(binaryOrbit)),
-      binaryLab: .init(
-        enabled: binaryLab.enabled, hideSkyUntilReveal: binaryLab.hideSkyUntilReveal,
-        requireHypothesis: binaryLab.requireHypothesis,
-        lockParamsUntilHypothesis: binaryLab.lockParamsUntilHypothesis))
+      binaryLab: binaryLab ?? .default)
     return try validated(scenario)
   }
 
@@ -164,8 +203,14 @@ public enum BrowserV4Export {
         gridRes: scenario.gridResolution,
         limbDarkeningModel: .init(
           default: .init(
-            u1: scenario.star.limbDarkeningU1, u2: scenario.star.limbDarkeningU2)),
-        phaseCurve: phase(scenario.planetPhase), moonPhaseCurve: phase(scenario.moonPhase)),
+            kind: "quadratic", u1: scenario.star.limbDarkeningU1,
+            u2: scenario.star.limbDarkeningU2)),
+        phaseCurve: phase(scenario.planetPhase), moonPhaseCurve: phase(scenario.moonPhase),
+        dayNightVisibility: scenario.dayNightVisibility.map {
+          .init(
+            enabled: $0.enabled, reflectedModel: $0.reflectedModel?.rawValue,
+            thermalModel: $0.thermalModel?.rawValue, clamp: $0.clamp)
+        }),
       didactics: .init(activeLessonId: lessonID), binaryLab: nil)
   }
 
@@ -213,7 +258,8 @@ public enum BrowserV4Export {
         gridRes: scenario.gridResolution,
         limbDarkeningModel: .init(
           default: .init(
-            u1: binary.primary.star.limbDarkeningU1, u2: binary.primary.star.limbDarkeningU2)),
+            kind: "quadratic", u1: binary.primary.star.limbDarkeningU1,
+            u2: binary.primary.star.limbDarkeningU2)),
         phaseCurve: nil, moonPhaseCurve: nil),
       didactics: .init(activeLessonId: lessonID),
       binaryLab: .init(

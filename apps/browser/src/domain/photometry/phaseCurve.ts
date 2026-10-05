@@ -18,6 +18,8 @@
 // - observerDir points from the star toward the observer.
 // - rBody is the body position vector in inertial coordinates (star at origin).
 // - Secondary eclipse gating (body hidden by star) is not applied here; sim.ts handles that.
+// - Phase offsets and the thermal lag are signed orbital shifts: with the body velocity (vBody) the
+//   body is rotated along its orbit, so a positive shift moves the peak after superior conjunction.
 //
 // Design goals:
 // - bodyPhaseFlux(...) is the primary API.
@@ -27,12 +29,15 @@
 import { clamp01, isFiniteNumber } from "../model/units";
 
 import type { ReflectedPhaseModel, ThermalPhaseModel } from "./dayNightVisibility";
+import { reflectedLightGeometricWeight, thermalLightGeometricWeight } from "./dayNightVisibility";
+import type { BodyPhaseGeometry } from "./phaseCurveGeometry";
 import {
-  applyPhaseOffset,
-  reflectedLightGeometricWeight,
-  thermalLightGeometricWeight,
-} from "./dayNightVisibility";
-import { bodyPhaseAlpha, clampWeightsFor, reflectedModelFor, thermalModelFor } from "./phaseCurveGeometry";
+  bodyPhaseGeometry,
+  clampWeightsFor,
+  phaseAlphaWithShift,
+  reflectedModelFor,
+  thermalModelFor,
+} from "./phaseCurveGeometry";
 import { effectiveThermalInertia, phaseCurvePhysicalScales, thermalAdvancedBoost } from "./phaseCurveScaling";
 import type {
   BodyPhaseFluxParams,
@@ -90,19 +95,19 @@ function normalizePhaseCurveModel(model: PhaseCurveModel | undefined): Normalize
  * where Φ is chosen by the reflected phase model and alpha_eff is optionally offset.
  */
 function reflectedFluxTerm(params: {
-  alpha: number;
+  geometry: BodyPhaseGeometry;
   reflAmp: number;
   model: ReflectedPhaseModel;
   reflOffset?: number;
   clamp?: boolean;
 }): number {
-  const { alpha, reflAmp, model } = params;
+  const { geometry, reflAmp, model } = params;
 
-  if (!Number.isFinite(alpha)) return 0;
+  if (!Number.isFinite(geometry.alpha)) return 0;
   if (!Number.isFinite(reflAmp) || reflAmp <= 0) return 0;
 
   const off = isFiniteNumber(params.reflOffset) ? params.reflOffset : 0;
-  const aEff = applyPhaseOffset(alpha, -off);
+  const aEff = phaseAlphaWithShift(geometry, off);
 
   const w = reflectedLightGeometricWeight(aEff, model);
   const ww = params.clamp === false ? w : clamp01(w);
@@ -111,7 +116,7 @@ function reflectedFluxTerm(params: {
 }
 
 type ThermalFluxTermParams = {
-  alpha: number;
+  geometry: BodyPhaseGeometry;
   thermAmp: number;
   model: ThermalPhaseModel;
   thermOffset?: number;
@@ -165,7 +170,7 @@ function thermalInertiaFluxTerm(
 ): number {
   const { lag, gain } = inertiaResponse(period, inertia);
   const off = phaseOffsetOrZero(params.thermOffset);
-  const aEff = applyPhaseOffset(params.alpha, -(off + lag));
+  const aEff = phaseAlphaWithShift(params.geometry, off + lag);
   const w = phaseWeightWithClamp(aEff, params.model, params.clamp !== false);
   const wVar = Number.isFinite(w) ? w * gain : 0;
   const wEff = inertia.redistribution + (1 - inertia.redistribution) * wVar;
@@ -174,7 +179,7 @@ function thermalInertiaFluxTerm(
 }
 
 function directThermalFluxTerm(params: ThermalFluxTermParams, amp: number): number {
-  const aEff = applyPhaseOffset(params.alpha, -phaseOffsetOrZero(params.thermOffset));
+  const aEff = phaseAlphaWithShift(params.geometry, phaseOffsetOrZero(params.thermOffset));
   const ww = phaseWeightWithClamp(aEff, params.model, params.clamp !== false);
   return Number.isFinite(ww) ? amp * ww : 0;
 }
@@ -187,7 +192,7 @@ function directThermalFluxTerm(params: ThermalFluxTermParams, amp: number): numb
  * - Otherwise uses the thermal geometric weight from dayNightVisibility.ts.
  */
 function thermalFluxTerm(params: ThermalFluxTermParams): number {
-  if (!Number.isFinite(params.alpha)) return 0;
+  if (!Number.isFinite(params.geometry.alpha)) return 0;
   if (!positiveFinite(params.thermAmp)) return 0;
 
   const inertia = params.thermalInertia;
@@ -209,14 +214,14 @@ export function bodyPhaseFlux(params: BodyPhaseFluxParams): number {
   const norm = normalizePhaseCurveModel(params.model);
   if (!norm.enabled) return 0;
 
-  const alpha = bodyPhaseAlpha(params);
-  if (alpha === undefined) return 0;
+  const geometry = bodyPhaseGeometry(params);
+  if (geometry === undefined) return 0;
   const dn = params.dayNightVisibility;
   const clampWeights = clampWeightsFor(norm, dn);
   const scales = phaseCurvePhysicalScales(norm, params);
 
   const refl = reflectedFluxTerm({
-    alpha,
+    geometry,
     reflAmp:
       norm.reflAmp *
       scales.reflScale *
@@ -227,7 +232,7 @@ export function bodyPhaseFlux(params: BodyPhaseFluxParams): number {
   });
 
   const therm = thermalFluxTerm({
-    alpha,
+    geometry,
     thermAmp: norm.thermAmp * scales.thermScale,
     model: thermalModelFor(norm, dn),
     thermOffset: norm.thermOffset,

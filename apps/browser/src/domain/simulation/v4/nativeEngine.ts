@@ -37,6 +37,7 @@ import { computeTimingAndObservables } from "./nativeEngineTiming";
 
 /** Flux threshold below 1 that marks an active transit or mutual event (planet or moon occults star). */
 const TRANSIT_FLUX_THRESHOLD = 0.999999;
+const EVENT_OVERLAP_THRESHOLD = 1e-4;
 
 type ConservationResult = {
   conservation?: StepConservationDiagnostics;
@@ -56,8 +57,10 @@ type VisualBodies = {
 
 type NativeTimingDiagnostics = ReturnType<typeof computeTimingAndObservables>;
 
+// Every massive body, including photometrically inactive stars, contributes to the energy budget;
+// the snapshot frame is barycentric whenever masses allow the reflex split.
 function dynamicBodies(snapshot: NativeSnapshot): NativeBodyState[] {
-  return snapshot.bodies.filter((body) => body.m > 0 && body.active);
+  return snapshot.bodies.filter((body) => body.m > 0);
 }
 
 function kineticEnergyAndAngularMomentum(bodies: NativeBodyState[]): {
@@ -249,9 +252,10 @@ function eventMarkersFromState(
   timingMarkers: BrowserRenderSignals["timingMarkers"],
 ): BrowserRenderSignals["eventMarkers"] {
   const transitActive = flux.transitFactor < TRANSIT_FLUX_THRESHOLD;
-  const mutual =
-    (flux.planetVisibleFraction ?? 1) < TRANSIT_FLUX_THRESHOLD ||
-    (flux.moonVisibleFraction ?? 1) < TRANSIT_FLUX_THRESHOLD;
+  const mutual = flux.mutualOverlapFraction > EVENT_OVERLAP_THRESHOLD;
+  const secondaryEclipse =
+    (flux.planetStarOccultedFraction ?? 0) > EVENT_OVERLAP_THRESHOLD ||
+    (flux.moonStarOccultedFraction ?? 0) > EVENT_OVERLAP_THRESHOLD;
 
   return [
     { id: "transit", kind: "transit", label: "Transit attenuation active", active: transitActive },
@@ -267,6 +271,12 @@ function eventMarkersFromState(
       kind: "conjunction",
       label: "Conjunction",
       active: false,
+    },
+    {
+      id: "secondary-eclipse",
+      kind: "secondary-eclipse",
+      label: "Secondary eclipse active",
+      active: secondaryEclipse,
     },
   ];
 }

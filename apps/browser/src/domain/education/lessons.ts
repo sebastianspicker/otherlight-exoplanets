@@ -62,7 +62,8 @@ export function getDefaultLessonIdForSimMode(mode: LessonSimMode): string {
 }
 
 export function getLessonStepPhases(lesson: LessonSpec, stepIndex: number): LessonPhaseSpec[] {
-  const safeIndex = Math.max(0, Math.min(stepIndex, Math.max(lesson.steps.length - 1, 0)));
+  const finiteIndex = Number.isFinite(stepIndex) ? Math.trunc(stepIndex) : 0;
+  const safeIndex = Math.max(0, Math.min(finiteIndex, Math.max(lesson.steps.length - 1, 0)));
   const step = lesson.steps[safeIndex];
   if (Array.isArray(step.phases) && step.phases.length > 0) return step.phases;
   return [

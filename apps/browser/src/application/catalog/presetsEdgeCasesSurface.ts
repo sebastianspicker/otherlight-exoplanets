@@ -1,7 +1,8 @@
 /**
  * Defines the stellar-surface edge-case presets.
  */
-import type { LimbDarkeningModel } from "../../domain/model/types";
+import type { BrowserScenarioDraft, LimbDarkeningModel } from "../../domain/model/types";
+import { G_SI } from "../../domain/model/units";
 import {
   enableAccuratePhysics,
   ensureMoon,
@@ -10,6 +11,32 @@ import {
   stripToTransitCase,
 } from "./presetEdgeCaseUtils";
 import { ADVANCED_ATMOSPHERE_EDGE_CASE_PRESETS } from "./presetsAtmosphereAdvanced";
+
+// Exomoon edge cases widen the planet orbit 4x (P = 5.9 d) so the Hill radius
+// a_p (m_p / 3 M*)^(1/3) = 1.7e9 m holds moons at a = 4e8-6.2e8 m (< 0.4 r_H).
+const EXOMOON_PLANET_ORBIT_SCALE = 4;
+
+function keplerPeriodSec(a: number, totalMassKg: number): number {
+  return 2 * Math.PI * Math.sqrt(a ** 3 / (G_SI * totalMassKg));
+}
+
+function widenPlanetOrbitForMoon(p: BrowserScenarioDraft): void {
+  const orbit = p.planet.orbit;
+  if (!("a" in orbit) || !("period" in orbit)) return;
+  orbit.a *= EXOMOON_PLANET_ORBIT_SCALE;
+  orbit.period = keplerPeriodSec(orbit.a, (p.star.m ?? 0) + (p.planet.m ?? 0));
+}
+
+/** Sets a face-on moon orbit with a Kepler-consistent period and phase (fraction of the moon period). */
+function setMoonOrbit(p: BrowserScenarioDraft, a: number, phase: number): void {
+  const moon = ensureMoon(p);
+  const orbit = moon.orbitAroundPlanet;
+  if (!("a" in orbit) || !("period" in orbit)) return;
+  orbit.a = a;
+  orbit.inc = 0;
+  orbit.period = keplerPeriodSec(a, (p.planet.m ?? 0) + (moon.m ?? 0));
+  orbit.t0 = phase * orbit.period;
+}
 
 export const SURFACE_EDGE_CASE_PRESETS = [
   makeEdgeCasePreset(
@@ -58,11 +85,11 @@ export const SURFACE_EDGE_CASE_PRESETS = [
     "Planet and moon both transit, but the moon is spaced far enough from the planet to produce its own readable feature.",
     (p) => {
       stripToTransitCase(p, { keepMoon: true });
+      widenPlanetOrbitForMoon(p);
       setPlanetImpactParameter(p, 0.08);
-      const moon = ensureMoon(p);
-      moon.r = 6e7;
-      if ("a" in moon.orbitAroundPlanet) moon.orbitAroundPlanet.a = 6.2e8;
-      if ("inc" in moon.orbitAroundPlanet) moon.orbitAroundPlanet.inc = 0;
+      ensureMoon(p).r = 6e7;
+      // P_moon = 63 460 s; the moon leads the planet by ~5 600 s at its own mid-transit.
+      setMoonOrbit(p, 6.2e8, 0.375);
     },
   ),
   makeEdgeCasePreset(
@@ -71,11 +98,11 @@ export const SURFACE_EDGE_CASE_PRESETS = [
     "Planet and moon both transit, but the moon remains so close in timing that the signal is buried inside the main dip.",
     (p) => {
       stripToTransitCase(p, { keepMoon: true });
+      widenPlanetOrbitForMoon(p);
       setPlanetImpactParameter(p, 0.08);
-      const moon = ensureMoon(p);
-      moon.r = 6e7;
-      if ("a" in moon.orbitAroundPlanet) moon.orbitAroundPlanet.a = 9e7;
-      if ("inc" in moon.orbitAroundPlanet) moon.orbitAroundPlanet.inc = 0;
+      ensureMoon(p).r = 6e7;
+      // a = 2.7 R_p, P_moon = 32 885 s; the moon transits within ~100 s of the planet centre.
+      setMoonOrbit(p, 4e8, 0.625);
     },
   ),
   makeEdgeCasePreset(
@@ -84,11 +111,11 @@ export const SURFACE_EDGE_CASE_PRESETS = [
     "The planet misses the stellar disk while the moon still crosses, demonstrating that moon existence and planet transit are separate geometric questions.",
     (p) => {
       stripToTransitCase(p, { keepMoon: true });
+      widenPlanetOrbitForMoon(p);
       setPlanetImpactParameter(p, 1.35);
-      const moon = ensureMoon(p);
-      moon.r = 6.5e7;
-      if ("a" in moon.orbitAroundPlanet) moon.orbitAroundPlanet.a = 5e8;
-      if ("inc" in moon.orbitAroundPlanet) moon.orbitAroundPlanet.inc = 0;
+      ensureMoon(p).r = 6.5e7;
+      // b_planet = 1.35 > 1 + R_p/R* misses; the moon (P = 45 958 s) crosses at b_moon = 0.64.
+      setMoonOrbit(p, 5e8, 0);
     },
   ),
   makeEdgeCasePreset(

@@ -152,8 +152,8 @@ extension EducationSession {
   /// Requires an integral disk resolution while retaining malformed draft text for correction.
   private func parseGridResolution() -> Int? {
     guard let value = parseDraft(draftGridResolution, field: .gridResolution) else { return nil }
-    guard value.rounded() == value, value >= 1, value <= 1_024 else {
-      draftValidationErrors[.gridResolution] = "Enter a whole number from 1 to 1024."
+    guard value.rounded() == value, value >= 60, value <= 1_024 else {
+      draftValidationErrors[.gridResolution] = "Enter a whole number from 60 to 1024."
       return nil
     }
     return Int(value)

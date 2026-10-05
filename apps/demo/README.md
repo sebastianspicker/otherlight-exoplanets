@@ -12,16 +12,21 @@ Pages build the workflow ships, so the tour matches what visitors see.
 
 ## Local review
 
-Open `apps/demo/index.html` directly in a browser, or assemble the tour with its
-tracked screenshot inputs from the repository root:
+Opening `apps/demo/index.html` directly does not work: under `file://` the
+favicon, logo, and screenshots return 404 and the browser blocks the module
+script, because those assets are only copied in by the demo build. Assemble the
+tour with its tracked screenshot inputs from the repository root, then serve the
+output over HTTP:
 
 ```bash
 pnpm build:demo
+python3 -m http.server 8080 --directory pages-dist
 ```
 
-That writes the ignored `pages-dist/` directory. To produce the full deployed
+Open <http://localhost:8080/>. `npx serve pages-dist` works equally well. The
+build writes the ignored `pages-dist/` directory. To produce the full deployed
 artifact instead, run `pnpm build:pages:site`, which builds the Browser into
-`dist/` and places the tour at `dist/demo/`.
+`dist/` and places the tour at `dist/demo/`; serve `dist/` and open `/demo/`.
 
 ## Editing
 

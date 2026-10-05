@@ -3,6 +3,8 @@
 // Live enable/disable helpers for UI sections.
 
 import type { UiRefs } from "../shell/refs";
+import { patchSlotToggles } from "./params/common";
+import { switchLimbDarkeningBandpass, syncLimbDarkeningFieldsFromBands } from "./params/limbDarkening";
 import {
   syncAtmEnabled,
   syncDnEnabled,
@@ -45,6 +47,12 @@ function addSyncAllListener(control: ToggleControl, onChange: () => void, signal
   control?.addEventListener("change", onChange, listenerOptions);
 }
 
+function wireLimbDarkeningBandpass(r: UiRefs, signal?: AbortSignal): void {
+  const listenerOptions = signal ? { signal } : undefined;
+  r.ldBandpass.addEventListener("change", () => switchLimbDarkeningBandpass(r), listenerOptions);
+  r.ldBands.addEventListener("change", () => syncLimbDarkeningFieldsFromBands(r), listenerOptions);
+}
+
 export function wireEnableHandlers(r: UiRefs, options: WireEnableHandlersOptions = {}): void {
   const onChange = () => syncAllEnableStates(r);
   const controls: ToggleControl[] = [
@@ -67,7 +75,10 @@ export function wireEnableHandlers(r: UiRefs, options: WireEnableHandlersOptions
     r.moonOblateEnabled,
     r.moonRingsEnabled,
   ];
+  const slots = patchSlotToggles(r);
+  controls.push(slots.circle, slots.ellipse);
   for (const control of controls) addSyncAllListener(control, onChange, options.signal);
+  wireLimbDarkeningBandpass(r, options.signal);
 
   syncAllEnableStates(r);
 }

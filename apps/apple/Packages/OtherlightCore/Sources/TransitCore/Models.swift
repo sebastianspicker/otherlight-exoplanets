@@ -66,12 +66,9 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
   }
   /// Solves the orbit at elapsed seconds to project its body into the observer frame.
   public func position(at seconds: Double) -> Vector3 {
-    let mean = Self.wrap(meanAnomalyAtEpochRadians + 2 * .pi * seconds / periodSeconds)
-    var eccentric = mean
-    for _ in 0..<12 {
-      eccentric -=
-        (eccentric - eccentricity * sin(eccentric) - mean) / (1 - eccentricity * cos(eccentric))
-    }
+    let eccentric = Self.eccentricAnomaly(
+      mean: meanAnomalyAtEpochRadians + 2 * .pi * seconds / periodSeconds,
+      eccentricity: eccentricity)
     let orbitalX = semiMajorAxisMetres * (cos(eccentric) - eccentricity)
     let orbitalY =
       semiMajorAxisMetres * sqrt(max(0, 1 - eccentricity * eccentricity)) * sin(eccentric)
@@ -80,21 +77,74 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
     let y = orbitalX * sin(angle) + orbitalY * cos(angle)
     return Vector3(x: -y * cos(inclinationRadians), y: x, z: y * sin(inclinationRadians))
   }
-  /// Returns observer-frame velocity, using an exact circular path for parity fixtures.
+  /// Returns the analytic observer-frame velocity, using the exact circular form for parity fixtures.
   public func velocity(at seconds: Double) -> Vector3 {
-    let mean = Self.wrap(meanAnomalyAtEpochRadians + 2 * .pi * seconds / periodSeconds)
     let rate = 2 * .pi / periodSeconds
     if eccentricity == 0 {
+      let argument =
+        Self.wrap(meanAnomalyAtEpochRadians + 2 * .pi * seconds / periodSeconds)
+        + argumentOfPeriapsisRadians
       return Vector3(
-        x: -semiMajorAxisMetres * cos(mean) * cos(inclinationRadians) * rate,
-        y: -semiMajorAxisMetres * sin(mean) * rate,
-        z: semiMajorAxisMetres * cos(mean) * sin(inclinationRadians) * rate)
+        x: -semiMajorAxisMetres * cos(argument) * cos(inclinationRadians) * rate,
+        y: -semiMajorAxisMetres * sin(argument) * rate,
+        z: semiMajorAxisMetres * cos(argument) * sin(inclinationRadians) * rate)
     }
-    let dt = min(0.01, periodSeconds * 1e-6)
-    return (position(at: seconds + dt) - position(at: seconds - dt)) * (0.5 / dt)
+    let eccentric = Self.eccentricAnomaly(
+      mean: meanAnomalyAtEpochRadians + 2 * .pi * seconds / periodSeconds,
+      eccentricity: eccentricity)
+    let anomalyRate = rate / (1 - eccentricity * cos(eccentric))
+    let orbitalX = -semiMajorAxisMetres * sin(eccentric) * anomalyRate
+    let orbitalY =
+      semiMajorAxisMetres * sqrt(max(0, 1 - eccentricity * eccentricity)) * cos(eccentric)
+      * anomalyRate
+    let angle = argumentOfPeriapsisRadians
+    let x = orbitalX * cos(angle) - orbitalY * sin(angle)
+    let y = orbitalX * sin(angle) + orbitalY * cos(angle)
+    return Vector3(x: -y * cos(inclinationRadians), y: x, z: y * sin(inclinationRadians))
+  }
+  /// Solves elliptic Kepler's equation with the Browser's bounded, damped Newton scheme.
+  ///
+  /// The mean anomaly is wrapped to (-π, π]; the start value, derivative floor, 1 rad step limit,
+  /// clamping, tolerance, and iteration budget mirror `apps/browser/src/domain/orbits/kepler.ts`.
+  public static func eccentricAnomaly(mean: Double, eccentricity e: Double) -> Double {
+    let wrapped = wrapToPi(mean)
+    guard mean.isFinite, e.isFinite, e > 0 else { return wrapped }
+    var eccentric = initialEccentricAnomaly(wrapped, eccentricity: e)
+    for _ in 0..<(e > 0.95 ? 60 : 30) {
+      let residual = eccentric - e * sin(eccentric) - wrapped
+      if abs(residual) <= 1e-12 { break }
+      let step = newtonStep(residual: residual, derivative: 1 - e * cos(eccentric))
+      eccentric = min(.pi, max(-.pi, eccentric + step))
+      if abs(step) <= 1e-12 { break }
+    }
+    return wrapToPi(eccentric)
+  }
+  /// Starts near the root for moderate eccentricity and at ±π for highly eccentric orbits.
+  private static func initialEccentricAnomaly(_ wrapped: Double, eccentricity e: Double) -> Double {
+    if e < 0.8 { return wrapToPi(wrapped + e * sin(wrapped) * (1 + e * cos(wrapped))) }
+    if abs(wrapped) < 1e-12 { return 0 }
+    return wrapped > 0 ? .pi : -.pi
+  }
+  /// Returns a Newton step with the derivative floored at 1e-14 and the step limited to 1 rad.
+  private static func newtonStep(residual: Double, derivative: Double) -> Double {
+    var slope = derivative
+    if abs(slope) < 1e-14 {
+      let positive = slope == 0 ? residual > 0 : slope > 0
+      slope = positive ? 1e-14 : -1e-14
+    }
+    let step = -residual / slope
+    return abs(step) > 1 ? (step > 0 ? 1 : -1) : step
   }
   /// Reduces an angle to one signed revolution remainder.
   static func wrap(_ value: Double) -> Double { value.truncatingRemainder(dividingBy: 2 * .pi) }
+  /// Wraps an angle to (-π, π] with the Browser's `wrapToPi` convention.
+  static func wrapToPi(_ value: Double) -> Double {
+    guard value.isFinite else { return value }
+    var shifted = (value + .pi).truncatingRemainder(dividingBy: 2 * .pi)
+    if shifted < 0 { shifted += 2 * .pi }
+    let wrapped = shifted - .pi
+    return wrapped <= -.pi ? .pi : wrapped
+  }
 }
 
 /// Defines the stellar physical and limb-darkening inputs for a scenario.
@@ -207,12 +257,14 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
   public var moonPhase: PhaseCurve?
   public var detachedBinary: DetachedBinary?
   public var binaryLab: BinaryLabConfiguration?
+  public var dayNightVisibility: DayNightVisibility?
   /// Creates an education scenario from its physical, photometric, and teaching inputs.
   public init(
     identifier: String = "education-default", epochSeconds: Double = 0, star: Star, planet: Planet,
     moon: Moon? = nil, gridResolution: Int = 220, planetPhase: PhaseCurve? = nil,
     moonPhase: PhaseCurve? = nil, mode: EducationScenarioMode = .generalLab,
-    detachedBinary: DetachedBinary? = nil, binaryLab: BinaryLabConfiguration? = nil
+    detachedBinary: DetachedBinary? = nil, binaryLab: BinaryLabConfiguration? = nil,
+    dayNightVisibility: DayNightVisibility? = nil
   ) {
     self.mode = mode
     self.identifier = identifier
@@ -225,6 +277,7 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
     self.moonPhase = moonPhase
     self.detachedBinary = detachedBinary
     self.binaryLab = binaryLab
+    self.dayNightVisibility = dayNightVisibility
   }
 }
 
@@ -290,5 +343,23 @@ public struct PhaseCurve: Codable, Sendable, Hashable {
     self.thermalModel = thermalModel
     self.clampsWeights = clampsWeights
     self.usesPhysicalScaling = usesPhysicalScaling
+  }
+}
+
+/// Carries the V4 day-night visibility override that, when enabled, replaces both phase models.
+public struct DayNightVisibility: Codable, Sendable, Hashable {
+  public var enabled: Bool
+  public var reflectedModel: PhaseCurve.ReflectedModel?
+  public var thermalModel: PhaseCurve.ThermalModel?
+  public var clamp: Bool?
+  /// Creates a day-night override; absent models and clamp keep their V4 meanings.
+  public init(
+    enabled: Bool, reflectedModel: PhaseCurve.ReflectedModel? = nil,
+    thermalModel: PhaseCurve.ThermalModel? = nil, clamp: Bool? = nil
+  ) {
+    self.enabled = enabled
+    self.reflectedModel = reflectedModel
+    self.thermalModel = thermalModel
+    self.clamp = clamp
   }
 }

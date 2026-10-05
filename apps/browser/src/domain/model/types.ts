@@ -66,7 +66,6 @@ export type {
   AtmosphereRTLayer,
   ThermalModelAdvancedParams,
   StellarVariabilityParams,
-  StellarVariabilityPhaseModel,
   ThermalInertiaParams,
   PhotometryParams,
 } from "./typesPhotometry";

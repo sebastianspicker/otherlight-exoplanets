@@ -13,6 +13,8 @@ export type BrowserScenarioAuthoringInput = {
   binaryMode: boolean;
   runtimeMode: RuntimeModeV4;
   executionMode?: RuntimeExecutionModeV4;
+  /** Restored from a workspace document; the compiler default applies when omitted. */
+  referenceSubsteps?: number;
   binaryLabDefaults?: BinaryLabConfigV4;
 };
 
@@ -135,6 +137,7 @@ export function toEducationScenarioV4(args: BrowserScenarioAuthoringInput): Educ
     ...(cfg.runtime ?? {}),
     mode: args.runtimeMode,
     executionMode: args.executionMode ?? cfg.runtime?.executionMode ?? "interactive",
+    ...(args.referenceSubsteps === undefined ? {} : { referenceSubsteps: args.referenceSubsteps }),
   };
   if (!args.binaryMode) return cfg;
 

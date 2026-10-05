@@ -2,6 +2,7 @@
  * Estimates transit reference epochs and event times.
  */
 import type { SkyPoint, StepEventTimingSolveDiagnostics } from "../model/types";
+import { bisectRoot, findBracketByScan, findBracketsByScan } from "./transitTimingRoots";
 
 type TransitEventEstimate = {
   centerSec: number;
@@ -19,17 +20,6 @@ type TransitEventSolveResult = {
 type TransitEventSample = {
   sky: SkyPoint;
   vSky: SkyPoint;
-};
-
-type RootSolveResult = {
-  rootSec?: number;
-  iterations: number;
-  converged: boolean;
-};
-
-type BracketScanResult = {
-  bracket?: [number, number];
-  scans: number;
 };
 
 type LinearCenterProjection = {
@@ -182,71 +172,6 @@ function centerDerivativeAt(sample: TransitEventSample | undefined): number | un
   return sky.x * vSky.x + sky.y * vSky.y;
 }
 
-function findBracketByScan(args: {
-  fn: (tSec: number) => number | undefined;
-  startSec: number;
-  endSec: number;
-  samples?: number;
-}): BracketScanResult {
-  const sampleCount = Math.max(4, Math.floor(args.samples ?? 32));
-  let prevT = args.startSec;
-  let prevV = args.fn(prevT);
-
-  for (let idx = 1; idx <= sampleCount; idx++) {
-    const alpha = idx / sampleCount;
-    const tSec = args.startSec + (args.endSec - args.startSec) * alpha;
-    const val = args.fn(tSec);
-    if (val === undefined) {
-      prevT = tSec;
-      prevV = val;
-      continue;
-    }
-    if (val === 0) return { bracket: [tSec, tSec], scans: idx + 1 };
-    if (prevV !== undefined && Number.isFinite(prevV) && (prevV <= 0 ? val >= 0 : val <= 0)) {
-      return { bracket: [prevT, tSec], scans: idx + 1 };
-    }
-    prevT = tSec;
-    prevV = val;
-  }
-
-  return { bracket: undefined, scans: sampleCount + 1 };
-}
-
-function bisectRoot(args: {
-  fn: (tSec: number) => number | undefined;
-  leftSec: number;
-  rightSec: number;
-  tolSec?: number;
-  maxIters?: number;
-}): RootSolveResult {
-  let leftSec = args.leftSec;
-  let rightSec = args.rightSec;
-  let leftVal = args.fn(leftSec);
-  const rightVal = args.fn(rightSec);
-  if (leftVal === undefined || rightVal === undefined) return { iterations: 0, converged: false };
-  if (leftSec === rightSec) return { rootSec: leftSec, iterations: 0, converged: true };
-  if (!(Number.isFinite(leftVal) && Number.isFinite(rightVal))) return { iterations: 0, converged: false };
-  if (!(leftVal <= 0 ? rightVal >= 0 : rightVal <= 0)) return { iterations: 0, converged: false };
-
-  const tolSec = args.tolSec ?? 1e-6;
-  const maxIters = args.maxIters ?? 48;
-
-  for (let iter = 0; iter < maxIters && rightSec - leftSec > tolSec; iter++) {
-    const midSec = (leftSec + rightSec) / 2;
-    const midVal = args.fn(midSec);
-    if (midVal === undefined || !Number.isFinite(midVal)) return { iterations: iter + 1, converged: false };
-    if (Math.abs(midVal) <= 1e-12) return { rootSec: midSec, iterations: iter + 1, converged: true };
-    if (leftVal <= 0 ? midVal >= 0 : midVal <= 0) {
-      rightSec = midSec;
-    } else {
-      leftSec = midSec;
-      leftVal = midVal;
-    }
-  }
-
-  return { rootSec: (leftSec + rightSec) / 2, iterations: maxIters, converged: true };
-}
-
 function solveTransitEventExact(args: {
   linear: TransitEventEstimate;
   tObsSec: number;
@@ -262,39 +187,61 @@ function solveTransitEventExact(args: {
     Number.isFinite(periodSec) && (periodSec as number) > 0
       ? (periodSec as number) / 4
       : linear.durationSec * 8;
-  const baseSpanSec = Math.max(linear.durationSec, Math.abs(linear.centerSec - tObsSec) * 2, 1e-3);
+  const periodKnown = Number.isFinite(periodSec) && (periodSec as number) > 0;
+  const halfPeriodSec = periodKnown ? (periodSec as number) / 2 : Number.POSITIVE_INFINITY;
+  const baseSpanSec = Math.min(
+    Math.max(linear.durationSec, Math.abs(linear.centerSec - tObsSec) * 2, 1e-3),
+    Math.max(maxSpanSec, 1e-3),
+  );
+  const scanCenterSec = periodKnown
+    ? Math.min(tObsSec + halfPeriodSec, Math.max(tObsSec - halfPeriodSec, linear.centerSec))
+    : linear.centerSec;
+  const scanWindows: { centerSec: number; spanSec: number }[] = [];
+  for (let spanSec = baseSpanSec; spanSec <= Math.max(baseSpanSec, maxSpanSec); spanSec *= 2) {
+    scanWindows.push({ centerSec: scanCenterSec, spanSec });
+  }
+  // Last resort: scan the whole half-period neighbourhood of the observation time.
+  if (periodKnown) scanWindows.push({ centerSec: tObsSec, spanSec: halfPeriodSec });
   const validityFlags: string[] = [];
   let centerIterations = 0;
   let ingressIterations = 0;
   let egressIterations = 0;
 
   let centerSec = linear.centerSec;
-  for (let spanSec = baseSpanSec; spanSec <= Math.max(baseSpanSec, maxSpanSec); spanSec *= 2) {
-    const bracketResult = findBracketByScan({
-      fn: (trialSec) => centerDerivativeAt(sampleAt(trialSec)),
-      startSec: linear.centerSec - spanSec,
-      endSec: linear.centerSec + spanSec,
+  for (const window of scanWindows) {
+    const centerFn = (trialSec: number) => centerDerivativeAt(sampleAt(trialSec));
+    const { brackets } = findBracketsByScan({
+      fn: centerFn,
+      startSec: window.centerSec - window.spanSec,
+      endSec: window.centerSec + window.spanSec,
       samples: 48,
     });
-    if (!bracketResult.bracket) continue;
-    const root = bisectRoot({
-      fn: (trialSec) => centerDerivativeAt(sampleAt(trialSec)),
-      leftSec: bracketResult.bracket[0],
-      rightSec: bracketResult.bracket[1],
-      tolSec: 1e-6,
-      maxIters: 48,
-    });
-    centerIterations = Math.max(centerIterations, root.iterations);
-    if (root.rootSec === undefined) continue;
-    const contactAtCenter = contactValueAt(sampleAt(root.rootSec), rSum);
-    if (contactAtCenter !== undefined && contactAtCenter < 0) {
-      centerSec = root.rootSec;
+    let bestRootSec: number | undefined;
+    for (const bracket of brackets) {
+      const root = bisectRoot({
+        fn: centerFn,
+        leftSec: bracket[0],
+        rightSec: bracket[1],
+        tolSec: 1e-6,
+        maxIters: 48,
+      });
+      centerIterations = Math.max(centerIterations, root.iterations);
+      if (root.rootSec === undefined) continue;
+      if (Math.abs(root.rootSec - tObsSec) > halfPeriodSec) continue;
+      const contactAtRoot = contactValueAt(sampleAt(root.rootSec), rSum);
+      if (!(contactAtRoot !== undefined && contactAtRoot < 0)) continue;
+      if (bestRootSec === undefined || Math.abs(root.rootSec - tObsSec) < Math.abs(bestRootSec - tObsSec)) {
+        bestRootSec = root.rootSec;
+      }
+    }
+    if (bestRootSec !== undefined) {
+      centerSec = bestRootSec;
       break;
     }
   }
 
   const contactCenter = contactValueAt(sampleAt(centerSec), rSum);
-  if (!(contactCenter !== undefined && contactCenter < 0)) {
+  if (!(contactCenter !== undefined && contactCenter < 0) || Math.abs(centerSec - tObsSec) > halfPeriodSec) {
     validityFlags.push("center-not-in-transit");
     return {
       event: linear,
@@ -313,7 +260,7 @@ function solveTransitEventExact(args: {
   let ingressBracket: [number, number] | undefined;
   let egressBracket: [number, number] | undefined;
   for (
-    let spanSec = Math.max(linear.durationSec, 1e-3);
+    let spanSec = Math.min(Math.max(linear.durationSec, 1e-3), Math.max(maxSpanSec, 1e-3));
     spanSec <= Math.max(baseSpanSec, maxSpanSec);
     spanSec *= 2
   ) {

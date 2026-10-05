@@ -14,7 +14,6 @@ import {
 import type { NativeSnapshot } from "./nativeSnapshot";
 import type { EducationScenarioV4 } from "./types";
 
-export { finiteOrDefault } from "./nativeSnapshotHelpers";
 export { buildNativeSnapshot, orbitStateAt } from "./nativeSnapshot";
 export type { ConservationBaseline, NativeBodyState, NativeSnapshot } from "./nativeSnapshot";
 
@@ -34,6 +33,9 @@ export type FluxBundle = {
   nOcculters: number;
   planetVisibleFraction?: number;
   moonVisibleFraction?: number;
+  mutualOverlapFraction: number;
+  planetStarOccultedFraction?: number;
+  moonStarOccultedFraction?: number;
 };
 
 export function computeFluxBundle(
@@ -45,8 +47,9 @@ export function computeFluxBundle(
   const nonStars = activeNonStarOcculters(snap);
   const visibility = computeVisibilityBundle(config, snap, luminousStars, nonStars);
   const stellar = computeStellarComponents(config, snap, luminousStars, visibility, tObsSec);
-  const additivePlanetary = computeAdditivePlanetary(config, snap);
-  const additiveLunar = computeAdditiveLunar(config, snap);
+  const visibleFractions = computeVisibleFractions(snap);
+  const additivePlanetary = computeAdditivePlanetary(config, snap, visibleFractions.byBody);
+  const additiveLunar = computeAdditiveLunar(config, snap, visibleFractions.byBody);
   const scattering = computeScatteringComponents(config, snap);
   const refraction = computeRefraction(config, snap);
   const transitFactor = stellar.transitFactor;
@@ -57,7 +60,6 @@ export function computeFluxBundle(
     scattering.forwardScattering +
     scattering.ringScattering +
     refraction;
-  const visibleFractions = computeVisibleFractions(snap);
   return {
     stellarA: stellar.stellarA,
     stellarB: stellar.stellarB,
@@ -74,5 +76,8 @@ export function computeFluxBundle(
     nOcculters: visibility.nOcculters,
     planetVisibleFraction: visibleFractions.planetVisibleFraction,
     moonVisibleFraction: visibleFractions.moonVisibleFraction,
+    mutualOverlapFraction: visibleFractions.mutualOverlapFraction,
+    planetStarOccultedFraction: visibleFractions.planetStarOccultedFraction,
+    moonStarOccultedFraction: visibleFractions.moonStarOccultedFraction,
   };
 }

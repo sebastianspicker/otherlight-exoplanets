@@ -94,7 +94,7 @@ export function clamp11(x: number): number {
  * - Finite input -> output in [0, 2π).
  * - 2π maps to 0 (up to floating error).
  */
-export function wrapTo2Pi(rad: number): number {
+function wrapTo2Pi(rad: number): number {
   if (!Number.isFinite(rad)) return rad;
 
   // Modulo arithmetic is generally more stable for large angles than

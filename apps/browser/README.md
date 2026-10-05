@@ -56,6 +56,15 @@ inputs. Invalid B input stays available for correction. B and its curves are
 transient: save the lesson report for comparison evidence, and export the active
 model's plotted samples separately as CSV.
 
+## Education model scope
+
+The V4 runtime superposes authored Kepler orbits with algebraic planet-moon and
+stellar-reflex barycentric offsets, so the star has a preview RV and astrometric
+signal. Transits include brightness patches and partially opaque rings, phase
+flux is hidden during secondary eclipse and mutual events, and real-system
+catalog entries start from a neutral photometric base. Status and limits for
+each model are in the [model status](../../docs/physics/model-status.md) table.
+
 ## Rendering and performance
 
 Fixed-window previews reuse their 256-point series until scenario/runtime,

@@ -10,13 +10,8 @@ import type {
 } from "../../../domain/model/types";
 import { sanitizePositive, writeNumberInput } from "../inputs";
 import type { UiRefs } from "../../shell/refs";
-import {
-  defaultPatchInputs,
-  formatNumberList,
-  formatQuadraticBands,
-  getQuadraticLDFromModel,
-  type DefaultPatchInputs,
-} from "./common";
+import { defaultPatchInputs, formatNumberList, patchSlotToggles, type DefaultPatchInputs } from "./common";
+import { loadLimbDarkeningModelIntoUI } from "./limbDarkening";
 
 const EMPTY_PHASE_CURVE: PhaseCurveParams = {};
 const EMPTY_THERMAL_INERTIA: ThermalInertiaParams = {};
@@ -36,12 +31,8 @@ const loadPhotometryBasics = (ph: PhotometryParams, r: UiRefs): void => {
 
 const loadLimbDarkeningIntoUI = (ph: PhotometryParams, r: UiRefs): void => {
   const model = ph.limbDarkeningModel;
-  const qld = getQuadraticLDFromModel(model);
   r.ldEnabled.checked = Boolean(model);
-  writeNumberInput(r.ldU1, qld?.u1 ?? 0.35);
-  writeNumberInput(r.ldU2, qld?.u2 ?? 0.25);
-  r.ldBandpass.value = String(model?.bandpass ?? "");
-  r.ldBands.value = formatQuadraticBands(model?.bands);
+  loadLimbDarkeningModelIntoUI(model, r);
 };
 
 const loadPrimaryPatchIntoUI = (
@@ -68,12 +59,20 @@ const loadSecondaryPatchIntoUI = (
   writeNumberInput(r.p2f, patchNumber(patch, "factor", defaults.p2f));
 };
 
+// Each slot holds the first patch of its shape; a slot without a patch is
+// switched off so reading back does not invent one. With no patches at all,
+// both slots stay on so enabling patches offers the template pair.
 const loadBrightnessPatchesIntoUI = (p: BrowserScenarioDraft, ph: PhotometryParams, r: UiRefs): void => {
   const patches = ph.brightnessPatches ?? [];
   const patchDefaults = defaultPatchInputs(sanitizePositive(p.star.r, 1, 1e12));
+  const circle = patches.find((patch) => patch.shape === "circle");
+  const ellipse = patches.find((patch) => patch.shape === "ellipse");
+  const slots = patchSlotToggles(r);
   r.patchesEnabled.checked = patches.length > 0;
-  loadPrimaryPatchIntoUI(patches[0], patchDefaults, r);
-  loadSecondaryPatchIntoUI(patches[1], patchDefaults, r);
+  if (slots.circle) slots.circle.checked = patches.length === 0 || circle !== undefined;
+  if (slots.ellipse) slots.ellipse.checked = patches.length === 0 || ellipse !== undefined;
+  loadPrimaryPatchIntoUI(circle, patchDefaults, r);
+  loadSecondaryPatchIntoUI(ellipse, patchDefaults, r);
 };
 
 const loadSpotEvolutionIntoUI = (ph: PhotometryParams, r: UiRefs): void => {

@@ -61,12 +61,20 @@ function currentPhase(
   return phases[Math.max(0, Math.min(state.phaseIndex ?? 0, maxPhaseIndex))];
 }
 
+// Never show a formula row without a finite value (e.g. no transit geometry yet).
 function formulaCards(lessonId: string, numeric: ReturnType<typeof collectNumericSignals>): FormulaCards {
+  return allFormulaCards(lessonId, numeric).filter((card) => Number.isFinite(card.value));
+}
+
+function allFormulaCards(lessonId: string, numeric: ReturnType<typeof collectNumericSignals>): FormulaCards {
   return [
     {
       id: "depth-approx",
       title: "Geometric depth approximation",
-      latex: "\\delta_{\\mathrm{geom}} \\approx \\left(\\frac{R_p}{R_*}\\right)^2",
+      latex:
+        numeric.moonCoveredFraction > 0
+          ? "\\delta_{\\mathrm{geom}} \\approx \\left(\\frac{R_p}{R_*}\\right)^2 + \\left(\\frac{R_m}{R_*}\\right)^2"
+          : "\\delta_{\\mathrm{geom}} \\approx \\left(\\frac{R_p}{R_*}\\right)^2",
       value: numeric.depthApprox,
       unit: "1",
     },
@@ -79,8 +87,8 @@ function formulaCards(lessonId: string, numeric: ReturnType<typeof collectNumeri
     },
     {
       id: "impact-parameter",
-      title: "Impact parameter proxy",
-      latex: "b \\approx \\frac{\\sqrt{x^2 + y^2}}{R_*}",
+      title: "Transit impact parameter",
+      latex: "b = \\min_{\\mathrm{transit}} \\frac{\\sqrt{x^2 + y^2}}{R_*}",
       value: numeric.bPlanet,
       unit: "1",
     },
@@ -94,8 +102,8 @@ function moonFormulaCards(numeric: ReturnType<typeof collectNumericSignals>): Fo
   if (Number.isFinite(numeric.bMoon)) {
     formulas.push({
       id: "moon-impact-parameter",
-      title: "Moon impact parameter proxy",
-      latex: "b_m \\approx \\frac{\\sqrt{x_m^2 + y_m^2}}{R_*}",
+      title: "Moon transit impact parameter",
+      latex: "b_m = \\min_{\\mathrm{transit}} \\frac{\\sqrt{x_m^2 + y_m^2}}{R_*}",
       value: numeric.bMoon,
       unit: "1",
     });
@@ -137,7 +145,7 @@ export function computeDidacticSignals(
   const lesson =
     getLessonById(system.didactics.activeLessonId ?? DEFAULT_LESSON_ID) ?? getLessonById(DEFAULT_LESSON_ID)!;
   const state = resolveLearningState(system, toFiniteNumber(step.meta?.t, 0));
-  const numeric = collectNumericSignals(system, step);
+  const numeric = collectNumericSignals(system, step, { binary: lesson.simMode === "binary-lab" });
   const evalResult = evaluateChecks(lesson, state.stepIndex, numeric);
   const phase = currentPhase(lesson, state);
   const bPlanetFinite = Number.isFinite(numeric.bPlanet);
@@ -206,6 +214,8 @@ export function advanceLearningState(
   tSec: number,
 ): LearningState {
   if (!didacticSignals) return state;
+  // Signals graded for another lesson must never write into this lesson's progress.
+  if (didacticSignals.lessonId !== undefined && didacticSignals.lessonId !== state.lessonId) return state;
   const next = {
     ...state,
     lastScore: didacticSignals.score,

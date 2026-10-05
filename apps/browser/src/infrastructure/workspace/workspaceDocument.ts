@@ -1,6 +1,6 @@
 /** Strict, portable browser workspace document contract. */
 import type { DidacticResponseStore, LearningState, BrowserScenarioDraft } from "../../domain/model/types";
-import { isLabSystemId } from "../../domain/model/labs";
+import { isLabSystemId, type LabSystemId } from "../../domain/model/labs";
 import type { BinaryLabHypothesis, BinaryLabState } from "../../domain/education/binaryLab";
 import { assertScienceJobRequest } from "../science/validation";
 import type { ForwardRunRequest } from "../science/types";
@@ -34,6 +34,16 @@ const HYPOTHESES: readonly BinaryLabHypothesis[] = [
   "secondary-eclipse-dominates",
   "eccentricity-shifts-eclipse-spacing",
 ];
+
+/**
+ * Legacy `productContext.lab` identifiers accepted on read only. The Apple app
+ * wrote "binary-eclipse" and the first workspace fixture used "binary-lab" for
+ * the detached-binary lab; writers emit the canonical Browser catalog ID.
+ */
+const LEGACY_LAB_ALIASES: Readonly<Record<string, LabSystemId>> = {
+  "binary-eclipse": "binary-stars",
+  "binary-lab": "binary-stars",
+};
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -81,8 +91,11 @@ const readChoice = <T extends string>(
   return text as T;
 };
 
+/** Counts Unicode code points, matching JSON Schema `maxLength` and the Swift reader. */
+const codePointLength = (value: string): number => Array.from(value).length;
+
 const boundedText = (value: unknown, path: string): string => {
-  if (typeof value !== "string" || value.length > 20_000)
+  if (typeof value !== "string" || codePointLength(value) > 20_000)
     return fail(path, "a string of at most 20000 characters");
   return value;
 };
@@ -95,6 +108,13 @@ const nonNegativeInteger = (value: unknown, path: string): number => {
 const finiteNumber = (value: unknown, path: string): number => {
   if (typeof value !== "number" || !Number.isFinite(value)) return fail(path, "a finite number");
   return value;
+};
+
+const readLabId = (value: unknown): LabSystemId => {
+  const raw = readString(value, "productContext.lab");
+  const lab = Object.hasOwn(LEGACY_LAB_ALIASES, raw) ? LEGACY_LAB_ALIASES[raw] : raw;
+  if (!isLabSystemId(lab)) return fail("productContext.lab", "a known lab ID");
+  return lab;
 };
 
 const parseProductContext = (value: unknown): ProductViewState => {
@@ -125,7 +145,7 @@ const parseProductContext = (value: unknown): ProductViewState => {
     '"preset" or "real"',
   );
   const scenario = readString(context.scenario, "productContext.scenario");
-  const lab = readString(context.lab, "productContext.lab");
+  const lab = readLabId(context.lab);
   const lesson = readString(context.lesson, "productContext.lesson");
   const runtime = readChoice(
     context.runtime,
@@ -134,7 +154,6 @@ const parseProductContext = (value: unknown): ProductViewState => {
     '"interactive" or "reference"',
   );
   if (!isStableProductViewId(scenario)) return fail("productContext.scenario", "a stable ID");
-  if (!isLabSystemId(lab)) return fail("productContext.lab", "a known lab ID");
   if (!isStableProductViewId(lesson)) return fail("productContext.lesson", "a stable ID");
   return { profile, mode, ui, source, scenario, lab, lesson, runtime };
 };
@@ -185,7 +204,7 @@ const parseGuidedResponses = (value: unknown) => {
   const responseValues = record(value, "education.guidedLab.responses");
   const responses = Object.create(null) as GuidedLabWorkspaceState["responses"];
   for (const [key, value] of Object.entries(responseValues)) {
-    if (key.length === 0 || key.length > 512)
+    if (key.length === 0 || codePointLength(key) > 512)
       fail(`education.guidedLab.responses.${key}`, "a bounded response key");
     const entry = record(value, `education.guidedLab.responses.${key}`);
     optionalExactKeys(entry, `education.guidedLab.responses.${key}`, ["primary", "secondary"], []);

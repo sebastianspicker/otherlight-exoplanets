@@ -32,9 +32,9 @@
 // - Dot products clamped to [-1,1] to keep acos safe.
 // - Outputs clamped to valid ranges.
 
-import { clamp, clamp01, clamp11 } from "../model/units";
+import { clamp, clamp01, clamp11, isFinitePositive } from "../model/units";
 import type { Vec3 } from "../orbits/vec3";
-import { vDot, vIsFinite, vNormalizeOrThrow } from "../orbits/vec3";
+import { vAddScaled, vDot, vIsFinite, vLen, vNormalizeOrThrow, vNormalizeOrZero } from "../orbits/vec3";
 
 export type ReflectedPhaseModel = "lambert" | "cosine";
 
@@ -154,4 +154,52 @@ export function applyPhaseOffset(alphaRad: number, offsetRad: number): number {
 
   // Shift then clamp back into [0, pi] (no periodic continuation in alpha beyond [0,pi] is physical).
   return clamp(a + offsetRad, 0, Math.PI);
+}
+
+/**
+ * Signed orbital phase psi in (-pi, pi] measured from inferior conjunction, from the body's position
+ * rRel and velocity vRel relative to its star (observerDir points from the star toward the observer):
+ *   z = (rRel . oHat) / |rRel|,  s = -(vRel . oHat) / vNorm,  psi = atan2(s, z)
+ * - psi = 0 at inferior conjunction (body in front of the star), psi = pi at superior conjunction.
+ * - sin(psi) > 0 while the body recedes from the observer, i.e. while the star approaches.
+ * vNorm defaults to |vRel| (exact for circular orbits). Returns undefined for degenerate input.
+ */
+export function signedConjunctionPhaseRad(
+  rRel: Vec3,
+  vRel: Vec3,
+  observerDir: Vec3,
+  vNorm?: number,
+): number | undefined {
+  if (!vIsFinite(rRel) || !vIsFinite(vRel) || !vIsFinite(observerDir)) return undefined;
+  const oHat = vNormalizeOrZero(observerDir);
+  const rLen = vLen(rRel);
+  const norm = isFinitePositive(vNorm) ? vNorm : vLen(vRel);
+  if (!(rLen > 1e-15 && norm > 0 && vLen(oHat) > 0)) return undefined;
+  const psi = Math.atan2(-vDot(vRel, oHat) / norm, vDot(rRel, oHat) / rLen);
+  return Number.isFinite(psi) ? psi : undefined;
+}
+
+/**
+ * Phase angle alpha_eff in [0, pi] of a body whose bright region is shifted by shiftRad along its
+ * orbit: the body position is rotated by -shiftRad about the orbit normal (rBody x vBody) before the
+ * canonical phase angle is taken. For an edge-on circular orbit this equals |wrap(psi - pi - shift)|,
+ * so a positive shift (hotspot offset or thermal lag) moves the peak after superior conjunction.
+ * shiftRad = 0 reproduces phaseAngleRadFromBodyPos. Returns undefined when rBody and vBody are
+ * degenerate (zero or parallel), so callers can fall back to applyPhaseOffset.
+ */
+export function shiftedPhaseAngleRad(
+  rBody: Vec3,
+  vBody: Vec3,
+  observerDir: Vec3,
+  shiftRad: number,
+): number | undefined {
+  if (!vIsFinite(rBody) || !vIsFinite(vBody) || !vIsFinite(observerDir)) return undefined;
+  if (!Number.isFinite(shiftRad)) return undefined;
+  const rHat = vNormalizeOrZero(rBody);
+  const vPerp = vAddScaled(vBody, rHat, -vDot(vBody, rHat));
+  const oHat = vNormalizeOrZero(observerDir);
+  if (vLen(rHat) === 0 || vLen(oHat) === 0 || !(vLen(vPerp) > 1e-9 * vLen(vBody))) return undefined;
+  const tHat = vNormalizeOrZero(vPerp);
+  const cosAlpha = -vDot(rHat, oHat) * Math.cos(shiftRad) + vDot(tHat, oHat) * Math.sin(shiftRad);
+  return Math.acos(clamp11(cosAlpha));
 }
