@@ -5,6 +5,7 @@ import type { BrightnessPatch, BrowserScenarioDraft } from "../../domain/model/t
 import type { LightCurveBadge } from "../render/lightCurve/lightCurvePlotTypes";
 import type { SceneDidacticOverlayState } from "../render/sky/sceneTypes";
 import type { RenderOcculterGeometry, SimulationFrame } from "../../domain/simulation/frames";
+import { evolveBrightnessPatches } from "../../domain/photometry/spotEvolution";
 
 type ScenePoint = NonNullable<SceneDidacticOverlayState["points"]>[number];
 type SceneLine = NonNullable<SceneDidacticOverlayState["lines"]>[number];
@@ -19,8 +20,16 @@ function detectOccultedPatchLabel(
   params: BrowserScenarioDraft,
   center: { x: number; y: number },
   radius: number,
+  tSec: number,
 ): string[] {
-  const patches = params.star.photometry?.brightnessPatches ?? [];
+  const photometry = params.star.photometry;
+  const patches =
+    evolveBrightnessPatches({
+      patches: photometry?.brightnessPatches,
+      spotEvolution: photometry?.spotEvolution,
+      rStar: params.star.r,
+      tSec,
+    }) ?? [];
   const labels: string[] = [];
   for (const patch of patches) {
     if (patchOverlapsOcculter(patch, center, radius)) labels.push(occultedPatchKind(patch));
@@ -103,9 +112,10 @@ export function sceneChordContactPoints(chords: SceneChordLines): ScenePoint[] {
 export function sceneOccultedPatchBadges(
   params: BrowserScenarioDraft,
   planet: RenderOcculterGeometry | undefined,
+  tSec: number,
 ): LightCurveBadge[] {
   if (!planet || planet.body !== "planet") return [];
-  return detectOccultedPatchLabel(params, planet.center, occultingRadius(planet)).map((label) => ({
+  return detectOccultedPatchLabel(params, planet.center, occultingRadius(planet), tSec).map((label) => ({
     label,
     color: "#f28482",
   }));

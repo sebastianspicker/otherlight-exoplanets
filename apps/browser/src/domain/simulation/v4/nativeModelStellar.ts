@@ -9,8 +9,15 @@ import {
   starVisibilityFromOcculters,
   starVisibilityFromOpaqueOcculters,
 } from "./nativePhotometry";
-import type { VisibilityOcculter, VisibilityRing, VisibilityStarSurface } from "./nativePhotometryTypes";
+import type { VisibilityOcculter, VisibilityRing } from "./nativePhotometryTypes";
+import { oblateSilhouetteForBody } from "./nativeBodySilhouette";
 import { starParentForBody } from "./nativeModelRelations";
+import {
+  effectiveLuminosity,
+  type SpotModulation,
+  spotModulationFor,
+  starSurfaceFor,
+} from "./nativeModelStellarSurface";
 import type { NativeBodyState, NativeSnapshot } from "./nativeSnapshot";
 import type { EducationScenarioV4, PlanetBodyV4 } from "./types";
 
@@ -39,13 +46,14 @@ export function computeVisibilityBundle(
   snap: NativeSnapshot,
   luminousStars: NativeBodyState[],
   nonStars: NativeBodyState[],
+  tObsSec: number,
 ): VisibilityBundle {
   const byStar = new Map<string, number>();
   const byStarBinary = new Map<string, number>();
   let nOcculters = 0;
   for (const star of luminousStars) {
     const frontStars = luminousStars.filter((other) => other.id !== star.id && other.sky.z > star.sky.z);
-    const visibility = visibilityForStar(config, snap, star, frontStars, nonStars);
+    const visibility = visibilityForStar(config, snap, star, frontStars, nonStars, tObsSec);
     byStar.set(star.id, visibility.visible);
     byStarBinary.set(star.id, visibility.binaryVisible);
     nOcculters += visibility.nOcculters;
@@ -60,16 +68,17 @@ export function computeStellarComponents(
   visibility: VisibilityBundle,
   tObsSec: number,
 ): StellarComponents {
-  const stellarBaseline = luminousStars.reduce((sum, star) => sum + star.luminosity, 0);
-  const stellarFromBinaryEclipses = stellarFluxAfterBinaryEclipses(luminousStars, visibility);
+  const spot = spotModulationFor(config, snap, tObsSec);
+  const stellarBaseline = luminousStars.reduce((sum, star) => sum + effectiveLuminosity(star, spot), 0);
+  const stellarFromBinaryEclipses = stellarFluxAfterBinaryEclipses(luminousStars, visibility, spot);
   const stellarVariability = stellarSurfaceVariability(config, snap, tObsSec);
-  const stellarAfterAllOccultations = stellarFluxAfterAllOccultations(luminousStars, visibility);
+  const stellarAfterAllOccultations = stellarFluxAfterAllOccultations(luminousStars, visibility, spot);
   const primaryBinaryVis = visibility.byStarBinary.get(snap.stars[0]?.id ?? "") ?? 1;
   const primaryAllVis = visibility.byStar.get(snap.stars[0]?.id ?? "") ?? 1;
   const stellarPreTransit = stellarFromBinaryEclipses + stellarVariability * primaryBinaryVis;
   const stellarAfterTransit = stellarAfterAllOccultations + stellarVariability * primaryAllVis;
-  const stellarA = visibleStellarFlux(snap, visibility, 0);
-  const stellarB = visibleStellarFlux(snap, visibility, 1);
+  const stellarA = visibleStellarFlux(snap, visibility, spot, 0);
+  const stellarB = visibleStellarFlux(snap, visibility, spot, 1);
   const eclipseFactor = binaryEclipseFactor(stellarBaseline, stellarFromBinaryEclipses);
   const transitFactor = transitFactorForStellarFlux(stellarPreTransit, stellarAfterTransit);
   return {
@@ -91,14 +100,22 @@ const transitFactorForStellarFlux = (stellarPreTransit: number, stellarAfterTran
 const stellarFluxAfterBinaryEclipses = (
   luminousStars: NativeBodyState[],
   visibility: VisibilityBundle,
+  spot: SpotModulation,
 ): number =>
-  luminousStars.reduce((sum, star) => sum + star.luminosity * (visibility.byStarBinary.get(star.id) ?? 1), 0);
+  luminousStars.reduce(
+    (sum, star) => sum + effectiveLuminosity(star, spot) * (visibility.byStarBinary.get(star.id) ?? 1),
+    0,
+  );
 
 const stellarFluxAfterAllOccultations = (
   luminousStars: NativeBodyState[],
   visibility: VisibilityBundle,
+  spot: SpotModulation,
 ): number =>
-  luminousStars.reduce((sum, star) => sum + star.luminosity * (visibility.byStar.get(star.id) ?? 1), 0);
+  luminousStars.reduce(
+    (sum, star) => sum + effectiveLuminosity(star, spot) * (visibility.byStar.get(star.id) ?? 1),
+    0,
+  );
 
 const visibilityForStar = (
   config: EducationScenarioV4,
@@ -106,8 +123,9 @@ const visibilityForStar = (
   star: NativeBodyState,
   frontStars: NativeBodyState[],
   nonStars: NativeBodyState[],
+  tObsSec: number,
 ): { visible: number; binaryVisible: number; nOcculters: number } => {
-  const surface = starSurfaceFor(config, snap, star);
+  const surface = starSurfaceFor(config, snap, star, tObsSec);
   if (config.mode === "detached-binary-lab" && nonStars.length === 0) {
     const binaryVisible = starVisibilityFromOpaqueOcculters(config, star, frontStars, surface);
     return { visible: binaryVisible, binaryVisible, nOcculters: 0 };
@@ -119,7 +137,7 @@ const visibilityForStar = (
       star,
       occulters
         .filter((occulter) => occulter.sky.z > star.sky.z)
-        .map((occulter) => occulterWithRing(config, occulter)),
+        .map((occulter) => occulterShapeForBody(config, occulter)),
       surface,
     ),
     binaryVisible: starVisibilityFromOpaqueOcculters(config, star, frontStars, surface),
@@ -130,18 +148,13 @@ const visibilityForStar = (
   };
 };
 
-// Brightness patches are painted on the primary star's projected disk (as the canvas draws them).
-const starSurfaceFor = (
-  config: EducationScenarioV4,
-  snap: NativeSnapshot,
-  star: NativeBodyState,
-): VisibilityStarSurface | undefined =>
-  star.id === snap.stars[0]?.id ? { brightnessPatches: config.photometry?.brightnessPatches } : undefined;
-
-const occulterWithRing = (config: EducationScenarioV4, body: NativeBodyState): VisibilityOcculter => {
+const occulterShapeForBody = (config: EducationScenarioV4, body: NativeBodyState): VisibilityOcculter => {
   const occulter = photometricOcculterForBody(config, body);
   const ring = body.kind === "planet" ? visibilityRingForBody(body) : undefined;
-  return ring ? { ...occulter, ring } : occulter;
+  const ellipse = oblateSilhouetteForBody(config, body);
+  return ring || ellipse
+    ? { ...occulter, ...(ring ? { ring } : {}), ...(ellipse ? { ellipse } : {}) }
+    : occulter;
 };
 
 // Ring radii are metres in the body frame, the same unit as sky-plane coordinates; a fully
@@ -202,6 +215,10 @@ const companionState = (
     rRel: vSub(companion.rAbs, star.rAbs),
     vRel: vSub(companion.vAbs, star.vAbs),
     observerDir: snap.observerDir,
+    vStar: star.vAbs,
+    mStar: star.m,
+    mCompanion: companion.m,
+    rStar: star.r,
   },
 });
 
@@ -217,5 +234,10 @@ const activityCycleFlux = (surface: StellarSurfaceConfig | undefined, tObsSec: n
     ? (surface.activityCycleAmp as number) *
       Math.sin((2 * Math.PI * tObsSec) / Math.max(1, surface.activityCyclePeriodSec as number))
     : 0;
-const visibleStellarFlux = (snap: NativeSnapshot, visibility: VisibilityBundle, index: number): number =>
-  (snap.stars[index]?.luminosity ?? 0) * (visibility.byStar.get(snap.stars[index]?.id ?? "") ?? 1);
+const visibleStellarFlux = (
+  snap: NativeSnapshot,
+  visibility: VisibilityBundle,
+  spot: SpotModulation,
+  index: number,
+): number =>
+  effectiveLuminosity(snap.stars[index], spot) * (visibility.byStar.get(snap.stars[index]?.id ?? "") ?? 1);

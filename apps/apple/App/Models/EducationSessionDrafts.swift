@@ -149,14 +149,18 @@ extension EducationSession {
     return value
   }
 
-  /// Requires an integral disk resolution while retaining malformed draft text for correction.
-  private func parseGridResolution() -> Int? {
+  /// Requires an integral disk resolution, or a blank draft for the Browser's per-integrator
+  /// default, while retaining malformed draft text for correction.
+  private func parseGridResolution() -> Double?? {
+    if draftGridResolution.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      return .some(nil)
+    }
     guard let value = parseDraft(draftGridResolution, field: .gridResolution) else { return nil }
     guard value.rounded() == value, value >= 60, value <= 1_024 else {
       draftValidationErrors[.gridResolution] = "Enter a whole number from 60 to 1024."
       return nil
     }
-    return Int(value)
+    return value
   }
 
   /// Parses one phase curve without constructing a disabled curve that was absent from the scenario.

@@ -44,6 +44,10 @@ export type StellarVariabilityParams = {
     }>;
   };
   phaseModel?: StellarVariabilityPhaseModel;
+  /** Opt-in: scale beaming and ellipsoidal terms from the companion state instead of the amp knobs. */
+  physicalAmplitudes?: boolean;
+  beamingAlpha?: number;
+  ellipsoidalAlpha?: number;
   clampMin?: number;
   clampMax?: number;
 };

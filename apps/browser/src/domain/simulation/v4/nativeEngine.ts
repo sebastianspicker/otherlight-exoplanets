@@ -33,6 +33,7 @@ import {
   detachedBinaryBaselineFlux as resolveDetachedBinaryBaselineFlux,
   displayFluxValueForConfig,
 } from "./binaryBaseline";
+import { appendBodyOcculter } from "./nativeBodySilhouette";
 import { computeTimingAndObservables } from "./nativeEngineTiming";
 
 /** Flux threshold below 1 that marks an active transit or mutual event (planet or moon occults star). */
@@ -204,26 +205,14 @@ function visualBodiesFromSnapshot(snap: NativeSnapshot): VisualBodies {
   };
 }
 
-function appendCircleOcculter(
-  out: BrowserRenderSignals["occulterGeometry"],
-  body: NativeBodyState | undefined,
-  center: RelativeSky | undefined,
-  label: "star" | "planet" | "moon",
-): void {
-  if (!body || !(body.r > 0) || !center) return;
-  out.push({
-    body: label,
-    kind: "circle",
-    center,
-    radius: body.r,
-  });
-}
-
-function occulterGeometryFromVisualBodies(visual: VisualBodies): BrowserRenderSignals["occulterGeometry"] {
+function occulterGeometryFromVisualBodies(
+  config: EducationScenarioV4,
+  visual: VisualBodies,
+): BrowserRenderSignals["occulterGeometry"] {
   const occulterGeometry: BrowserRenderSignals["occulterGeometry"] = [];
   const planetLabel = visual.planet?.kind === "star" ? "star" : "planet";
-  appendCircleOcculter(occulterGeometry, visual.planet, visual.planetSky, planetLabel);
-  appendCircleOcculter(occulterGeometry, visual.moon, visual.moonSky, "moon");
+  appendBodyOcculter(occulterGeometry, config, visual.planet, visual.planetSky, planetLabel);
+  appendBodyOcculter(occulterGeometry, config, visual.moon, visual.moonSky, "moon");
   return occulterGeometry;
 }
 
@@ -250,6 +239,7 @@ function timingMarkersFromDiagnostics(
 function eventMarkersFromState(
   flux: FluxBundle,
   timingMarkers: BrowserRenderSignals["timingMarkers"],
+  conjunctionActive: boolean,
 ): BrowserRenderSignals["eventMarkers"] {
   const transitActive = flux.transitFactor < TRANSIT_FLUX_THRESHOLD;
   const mutual = flux.mutualOverlapFraction > EVENT_OVERLAP_THRESHOLD;
@@ -270,7 +260,7 @@ function eventMarkersFromState(
       id: "conjunction",
       kind: "conjunction",
       label: "Conjunction",
-      active: false,
+      active: conjunctionActive,
     },
     {
       id: "secondary-eclipse",
@@ -296,16 +286,18 @@ function fluxComponentsFromBundle(flux: FluxBundle): BrowserRenderSignals["fluxC
 }
 
 function renderSignalsFromSnapshot(
+  config: EducationScenarioV4,
   snap: NativeSnapshot,
   flux: FluxBundle,
   timing: StepTimingDiagnostics | undefined,
+  conjunctionActive: boolean,
 ): BrowserRenderSignals {
   const visual = visualBodiesFromSnapshot(snap);
   const timingMarkers = timingMarkersFromDiagnostics(timing);
 
   return {
-    occulterGeometry: occulterGeometryFromVisualBodies(visual),
-    eventMarkers: eventMarkersFromState(flux, timingMarkers),
+    occulterGeometry: occulterGeometryFromVisualBodies(config, visual),
+    eventMarkers: eventMarkersFromState(flux, timingMarkers, conjunctionActive),
     timingMarkers,
     visibilityFractions: {
       planet: flux.planetVisibleFraction,
@@ -478,7 +470,7 @@ export function stepNativeSimulationV4(args: {
   const diag = computeTimingAndObservables(config, snap, tObsSec);
   const conservation = computeConservation(snap, args.conservationBaseline);
   const didactics = buildDidacticSignals(config, tObsSec, flux, diag, args.computeDidacticSignals);
-  const renderSignals = renderSignalsFromSnapshot(snap, flux, diag.timing);
+  const renderSignals = renderSignalsFromSnapshot(config, snap, flux, diag.timing, diag.conjunctionActive);
 
   return {
     step: buildNativeSimulationStep({

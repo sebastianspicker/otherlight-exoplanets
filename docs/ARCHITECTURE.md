@@ -216,7 +216,8 @@ server-side state.
 
 ## Contracts and cross-runtime dependencies
 
-- `contracts/education-v4/` owns canonical Education scenarios and parity fixtures.
+- `contracts/education-v4/` owns canonical Education scenarios and shared sample
+  scenarios.
 - `contracts/science-v5/` owns strict requests, run manifests, canonical JSON
   cases, and shared service/client fixtures.
 - `contracts/science-v6/` owns strict dataset imports and the additive timing
@@ -284,21 +285,21 @@ For the operational and scientific details, see the
 [operations runbook](RUNBOOK.md), [validation boundaries](validation.md), and
 [physics overview](physics/overview.md).
 
-## Decision records and planned boundaries
+## Planned boundaries
 
-Accepted architectural direction is recorded separately from current
-implementation:
+This project keeps no binding decision records: every boundary below is current
+direction that may be revised whenever an improvement calls for it.
 
-- [ADR 0001](decisions/0001-apple-target-split.md) defines the implemented split
-  between portable mobile Education and a macOS-only scientific host.
-- [ADR 0002](decisions/0002-science-v6-boundary.md) keeps V5 frozen and makes V6 an
-  additive contract and route family.
-- [ADR 0003](decisions/0003-v6-transit-timing.md) fixes the dense-trajectory event
-  geometry, ephemeris, numerical, and artifact boundaries for timing.
+- The portable mobile Education app and the macOS-only scientific host are
+  separate targets (implemented).
+- `science-v6` and the `/v2` routes are an additive contract and route family
+  next to V5; V5 clients keep working while V6 grows.
+- V6 transit timing is planned to derive events from certified dense
+  trajectories with explicit ephemerides and bounded numerical error.
 
-The V6 dataset portion of ADR 0002 is now implemented in the Python service and
-Browser product surface; its job, model, and Swift portions remain pending. The
-ADR 0001 target split, the portable V5 authoring compiler, the session
-coordinator, and the explicit Mac exports are implemented. Live Mac visual and
+The V6 dataset portion is implemented in the Python service and the Browser
+product surface; its job, model, and Swift portions remain pending. The target
+split, the portable V5 authoring compiler, the session coordinator, and the
+explicit Mac exports are implemented. Live Mac visual and
 accessibility review and the mobile archive gate remain before the scientific
 boundary can be presented as available.

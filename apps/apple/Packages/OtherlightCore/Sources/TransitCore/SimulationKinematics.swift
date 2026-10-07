@@ -18,7 +18,8 @@ extension SimulationEngine {
   /// The planet's authored orbit describes the planet-moon barycentre relative to the star. With
   /// finite positive planet and moon masses the planet is displaced by `-(m_moon / M) * rel_moon`;
   /// with a finite positive star mass the star and its planet system are displaced by
-  /// `-(M / (m_star + M)) * rel_planet`. Missing masses disable the respective split.
+  /// `-(M / (m_star + M)) * rel_planet`. Missing masses disable the respective split. A moon
+  /// orientation drift is applied at the absolute time `epochSeconds + elapsed`.
   static func kinematics(of scenario: EducationScenarioV4, elapsed: Double) -> SystemKinematics {
     let relativePlanet = scenario.planet.orbit.position(at: elapsed)
     let relativePlanetVelocity = scenario.planet.orbit.velocity(at: elapsed)
@@ -27,7 +28,9 @@ extension SimulationEngine {
       planetVelocity: Vector3.zero + relativePlanetVelocity)
     var relativeMoon: (position: Vector3, velocity: Vector3)?
     if let moon = scenario.moon {
-      let rel = (moon.orbit.position(at: elapsed), moon.orbit.velocity(at: elapsed))
+      // As the Browser `effectiveMoonOrbit`, drift is evaluated at the absolute observer time.
+      let orbit = moon.effectiveOrbit(atAbsoluteSeconds: scenario.epochSeconds + elapsed)
+      let rel = (orbit.position(at: elapsed), orbit.velocity(at: elapsed))
       relativeMoon = rel
       state.moon = state.planet + rel.0
       state.moonVelocity = state.planetVelocity + rel.1
@@ -106,7 +109,8 @@ extension SimulationEngine {
 
   /// Returns the visible disk fraction behind one foreground occulter, or nil when it is not in front.
   static func visibleFraction(
-    of body: (position: Vector3, radius: Double), behind occulter: (position: Vector3, radius: Double)
+    of body: (position: Vector3, radius: Double),
+    behind occulter: (position: Vector3, radius: Double)
   ) -> Double? {
     let area = .pi * body.radius * body.radius
     guard occulter.radius > 0, occulter.position.z > body.position.z, area > 0 else { return nil }
@@ -115,5 +119,25 @@ extension SimulationEngine {
       separation: hypot(
         body.position.x - occulter.position.x, body.position.y - occulter.position.y))
     return min(1, max(0, 1 - overlap / area))
+  }
+}
+
+/// Conjunction event geometry mirrored from the Browser engine.
+extension SimulationEngine {
+  /// Reports whether the planet is at inferior or superior conjunction with the star.
+  ///
+  /// Mirrors the Browser `conjunctionActiveForSnapshot`: with `ô = (0, 0, 1)` the signed phase is
+  /// `ψ = atan2(-(v_rel·ô) / |v_rel|, (r_rel·ô) / |r_rel|)` (`signedConjunctionPhase` without a
+  /// velocity scale), and the marker is active when the along-orbit displacement `|sin ψ| |r_rel|`
+  /// is within the combined star and planet radius.
+  func conjunctionActive(_ state: SystemKinematics) -> Bool {
+    let relative = state.planet - state.star
+    guard
+      let psi = Self.signedConjunctionPhase(
+        relativePosition: relative, relativeVelocity: state.planetVelocity - state.starVelocity,
+        observerDirection: Vector3(x: 0, y: 0, z: 1))
+    else { return false }
+    return abs(sin(psi)) * relative.length
+      <= scenario.star.radiusMetres + scenario.planet.radiusMetres
   }
 }

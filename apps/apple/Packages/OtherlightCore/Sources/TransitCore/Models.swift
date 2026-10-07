@@ -51,11 +51,12 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
   public var inclinationRadians: Double
   public var argumentOfPeriapsisRadians: Double
   public var meanAnomalyAtEpochRadians: Double
+  public var longitudeOfAscendingNodeRadians: Double
   /// Creates a Keplerian orbit from its SI elements and optional defaults.
   public init(
     semiMajorAxisMetres: Double, periodSeconds: Double, eccentricity: Double = 0,
     inclinationRadians: Double = .pi / 2, argumentOfPeriapsisRadians: Double = 0,
-    meanAnomalyAtEpochRadians: Double = 0
+    meanAnomalyAtEpochRadians: Double = 0, longitudeOfAscendingNodeRadians: Double = 0
   ) {
     self.semiMajorAxisMetres = semiMajorAxisMetres
     self.periodSeconds = periodSeconds
@@ -63,6 +64,27 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
     self.inclinationRadians = inclinationRadians
     self.argumentOfPeriapsisRadians = argumentOfPeriapsisRadians
     self.meanAnomalyAtEpochRadians = meanAnomalyAtEpochRadians
+    self.longitudeOfAscendingNodeRadians = longitudeOfAscendingNodeRadians
+  }
+  /// Names the serialized orbit fields.
+  private enum CodingKeys: String, CodingKey {
+    case semiMajorAxisMetres, periodSeconds, eccentricity, inclinationRadians
+    case argumentOfPeriapsisRadians, meanAnomalyAtEpochRadians, longitudeOfAscendingNodeRadians
+  }
+  /// Decodes an orbit, reading an absent node longitude from older documents as zero.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(
+      semiMajorAxisMetres: try container.decode(Double.self, forKey: .semiMajorAxisMetres),
+      periodSeconds: try container.decode(Double.self, forKey: .periodSeconds),
+      eccentricity: try container.decode(Double.self, forKey: .eccentricity),
+      inclinationRadians: try container.decode(Double.self, forKey: .inclinationRadians),
+      argumentOfPeriapsisRadians: try container.decode(
+        Double.self, forKey: .argumentOfPeriapsisRadians),
+      meanAnomalyAtEpochRadians: try container.decode(
+        Double.self, forKey: .meanAnomalyAtEpochRadians),
+      longitudeOfAscendingNodeRadians: try container.decodeIfPresent(
+        Double.self, forKey: .longitudeOfAscendingNodeRadians) ?? 0)
   }
   /// Solves the orbit at elapsed seconds to project its body into the observer frame.
   public func position(at seconds: Double) -> Vector3 {
@@ -75,19 +97,21 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
     let angle = argumentOfPeriapsisRadians
     let x = orbitalX * cos(angle) - orbitalY * sin(angle)
     let y = orbitalX * sin(angle) + orbitalY * cos(angle)
-    return Vector3(x: -y * cos(inclinationRadians), y: x, z: y * sin(inclinationRadians))
+    return rotatedByNode(
+      Vector3(x: -y * cos(inclinationRadians), y: x, z: y * sin(inclinationRadians)))
   }
-  /// Returns the analytic observer-frame velocity, using the exact circular form for parity fixtures.
+  /// Returns the analytic observer-frame velocity, using the exact circular form the Browser uses.
   public func velocity(at seconds: Double) -> Vector3 {
     let rate = 2 * .pi / periodSeconds
     if eccentricity == 0 {
       let argument =
         Self.wrap(meanAnomalyAtEpochRadians + 2 * .pi * seconds / periodSeconds)
         + argumentOfPeriapsisRadians
-      return Vector3(
-        x: -semiMajorAxisMetres * cos(argument) * cos(inclinationRadians) * rate,
-        y: -semiMajorAxisMetres * sin(argument) * rate,
-        z: semiMajorAxisMetres * cos(argument) * sin(inclinationRadians) * rate)
+      return rotatedByNode(
+        Vector3(
+          x: -semiMajorAxisMetres * cos(argument) * cos(inclinationRadians) * rate,
+          y: -semiMajorAxisMetres * sin(argument) * rate,
+          z: semiMajorAxisMetres * cos(argument) * sin(inclinationRadians) * rate))
     }
     let eccentric = Self.eccentricAnomaly(
       mean: meanAnomalyAtEpochRadians + 2 * .pi * seconds / periodSeconds,
@@ -100,7 +124,19 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
     let angle = argumentOfPeriapsisRadians
     let x = orbitalX * cos(angle) - orbitalY * sin(angle)
     let y = orbitalX * sin(angle) + orbitalY * cos(angle)
-    return Vector3(x: -y * cos(inclinationRadians), y: x, z: y * sin(inclinationRadians))
+    return rotatedByNode(
+      Vector3(x: -y * cos(inclinationRadians), y: x, z: y * sin(inclinationRadians)))
+  }
+  /// Applies the Browser's final `Rz(Ω)` as a planar rotation of the observer-frame x-y plane.
+  ///
+  /// The sky basis for the observer along +z is a fixed rotation of the inertial frame, so the
+  /// inertial node rotation acts on sky `(x, y)` as `(x cos Ω - y sin Ω, x sin Ω + y cos Ω)`.
+  private func rotatedByNode(_ vector: Vector3) -> Vector3 {
+    let node = longitudeOfAscendingNodeRadians
+    guard node != 0 else { return vector }
+    return Vector3(
+      x: vector.x * cos(node) - vector.y * sin(node),
+      y: vector.x * sin(node) + vector.y * cos(node), z: vector.z)
   }
   /// Solves elliptic Kepler's equation with the Browser's bounded, damped Newton scheme.
   ///
@@ -147,47 +183,53 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
   }
 }
 
-/// Defines the stellar physical and limb-darkening inputs for a scenario.
-public struct Star: Codable, Sendable, Hashable {
-  public var radiusMetres: Double
+/// Defines the transiting planet and its fixed orbit around the scenario star.
+public struct Planet: Codable, Sendable, Hashable {
+  /// The circular radius (the Browser `safeBodyRadius` for an oblate body), mass, orbit, and the
+  /// optional authored oblate shape. Changing the radius rescales the shape's equatorial radius.
+  public var radiusMetres: Double {
+    didSet { if radiusMetres != oldValue { shape?.rescale(toCircularRadius: radiusMetres) } }
+  }
   public var massKilograms: Double
-  public var limbDarkeningU1: Double
-  public var limbDarkeningU2: Double
-  /// Creates a star from its physical properties and limb-darkening coefficients.
+  public var orbit: KeplerOrbit
+  public var shape: BodyShape?
+  /// Creates a planet with its physical properties, orbit, and optional authored shape.
   public init(
-    radiusMetres: Double, massKilograms: Double, limbDarkeningU1: Double = 0.3,
-    limbDarkeningU2: Double = 0.2
+    radiusMetres: Double, massKilograms: Double = 0, orbit: KeplerOrbit, shape: BodyShape? = nil
   ) {
     self.radiusMetres = radiusMetres
     self.massKilograms = massKilograms
-    self.limbDarkeningU1 = limbDarkeningU1
-    self.limbDarkeningU2 = limbDarkeningU2
-  }
-}
-
-/// Defines the transiting planet and its fixed orbit around the scenario star.
-public struct Planet: Codable, Sendable, Hashable {
-  public var radiusMetres: Double
-  public var massKilograms: Double
-  public var orbit: KeplerOrbit
-  /// Creates a planet with its physical properties and orbit.
-  public init(radiusMetres: Double, massKilograms: Double = 0, orbit: KeplerOrbit) {
-    self.radiusMetres = radiusMetres
-    self.massKilograms = massKilograms
     self.orbit = orbit
+    self.shape = shape
   }
 }
 
 /// Defines an optional moon relative to the scenario planet.
 public struct Moon: Codable, Sendable, Hashable {
-  public var radiusMetres: Double
+  /// The circular radius; changing it rescales the shape's equatorial radius.
+  public var radiusMetres: Double {
+    didSet { if radiusMetres != oldValue { shape?.rescale(toCircularRadius: radiusMetres) } }
+  }
   public var massKilograms: Double
   public var orbit: KeplerOrbit
-  /// Creates a moon with its physical properties and relative orbit.
-  public init(radiusMetres: Double, massKilograms: Double = 0, orbit: KeplerOrbit) {
+  public var orientationDrift: OrbitOrientationDrift?
+  /// The optional authored oblate shape; `radiusMetres` is then the Browser `safeBodyRadius`.
+  public var shape: BodyShape?
+  /// Creates a moon with its physical properties, relative orbit, optional orientation drift, and
+  /// optional authored shape.
+  public init(
+    radiusMetres: Double, massKilograms: Double = 0, orbit: KeplerOrbit,
+    orientationDrift: OrbitOrientationDrift? = nil, shape: BodyShape? = nil
+  ) {
     self.radiusMetres = radiusMetres
     self.massKilograms = massKilograms
     self.orbit = orbit
+    self.orientationDrift = orientationDrift
+    self.shape = shape
+  }
+  /// Returns the relative orbit with any orientation drift applied at absolute scenario seconds.
+  public func effectiveOrbit(atAbsoluteSeconds seconds: Double) -> KeplerOrbit {
+    orientationDrift.map { $0.driftedOrbit(orbit, atAbsoluteSeconds: seconds) } ?? orbit
   }
 }
 
@@ -252,19 +294,30 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
   public var star: Star
   public var planet: Planet
   public var moon: Moon?
-  public var gridResolution: Int
+  /// The authored Browser `photometry.gridRes` (nil: absent), clamped per integrator on use.
+  public var gridResolution: Double?
   public var planetPhase: PhaseCurve?
   public var moonPhase: PhaseCurve?
   public var detachedBinary: DetachedBinary?
   public var binaryLab: BinaryLabConfiguration?
   public var dayNightVisibility: DayNightVisibility?
+  /// Mirrors `dynamics.physicsFeatures.nonSphericalFlux`: oblate planet and moon silhouettes.
+  public var nonSphericalFlux: Bool
+  /// The primary star's brightness patches and, when enabled, their spot evolution.
+  public var brightnessPatches: [BrightnessPatch]
+  public var spotEvolution: SpotEvolution?
+  /// The enabled stellar variability terms and stellar-surface sines (nil: disabled).
+  public var stellarVariability: StellarVariability?
+  public var stellarSurface: StellarSurfaceActivity?
   /// Creates an education scenario from its physical, photometric, and teaching inputs.
   public init(
     identifier: String = "education-default", epochSeconds: Double = 0, star: Star, planet: Planet,
-    moon: Moon? = nil, gridResolution: Int = 220, planetPhase: PhaseCurve? = nil,
+    moon: Moon? = nil, gridResolution: Double? = 220, planetPhase: PhaseCurve? = nil,
     moonPhase: PhaseCurve? = nil, mode: EducationScenarioMode = .generalLab,
     detachedBinary: DetachedBinary? = nil, binaryLab: BinaryLabConfiguration? = nil,
-    dayNightVisibility: DayNightVisibility? = nil
+    dayNightVisibility: DayNightVisibility? = nil, nonSphericalFlux: Bool = false,
+    brightnessPatches: [BrightnessPatch] = [], spotEvolution: SpotEvolution? = nil,
+    stellarVariability: StellarVariability? = nil, stellarSurface: StellarSurfaceActivity? = nil
   ) {
     self.mode = mode
     self.identifier = identifier
@@ -278,6 +331,45 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
     self.detachedBinary = detachedBinary
     self.binaryLab = binaryLab
     self.dayNightVisibility = dayNightVisibility
+    self.nonSphericalFlux = nonSphericalFlux
+    self.brightnessPatches = brightnessPatches
+    self.spotEvolution = spotEvolution
+    self.stellarVariability = stellarVariability
+    self.stellarSurface = stellarSurface
+  }
+  /// Names the serialized scenario fields.
+  private enum CodingKeys: String, CodingKey {
+    case mode, identifier, epochSeconds, star, planet, moon, gridResolution, planetPhase
+    case moonPhase, detachedBinary, binaryLab, dayNightVisibility, nonSphericalFlux
+    case brightnessPatches, spotEvolution, stellarVariability, stellarSurface
+  }
+  /// Decodes a scenario, reading an absent `nonSphericalFlux` from older documents as false and
+  /// absent brightness patches, spot evolution, stellar variability, and surface activity as none.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(
+      identifier: try container.decode(String.self, forKey: .identifier),
+      epochSeconds: try container.decode(Double.self, forKey: .epochSeconds),
+      star: try container.decode(Star.self, forKey: .star),
+      planet: try container.decode(Planet.self, forKey: .planet),
+      moon: try container.decodeIfPresent(Moon.self, forKey: .moon),
+      gridResolution: try container.decodeIfPresent(Double.self, forKey: .gridResolution),
+      planetPhase: try container.decodeIfPresent(PhaseCurve.self, forKey: .planetPhase),
+      moonPhase: try container.decodeIfPresent(PhaseCurve.self, forKey: .moonPhase),
+      mode: try container.decode(EducationScenarioMode.self, forKey: .mode),
+      detachedBinary: try container.decodeIfPresent(DetachedBinary.self, forKey: .detachedBinary),
+      binaryLab: try container.decodeIfPresent(BinaryLabConfiguration.self, forKey: .binaryLab),
+      dayNightVisibility: try container.decodeIfPresent(
+        DayNightVisibility.self, forKey: .dayNightVisibility),
+      nonSphericalFlux: try container.decodeIfPresent(Bool.self, forKey: .nonSphericalFlux)
+        ?? false,
+      brightnessPatches: try container.decodeIfPresent(
+        [BrightnessPatch].self, forKey: .brightnessPatches) ?? [],
+      spotEvolution: try container.decodeIfPresent(SpotEvolution.self, forKey: .spotEvolution),
+      stellarVariability: try container.decodeIfPresent(
+        StellarVariability.self, forKey: .stellarVariability),
+      stellarSurface: try container.decodeIfPresent(
+        StellarSurfaceActivity.self, forKey: .stellarSurface))
   }
 }
 

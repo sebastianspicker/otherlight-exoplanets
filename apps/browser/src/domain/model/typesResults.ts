@@ -102,6 +102,8 @@ export type StepObservables = {
   rvPlanet?: number;
   /** Radial velocity of the moon along line of sight [m/s]. */
   rvMoon?: number;
+  /** Rossiter–McLaughlin anomaly of the stellar RV during transits [m/s]; absent without a stellar rotation period. */
+  rvStarRossiterMcLaughlin?: number;
   /** Astrometric sky-plane offset of the star [m]. */
   astrometricOffsetStar?: { x: number; y: number };
   /** Timing diagnostics in seconds. */

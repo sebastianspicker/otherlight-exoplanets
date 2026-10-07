@@ -33,10 +33,20 @@ Education kinematics superpose authored Kepler orbits and, when masses are
 finite and positive, displace each planet about its planet-moon barycentre and
 the star by its reflex, so the preview star has non-zero RV and astrometric
 offset. Phase curves are gated by secondary eclipse and mutual events, and the
-signed thermal lag and offsets shift the phase-curve peak.
+signed thermal lag and offsets shift the phase-curve peak. Optional surfaces
+stay within the same preview contract: an authored exomoon orbit-orientation
+drift, oblate planet and moon silhouettes (`physicsFeatures.nonSphericalFlux`),
+rotating and decaying starspots with their disk-integrated modulation
+(`photometry.spotEvolution`), a Rossiter-McLaughlin anomaly on the stellar RV
+when a rotation period is authored, and physically scaled beaming and
+ellipsoidal terms (`stellarVariability.physicalAmplitudes`). The conjunction
+event marker follows the companion's signed conjunction phase.
 
-The Apple app implements a narrower Education surface through
-`OtherlightCore`. Platform availability is tracked separately in the capability
+The Apple app implements the same Education kinematics, occultation photometry,
+stellar surface and variability terms, and RV observables through `OtherlightCore`;
+its fail-closed importer rejects the surfaces it does not evaluate (rings,
+atmospheres, scattering, N-body, relativity, instrument noise, detached-binary
+surfaces). Platform availability is tracked separately in the capability
 registry.
 
 ## V5 model

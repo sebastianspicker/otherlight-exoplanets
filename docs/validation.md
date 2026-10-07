@@ -12,7 +12,9 @@ authoring conversion is in
 `apps/browser/src/application/browserScenarioAdapter.ts`. Education output stays
 a teaching preview within the model registry's stated limits. The locally kept (unpublished) science tests pin
 its barycentric and stellar-reflex kinematics, transit-timing references,
-secondary-eclipse, spot, and ring photometry, and conjunction-phased variability;
+secondary-eclipse, spot, and ring photometry, conjunction-phased and physically
+scaled variability, starspot evolution, oblate silhouettes, exomoon orbit drift,
+the Rossiter-McLaughlin anomaly, and the conjunction marker;
 these are self-consistency checks, not independent validation evidence.
 
 Presentation tests cover browsing sources without committing a model change,

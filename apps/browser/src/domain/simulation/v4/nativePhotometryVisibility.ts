@@ -59,8 +59,8 @@ export function starVisibilityFromOcculters(
   const opacities = occulters.map(occulterOpacity);
   const limbDarkeningLaw = resolveStarLimbDarkeningLaw(config, star);
   const brightnessPatches = surface?.brightnessPatches;
-  if (occulters.some((occulter) => occulter.ring)) {
-    return starVisibilityWithRingOcculters({
+  if (occulters.some((occulter) => occulter.ring || occulter.ellipse)) {
+    return starVisibilityWithShapeOcculters({
       star,
       occulters,
       opacities,
@@ -91,13 +91,14 @@ export function starVisibilityFromOcculters(
 }
 
 /**
- * Mixed-shape path used when any occulter carries a ring. Opaque disks and ring annuli go
+ * Mixed-shape path used when any occulter carries a ring or an oblate silhouette. Opaque disks
+ * (circles, or ellipses for oblate bodies) and ring annuli go
  * through the shape integrator, so a cell inside a planet disk is fully blocked and a ring
  * cell outside it is attenuated by (1 - opacity). Partially transparent or atmospheric disks
  * enter as a radial transmission factor on the intensity. The un-occulted reference uses the
  * same grid, limb darkening and patches, so the result is exactly 1 without overlap.
  */
-const starVisibilityWithRingOcculters = (args: {
+const starVisibilityWithShapeOcculters = (args: {
   star: VisibilityStar;
   occulters: VisibilityOcculter[];
   opacities: number[];
@@ -117,7 +118,9 @@ const starVisibilityWithRingOcculters = (args: {
     const dy = occulter.sky.y - star.sky.y;
     if (occulter.ring) shapes.push({ kind: "ring", dx, dy, ...occulter.ring });
     if (!occulter.transmissionAtRadius && opacities[index] >= 1 - 1e-12)
-      shapes.push({ dx, dy, r: occulter.r });
+      shapes.push(
+        occulter.ellipse ? { kind: "ellipse", dx, dy, ...occulter.ellipse } : { dx, dy, r: occulter.r },
+      );
     else transmissive.push(...transmissiveOccultersForStar(star, [occulter], [opacities[index]]));
   });
   const gridRes = clampGridRes(args.gridRes, 60);
@@ -167,7 +170,7 @@ const circleOccultersForStar = (star: VisibilityStar, occulters: VisibilityOccul
 const occulterOpacity = (occulter: VisibilityOcculter): number =>
   clamp01(Number.isFinite(occulter.opacity) ? (occulter.opacity as number) : 1);
 
-const resolveStarLimbDarkeningLaw = (config: EducationScenarioV4, star: VisibilityStar) => {
+export const resolveStarLimbDarkeningLaw = (config: EducationScenarioV4, star: VisibilityStar) => {
   const model = config.photometry?.limbDarkeningModel;
   if (!model) return undefined;
   const stellarSource = star.kind === "star" ? (star.source as StarBodyV4) : undefined;

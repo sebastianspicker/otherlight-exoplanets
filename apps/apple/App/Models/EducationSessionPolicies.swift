@@ -60,7 +60,7 @@ enum EducationDraftPolicy {
     return .init(
       planet: text(scenario.planet.radiusMetres), moon: text(scenario.moon?.radiusMetres ?? 0),
       phase: text(scenario.moon?.orbit.meanAnomalyAtEpochRadians ?? 0),
-      gridResolution: String(scenario.gridResolution),
+      gridResolution: scenario.gridResolution.map(text) ?? "",
       limbDarkeningU1: text(editableStar.limbDarkeningU1),
       limbDarkeningU2: text(editableStar.limbDarkeningU2),
       planetPhase: phaseValues(for: scenario.planetPhase),

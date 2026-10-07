@@ -11,9 +11,9 @@ export function runV4ContractCases(corpus) {
   );
   assertValid(
     corpus,
-    "education-v4/fixture-manifest.schema.json",
-    "Education V4 parity fixture",
-    get("education-v4/fixtures/scoped-parity.json"),
+    "education-v4/scenario-fixtures.schema.json",
+    "Education V4 scenario samples",
+    get("education-v4/fixtures/scenarios.json"),
   );
   assertValid(
     corpus,

@@ -96,7 +96,8 @@ export function drawEllipseBodyWithOcclusionHint(args: {
   const p = toPxInto(x, y, scratchPoint);
   const rxPx = toFinitePositiveOr(rx, 1e-6) * pixelsPerUnit;
   const ryPx = toFinitePositiveOr(ry, 1e-6) * pixelsPerUnit;
-  const ang = Number.isFinite(angle) ? angle : 0;
+  // Canvas y points down; physics angles rotate the rx axis from +x toward +y (up).
+  const ang = Number.isFinite(angle) ? -angle : 0;
   const shade = clamp(0.35 + 0.65 * (1 / (1 + Math.abs(zBody) * 0.002)), 0.25, 1);
 
   ctx.save();

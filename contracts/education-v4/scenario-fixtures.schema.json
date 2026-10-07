@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/education-v4/scenario-fixtures.schema.json",
+  "title": "Canonical Education V4 scenario samples",
+  "description": "Shared sample scenarios that TypeScript and Swift decode; they carry no expected output.",
+  "type": "object",
+  "required": ["contractVersion", "scenarios"],
+  "properties": {
+    "contractVersion": {
+      "const": "education-v4/1"
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "scenario"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string"
+          },
+          "scenario": {
+            "$ref": "scenario.schema.json"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

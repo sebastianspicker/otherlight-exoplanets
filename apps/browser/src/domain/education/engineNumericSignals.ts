@@ -18,6 +18,8 @@ export type NumericSignals = {
   tdvRatio: number;
   rvStar: number;
   rvPlanet: number;
+  /** |Rossiter–McLaughlin RV anomaly| [m/s]; 0 without a stellar rotation period or transit. */
+  rvRossiterMcLaughlin: number;
   depthApprox: number;
   depthObserved: number;
   combinedFluxDrop: number;
@@ -157,6 +159,7 @@ export function collectNumericSignals(
     tdvRatio: toFiniteNumber(step.meta?.tdvRatio, Number.NaN),
     rvStar: finiteAbs(step.meta?.observables?.rvStar),
     rvPlanet: finiteAbs(step.meta?.observables?.rvPlanet),
+    rvRossiterMcLaughlin: finiteAbs(step.meta?.observables?.rvStarRossiterMcLaughlin),
     // Two luminous stars have no single (R_B/R_A)^2 depth prediction. A transiting moon
     // covers its own share of the disk, so the geometric depth counts it too.
     depthApprox: options.binary ? Number.NaN : geometry.radiusRatio ** 2 + geometry.moonCoveredFraction,

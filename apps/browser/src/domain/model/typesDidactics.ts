@@ -79,6 +79,7 @@ type AssessmentRule =
         | "tdvRatio"
         | "rvStar"
         | "rvPlanet"
+        | "rvRossiterMcLaughlin"
         | "depthObserved"
         | "combinedFluxDrop"
         | "limbDarkeningStrength"

@@ -238,7 +238,7 @@ export class Canvas2DRenderer {
     ctx.restore();
   }
 
-  private drawStar(params: BrowserScenarioDraft): void {
+  private drawStar(params: BrowserScenarioDraft, tSec: number): void {
     drawStarGeometry({
       ctx: this.ctx,
       toPxInto: this.toPxInto.bind(this),
@@ -251,6 +251,7 @@ export class Canvas2DRenderer {
       r: params.star.r,
       z: 0,
       variant: "primary",
+      tSec,
       resolveSecondaryStarParams: this.resolveSecondaryStarParams.bind(this),
     });
   }
@@ -358,10 +359,10 @@ export class Canvas2DRenderer {
     if (drawCount > 2) drawList.sort(compareDrawables);
   }
 
-  private drawSceneDrawList(drawList: Drawable[], params: BrowserScenarioDraft): void {
+  private drawSceneDrawList(drawList: Drawable[], params: BrowserScenarioDraft, tSec: number): void {
     for (const item of drawList) {
       if (item.kind === "star") {
-        this.drawStar(params);
+        this.drawStar(params, tSec);
         continue;
       }
       if (item.geometry) this.drawOcculterGeometry(params, item.geometry, params.star.r);
@@ -392,7 +393,7 @@ export class Canvas2DRenderer {
     this.drawAxes();
 
     const observerDir = this.resolveFrameObserverDir(params, step);
-    this.drawSceneDrawList(this.prepareSceneDrawList(params, step), params);
+    this.drawSceneDrawList(this.prepareSceneDrawList(params, step), params, step.tObsSec);
     this.drawEventMarkers(step);
     this.drawDidacticOverlayForFrame(size.cssW);
     this.drawDebugOverlayForFrame(size, observerDir, step);

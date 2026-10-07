@@ -394,7 +394,7 @@ final class OtherlightTests: XCTestCase {
       .deletingLastPathComponent()
       .deletingLastPathComponent()
     let fixtureURL = repositoryRoot.appendingPathComponent(
-      "contracts/education-v4/fixtures/scoped-parity.json")
+      "contracts/education-v4/fixtures/scenarios.json")
     let fixture = try XCTUnwrap(
       try JSONSerialization.jsonObject(with: Data(contentsOf: fixtureURL)) as? [String: Any])
     let scenarios = try XCTUnwrap(fixture["scenarios"] as? [[String: Any]])

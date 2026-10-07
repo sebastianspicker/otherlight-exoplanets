@@ -28,7 +28,7 @@ export const drawGhostGeometry = (args: {
         p.y,
         geometry.rx * pixelsPerUnit,
         geometry.ry * pixelsPerUnit,
-        geometry.angle,
+        -geometry.angle,
         0,
         Math.PI * 2,
       );
@@ -42,7 +42,7 @@ export const drawGhostGeometry = (args: {
         p.y,
         geometry.outerRadius * pixelsPerUnit,
         geometry.outerRadius * pixelsPerUnit * q,
-        geometry.angle,
+        -geometry.angle,
         0,
         Math.PI * 2,
       );

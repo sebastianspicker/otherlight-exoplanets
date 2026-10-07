@@ -35,7 +35,6 @@ are not part of this set.
 | [V5 scientific contract](physics/v5-scientific-contract.md) | Request, execution, output, and fixture semantics for the scientific lane |
 | [V6 contract boundary](../contracts/science-v6/README.md)   | Dataset imports plus strict pending timing and result shapes              |
 | [Alpha release procedure](alpha-release.md)                 | How to qualify a specific revision and what evidence to record            |
-| [Architecture decisions](decisions/)                        | Accepted boundary decisions, including explicitly pending work            |
 
 Component setup and interfaces are documented beside the component:
 

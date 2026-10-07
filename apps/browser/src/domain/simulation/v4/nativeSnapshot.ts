@@ -12,7 +12,9 @@
 // masses disable the respective split (educational compatibility path).
 
 import { projectToSky } from "../../orbits/frames";
+import { driftedOrbitElements, hasOrbitOrientationDrift } from "../../orbits/orbitOrientationDrift";
 import { muFromPeriodAndA, type SolveKeplerEOptions } from "../../orbits/kepler";
+import type { OrbitElements } from "../../model/types";
 import type { Vec3 } from "../../orbits/vec3";
 import { vAdd, vScale, vSub } from "../../orbits/vec3";
 import { posFromResolvedElements, stateFromResolvedElements } from "../orbits";
@@ -301,8 +303,9 @@ function orbitingBodyState(
   body: OrbitingBodySource,
   bodyKind: "planet" | "moon",
   parentId?: string,
+  orbit: OrbitElements = body.orbit,
 ): NativeBodyState {
-  const rel = orbitStateAt(body.orbit, ctx.tObsSec, ctx.keplerOpts);
+  const rel = orbitStateAt(orbit, ctx.tObsSec, ctx.keplerOpts);
   const parent = requireKnownParent(ctx.config, ctx.byId, bodyKind, body.id, parentId);
   const base = bodyBase(parent);
   const rAbs = vAdd(base.r, rel.r);
@@ -335,9 +338,26 @@ function addPlanetState(ctx: SnapshotBuildContext, p: PlanetBodyV4): void {
   addState(ctx.planets, ctx.byId, orbitingBodyState(ctx, p, "planet", planetParentId(ctx, p)));
 }
 
+/** Applies the authored exomoon orientation drift to the moon orbit; planets and the binary never drift. */
+function effectiveMoonOrbit(config: EducationScenarioV4, moon: MoonBodyV4, tObsSec: number): OrbitElements {
+  const exo = config.dynamics?.exomoonTimingShape;
+  if (!exo || exo.enabled !== true) return moon.orbit;
+  const drift = {
+    omegaDot: exo.moonOmegaDot,
+    incDot: exo.moonIncDot,
+    omegaSmallDot: exo.moonOmegaSmallDot,
+    Omega0: exo.moonOmega0,
+    inc0: exo.moonInc0,
+    omega0: exo.moonOmegaSmall0,
+    tRefSec: exo.tRef,
+  };
+  return hasOrbitOrientationDrift(drift) ? driftedOrbitElements(moon.orbit, drift, tObsSec) : moon.orbit;
+}
+
 function addMoonState(ctx: SnapshotBuildContext, m: MoonBodyV4): void {
   const parentId = m.parentPlanetId ?? ctx.hmap.get(m.id);
-  addState(ctx.moons, ctx.byId, orbitingBodyState(ctx, m, "moon", parentId));
+  const orbit = effectiveMoonOrbit(ctx.config, m, ctx.tObsSec);
+  addState(ctx.moons, ctx.byId, orbitingBodyState(ctx, m, "moon", parentId, orbit));
 }
 
 function isFinitePositiveMass(m: unknown): m is number {

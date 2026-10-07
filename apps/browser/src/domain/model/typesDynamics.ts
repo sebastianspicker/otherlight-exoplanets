@@ -56,6 +56,7 @@ type PhysicsFeatureFlags = {
   observables?: boolean;
   stellarSurface?: boolean;
   atmosphereRT?: boolean;
+  /** Education V4: oblate planet/moon silhouettes enter transit flux and render geometry as ellipses. */
   nonSphericalFlux?: boolean;
   thermalEnergyBalance?: boolean;
   detectorRealism?: boolean;
@@ -158,8 +159,8 @@ type ExomoonTimingShapeParams = {
   velDt?: number;
 
   // --- Moon orbit orientation evolution (applied to moon.orbitAroundPlanet) ---
-  // Time-dependent orientation/drift is authored here but unimplemented: the V4
-  // compiler rejects any nonzero value (see educationScenarioCompiler.ts).
+  // The Education V4 snapshot applies this linear drift to the moon's orbit elements from
+  // `tRef` (default 0). The V5 compiler still rejects nonzero values.
   moonOmegaDot?: number; // dΩ/dt [rad/s]
   moonIncDot?: number; // di/dt [rad/s]
   moonOmegaSmallDot?: number; // dω/dt [rad/s]
@@ -168,7 +169,7 @@ type ExomoonTimingShapeParams = {
   moonInc0?: number;
   moonOmegaSmall0?: number;
 
-  /** Optional extra drift in the moon’s sky-plane y direction [units/s] (phenomenological). */
+  /** Optional extra drift in the moon’s sky-plane y direction [units/s] (phenomenological); ignored by V4. */
   moonImpactYDot?: number;
 };
 

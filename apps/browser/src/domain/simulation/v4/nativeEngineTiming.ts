@@ -16,6 +16,8 @@ import { computeTransitReferenceEpochSec, estimateTransitEventWithDiagnostics } 
 import { closestFrontApproach, type ClosestApproach } from "./nativeTransitImpact";
 import type { MoonBodyV4, PlanetBodyV4, EducationScenarioV4 } from "./types";
 import { buildNativeSnapshot, orbitStateAt, type NativeBodyState, type NativeSnapshot } from "./nativeModel";
+import { conjunctionActiveForSnapshot } from "./nativeConjunction";
+import { rossiterMcLaughlinForSnapshot } from "./nativeStellarSpin";
 
 function sourceOrbit(body: NativeBodyState): OrbitElements | undefined {
   const src = body.source;
@@ -64,6 +66,7 @@ type TimingAndObservables = {
   vPlanetSky?: number;
   vPlanetSkyRef?: number;
   tdvRatio?: number;
+  conjunctionActive: boolean;
 };
 
 function usesExactTiming(config: EducationScenarioV4): boolean {
@@ -174,6 +177,7 @@ function moonReferenceEpochKey(
     moon.r,
     planet.r,
     orbitTimingKey("moon-orbit", sourceOrbit(moon)),
+    JSON.stringify(config.dynamics?.exomoonTimingShape ?? null),
     orbitTimingKey("planet-orbit", sourceOrbit(planet) ?? config.orbits.binary),
     orbitTimingKey("binary", config.orbits.binary),
     snap.observerDir.x,
@@ -431,16 +435,19 @@ function cachedTransitImpacts(
 }
 
 function observablesForSnapshot(
-  starRef: NativeBodyState,
-  planet: NativeBodyState,
-  moon: NativeBodyState | undefined,
+  config: EducationScenarioV4,
+  snap: NativeSnapshot,
+  tObsSec: number,
   timing: StepTimingDiagnostics | undefined,
-  obs: Vec3,
 ): StepObservables {
+  const starRef = snap.stars[0];
+  const moon = snap.moons[0];
+  const obs = snap.observerDir;
   return {
     rvStar: radialVelocity(starRef.vAbs, obs),
-    rvPlanet: radialVelocity(planet.vAbs, obs),
+    rvPlanet: radialVelocity(planetBody(snap).vAbs, obs),
     rvMoon: moon ? radialVelocity(moon.vAbs, obs) : undefined,
+    rvStarRossiterMcLaughlin: rossiterMcLaughlinForSnapshot(config, snap, tObsSec),
     astrometricOffsetStar: { x: starRef.sky.x, y: starRef.sky.y },
     timing,
   };
@@ -475,7 +482,7 @@ export function computeTimingAndObservables(
 
   return {
     timing,
-    observables: observablesForSnapshot(starRef, planet, moon, timing, obs),
+    observables: observablesForSnapshot(config, snap, tObsSec, timing),
     eventTimingConvergence: eventTimingConvergence(pEvent, mEvent),
     bPlanet: impacts.bPlanet,
     bMoon: impacts.bMoon,
@@ -484,5 +491,6 @@ export function computeTimingAndObservables(
     vPlanetSky,
     vPlanetSkyRef,
     tdvRatio,
+    conjunctionActive: conjunctionActiveForSnapshot(snap),
   };
 }

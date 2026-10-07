@@ -19,6 +19,7 @@
 import type { LimbDarkeningLaw, BrowserScenarioDraft } from "../../../domain/model/types";
 import { toFinitePositiveOr } from "../../../domain/model/units";
 import { resolveAndValidateLimbDarkening } from "../../../domain/photometry/limbDarkening";
+import { evolveBrightnessPatches } from "../../../domain/photometry/spotEvolution";
 import { drawBrightnessPatches } from "./starDiskBrightnessPatches";
 import {
   applyStopsToGradient,
@@ -37,6 +38,11 @@ export type StarDiskRenderOptions = {
    * Center of the star disk in CSS pixels (canvas coordinate system after HiDPI transform).
    */
   centerPx: { x: number; y: number };
+
+  /**
+   * Observer time [s]; with spot evolution enabled, patches are drawn at this instant.
+   */
+  tSec?: number;
 
   /**
    * World-to-pixel scale used by the main renderer (e.g. Canvas2DRenderer.pixelsPerUnit).
@@ -256,7 +262,13 @@ function drawStarDiskPatches(
 ): void {
   if (!starDiskOptionDefault(opts.showPatches, true)) return;
 
-  const patches = params.star.photometry?.brightnessPatches;
+  const photometry = params.star.photometry;
+  const patches = evolveBrightnessPatches({
+    patches: photometry?.brightnessPatches,
+    spotEvolution: photometry?.spotEvolution,
+    rStar: state.rStar,
+    tSec: opts.tSec ?? NaN,
+  });
   if (!(Array.isArray(patches) && patches.length > 0)) return;
 
   drawBrightnessPatches({

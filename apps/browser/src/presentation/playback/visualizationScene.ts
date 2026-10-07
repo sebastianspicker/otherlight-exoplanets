@@ -34,7 +34,7 @@ export function buildSceneDidacticOverlay(args: {
   const chords = sceneChordLines(params, planet, moon);
   overlay.lines?.push(...chords.lines);
   overlay.points?.push(...sceneChordContactPoints(chords));
-  overlay.badges?.push(...sceneOccultedPatchBadges(params, planet));
+  overlay.badges?.push(...sceneOccultedPatchBadges(params, planet, step.tObsSec));
   overlay.badges?.push(...sceneVisibilityBadges(step));
   overlay.badges?.push(...sceneFeatureBadges(params));
 

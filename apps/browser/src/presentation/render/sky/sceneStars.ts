@@ -64,6 +64,8 @@ export function drawStarGeometry(args: {
   r: number;
   z: number;
   variant: "primary" | "secondary";
+  /** Observer time [s] for evolving brightness patches. */
+  tSec?: number;
   resolveSecondaryStarParams: (r: number) => BrowserScenarioDraft;
 }): void {
   const {
@@ -78,6 +80,7 @@ export function drawStarGeometry(args: {
     r,
     z,
     variant,
+    tSec,
     resolveSecondaryStarParams,
   } = args;
   const centerPx = toPxInto(x, y, scratchPoint);
@@ -121,6 +124,7 @@ export function drawStarGeometry(args: {
     useLimbDarkening: variant === "primary",
     cache: starDiskCache,
     showPatches: variant === "primary",
+    tSec,
     drawOutline: true,
     baseColor: variant === "primary" ? "#f4d9a2" : "#9fc8ff",
     highlightColor: variant === "primary" ? "#fff2cc" : "#e7f2ff",

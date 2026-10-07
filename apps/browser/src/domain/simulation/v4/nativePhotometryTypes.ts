@@ -26,6 +26,8 @@ export type VisibilityOcculter = {
   opacity?: number;
   transmissionAtRadius?: (rho: number) => number;
   ring?: VisibilityRing;
+  /** Oblate opaque silhouette centred on `sky`; semi-axes in the sky-plane length unit. */
+  ellipse?: { rx: number; ry: number; angle: number };
 };
 /** Stellar surface map applied to the occulted star's intensity. */
 export type VisibilityStarSurface = { brightnessPatches?: BrightnessPatch[] };

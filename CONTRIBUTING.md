@@ -72,11 +72,13 @@ pnpm contracts:check
 pnpm physics-registry
 ```
 
-Do not hand-edit generated parity fixtures. Use `pnpm native:fixtures` only for
-an intentional Education V4 contract update and review the generated diff.
-Changes to capability or scientific-evidence claims must stay within the
-boundaries in [model status](docs/physics/model-status.md) and
-[validation](docs/validation.md).
+There is no recorded output snapshot or cross-language parity oracle in this
+repository: behaviour is pinned only by targeted tests that state the expected
+physics, so an improvement never has to be "approved" by a regenerated fixture.
+When Browser physics changes on purpose, update the Swift engine to match where
+the native app supports the feature, or let its fail-closed importer reject the
+scenario. Capability and scientific-evidence claims are described in
+[model status](docs/physics/model-status.md) and [validation](docs/validation.md).
 
 ## Science service changes
 

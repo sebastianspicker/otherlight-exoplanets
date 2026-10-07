@@ -42,33 +42,117 @@ public enum BrowserV4Import {
     guard let planet = dto.bodies.planets.first else {
       throw ValidationError([.nonPositive(field: "bodies.planets")])
     }
+    let photometry = dto.photometry
     let scenario = EducationScenarioV4(
       identifier: identifier,
-      star: .init(
+      star: Star(
         radiusMetres: star.r, massKilograms: star.m ?? 0, limbDarkeningU1: limb.u1,
-        limbDarkeningU2: limb.u2),
-      planet: .init(
-        radiusMetres: planet.r, massKilograms: planet.m ?? 0, orbit: orbit(planet.orbit)),
-      moon: dto.bodies.moons.first.map {
-        .init(radiusMetres: $0.r, massKilograms: $0.m ?? 0, orbit: orbit($0.orbit))
-      },
-      gridResolution: dto.photometry?.gridRes ?? defaultGridResolution,
-      planetPhase: phase(dto.photometry?.phaseCurve),
-      moonPhase: phase(dto.photometry?.moonPhaseCurve),
-      dayNightVisibility: dayNight(dto.photometry?.dayNightVisibility))
+        limbDarkeningU2: limb.u2, limbDarkeningLawPresent: limb.present,
+        spin: stellarSpin(star.spin)),
+      planet: self.planet(planet), moon: dto.bodies.moons.first.map { moon($0, dto: dto) },
+      gridResolution: photometry?.gridRes, planetPhase: phase(photometry?.phaseCurve),
+      moonPhase: phase(photometry?.moonPhaseCurve),
+      dayNightVisibility: dayNight(photometry?.dayNightVisibility),
+      nonSphericalFlux: nonSphericalFlux(dto),
+      brightnessPatches: brightnessPatches(photometry?.brightnessPatches),
+      spotEvolution: spotEvolution(photometry?.spotEvolution),
+      stellarVariability: stellarVariability(photometry?.stellarVariability),
+      stellarSurface: stellarSurface(photometry?.stellarSurface))
     return try validated(scenario)
   }
 
-  /// Matches the Browser limb-darkened integrator's grid fallback when `gridRes` is absent.
-  static let defaultGridResolution = 60
+  /// Converts the first V4 planet with its authored shape and `safeBodyRadius`.
+  static func planet(_ value: BrowserV4ScenarioDTO.PlanetDTO) -> Planet {
+    let shape = bodyShape(value.shape, radius: value.r)
+    return Planet(
+      radiusMetres: shape?.circularRadiusMetres ?? value.r, massKilograms: value.m ?? 0,
+      orbit: orbit(value.orbit), shape: shape)
+  }
 
-  /// Resolves a star's quadratic law as the Browser does; absent or empty models are uniform disks.
+  /// Converts the first V4 moon with its authored shape, `safeBodyRadius`, and orientation drift.
+  static func moon(_ value: BrowserV4ScenarioDTO.MoonDTO, dto: BrowserV4ScenarioDTO) -> Moon {
+    let shape = bodyShape(value.shape, radius: value.r)
+    return Moon(
+      radiusMetres: shape?.circularRadiusMetres ?? value.r, massKilograms: value.m ?? 0,
+      orbit: orbit(value.orbit),
+      orientationDrift: moonOrientationDrift(dto.dynamics?["exomoonTimingShape"]), shape: shape)
+  }
+
+  /// Reads the `dynamics.physicsFeatures.nonSphericalFlux` switch.
+  static func nonSphericalFlux(_ dto: BrowserV4ScenarioDTO) -> Bool {
+    dto.dynamics?["physicsFeatures"]?["nonSphericalFlux"] == .bool(true)
+  }
+
+  /// Reads `photometry.brightnessPatches` as the Browser `sanitizeBrightnessPatches` does.
+  ///
+  /// Entries without a `circle` or `ellipse` shape, with a non-finite centre or factor, or with a
+  /// non-positive radius are dropped silently, factors are clamped at 0, and an absent or
+  /// non-finite ellipse angle is 0.
+  static func brightnessPatches(_ value: BrowserV4JSONValue?) -> [BrightnessPatch] {
+    guard case .array(let entries)? = value else { return [] }
+    return entries.compactMap { entry in
+      guard let x = entry["x"]?.finiteNumber, let y = entry["y"]?.finiteNumber,
+        let factor = entry["factor"]?.finiteNumber, let shape = patchShape(entry)
+      else { return nil }
+      return BrightnessPatch(shape: shape, x: x, y: y, factor: max(0, factor))
+    }
+  }
+
+  /// Reads a patch's `circle` or `ellipse` outline, or nil for another shape or a bad radius.
+  static func patchShape(_ entry: BrowserV4JSONValue) -> BrightnessPatch.Shape? {
+    switch entry["shape"] {
+    case .string("circle"):
+      guard let r = entry["r"]?.finiteNumber, r > 0 else { return nil }
+      return .circle(radius: r)
+    case .string("ellipse"):
+      guard let rx = entry["rx"]?.finiteNumber, rx > 0, let ry = entry["ry"]?.finiteNumber,
+        ry > 0
+      else { return nil }
+      return .ellipse(rx: rx, ry: ry, angleRadians: entry["angle"]?.finiteNumber ?? 0)
+    default: return nil
+    }
+  }
+
+  /// Reads an enabled `photometry.spotEvolution` block with the Browser `evolutionState` defaults.
+  ///
+  /// A disabled or absent block yields nil. Non-positive periods and lifetimes mean no rotation or
+  /// decay, absent phases, drifts, and `tRef` are 0, and coverage defaults to 1 within [0, 1].
+  static func spotEvolution(_ value: BrowserV4JSONValue?) -> SpotEvolution? {
+    guard let value, value.isEnabled else { return nil }
+    /// Returns a finite positive member, or nil.
+    func positive(_ key: String) -> Double? {
+      value[key]?.finiteNumber.flatMap { $0 > 0 ? $0 : nil }
+    }
+    return SpotEvolution(
+      rotationPeriodSeconds: positive("rotationPeriodSec"),
+      rotationPhase0Radians: value["rotationPhase0"]?.finiteNumber ?? 0,
+      driftRateRadiansPerSecond: value["driftRateRadPerSec"]?.finiteNumber ?? 0,
+      lifetimeSeconds: positive("lifetimeSec"),
+      coverage: min(1, max(0, value["coverage"]?.finiteNumber ?? 1)),
+      referenceEpochSeconds: value["tRef"]?.finiteNumber ?? 0)
+  }
+
+  /// Reads a gate-accepted planet or moon `shape` object with the authored radius as its
+  /// equatorial radius; an absent angle is 0.
+  ///
+  /// Null, empty, and oblateness-free shapes have no effect in the Browser and import as nil.
+  static func bodyShape(_ value: BrowserV4JSONValue?, radius: Double) -> BodyShape? {
+    guard case .number(let oblateness)? = value?["oblateness"] else { return nil }
+    guard case .number(let angle)? = value?["angle"] else {
+      return BodyShape(oblateness: oblateness, equatorialRadiusMetres: radius)
+    }
+    return BodyShape(oblateness: oblateness, angleRadians: angle, equatorialRadiusMetres: radius)
+  }
+
+  /// Resolves a star's quadratic law as the Browser does; absent or empty models are uniform disks,
+  /// which carry zero coefficients and no law.
   static func limbDarkening(
     _ model: BrowserV4ScenarioDTO.LimbDarkeningModelDTO?, star: BrowserV4ScenarioDTO.StarDTO
-  ) -> (u1: Double, u2: Double) {
+  ) -> (u1: Double, u2: Double, present: Bool) {
     switch BrowserV4LimbDarkeningLaw.resolve(model, star: star) {
-    case .quadratic(let u1, let u2): (u1, u2)
-    case .uniform, .unsupported: (0, 0)
+    case .quadratic(let u1, let u2): (u1, u2, true)
+    case .uniform: (0, 0, false)
+    case .unsupported: (0, 0, true)
     }
   }
 
@@ -77,7 +161,30 @@ public enum BrowserV4Import {
     .init(
       semiMajorAxisMetres: value.a, periodSeconds: value.period, eccentricity: value.e,
       inclinationRadians: value.inc, argumentOfPeriapsisRadians: value.omega,
-      meanAnomalyAtEpochRadians: -2 * .pi * value.t0 / value.period)
+      meanAnomalyAtEpochRadians: -2 * .pi * value.t0 / value.period,
+      longitudeOfAscendingNodeRadians: value.longitudeOfAscendingNode)
+  }
+
+  /// Reads the moon orientation drift of an enabled `dynamics.exomoonTimingShape` block.
+  ///
+  /// As the Browser `effectiveMoonOrbit`, a disabled or absent block and a block without a finite
+  /// non-zero rate or a finite override yield no drift; an absent or non-finite `tRef` is 0.
+  static func moonOrientationDrift(_ shape: BrowserV4JSONValue?) -> OrbitOrientationDrift? {
+    guard let shape, shape.isEnabled else { return nil }
+    /// Reads a finite numeric member of the block, or nil when absent or non-finite.
+    func number(_ key: String) -> Double? {
+      if case .number(let value) = shape[key], value.isFinite { return value }
+      return nil
+    }
+    let drift = OrbitOrientationDrift(
+      omegaDotRadiansPerSecond: number("moonOmegaDot") ?? 0,
+      inclinationDotRadiansPerSecond: number("moonIncDot") ?? 0,
+      argumentOfPeriapsisDotRadiansPerSecond: number("moonOmegaSmallDot") ?? 0,
+      longitudeOfAscendingNodeOverrideRadians: number("moonOmega0"),
+      inclinationOverrideRadians: number("moonInc0"),
+      argumentOfPeriapsisOverrideRadians: number("moonOmegaSmall0"),
+      referenceEpochSeconds: number("tRef") ?? 0)
+    return drift.hasDrift ? drift : nil
   }
 
   /// Converts optional V4 phase parameters with the Browser defaults for absent fields.
@@ -116,7 +223,7 @@ public enum BrowserV4Import {
   /// use the Browser fallbacks 1 and 0.3, and an absent `binaryLab` uses the default gates.
   static func detachedBinaryScenario(
     _ dto: BrowserV4ScenarioDTO, identifier: String, star: BrowserV4ScenarioDTO.StarDTO,
-    limb: (u1: Double, u2: Double)
+    limb: (u1: Double, u2: Double, present: Bool)
   ) throws -> EducationScenarioV4 {
     guard let secondary = dto.bodies.stars.dropFirst().first,
       let binaryOrbit = dto.orbits?.binary
@@ -131,22 +238,23 @@ public enum BrowserV4Import {
     }
     let primary = BinaryStar(
       identifier: star.id,
-      star: .init(
+      star: Star(
         radiusMetres: star.r, massKilograms: star.m ?? 0, limbDarkeningU1: limb.u1,
-        limbDarkeningU2: limb.u2), luminosityScale: star.luminosityScale ?? 1)
+        limbDarkeningU2: limb.u2, limbDarkeningLawPresent: limb.present),
+      luminosityScale: star.luminosityScale ?? 1)
     let companion = BinaryStar(
       identifier: secondary.id,
-      star: .init(
+      star: Star(
         radiusMetres: secondary.r, massKilograms: secondary.m ?? 0,
-        limbDarkeningU1: limb.u1, limbDarkeningU2: limb.u2),
+        limbDarkeningU1: limb.u1, limbDarkeningU2: limb.u2, limbDarkeningLawPresent: limb.present),
       luminosityScale: secondary.luminosityScale ?? 0.3)
     let scenario = EducationScenarioV4(
       identifier: identifier, star: primary.star,
-      planet: .init(radiusMetres: 1, orbit: orbit(binaryOrbit)),
-      gridResolution: dto.photometry?.gridRes ?? defaultGridResolution, mode: .detachedBinaryLab,
-      detachedBinary: .init(
+      planet: Planet(radiusMetres: 1, orbit: orbit(binaryOrbit)),
+      gridResolution: dto.photometry?.gridRes, mode: .detachedBinaryLab,
+      detachedBinary: DetachedBinary(
         primary: primary, secondary: companion, relativeOrbit: orbit(binaryOrbit)),
-      binaryLab: binaryLab ?? .default)
+      binaryLab: binaryLab ?? .default, nonSphericalFlux: nonSphericalFlux(dto))
     return try validated(scenario)
   }
 
@@ -183,42 +291,133 @@ public enum BrowserV4Export {
         stars: [
           .init(
             id: "star-a", r: scenario.star.radiusMetres, m: scenario.star.massKilograms,
-            luminosityScale: 1),
+            luminosityScale: 1, spin: scenario.star.spin.flatMap(stellarSpin)),
           .init(id: "star-b", r: scenario.star.radiusMetres, m: 0, luminosityScale: 0),
         ],
         planets: [
           .init(
-            id: "planet-1", r: scenario.planet.radiusMetres, m: scenario.planet.massKilograms,
-            orbit: planetOrbit, parentStarId: "star-a", parentSystem: "star")
+            id: "planet-1",
+            r: scenario.planet.shape?.equatorialRadiusMetres ?? scenario.planet.radiusMetres,
+            m: scenario.planet.massKilograms, orbit: planetOrbit, parentStarId: "star-a",
+            parentSystem: "star", shape: shape(scenario.planet.shape))
         ],
         moons: scenario.moon.map {
           [
             .init(
-              id: "moon-1", r: $0.radiusMetres, m: $0.massKilograms,
-              orbit: orbit($0.orbit), parentPlanetId: "planet-1")
+              id: "moon-1", r: $0.shape?.equatorialRadiusMetres ?? $0.radiusMetres,
+              m: $0.massKilograms,
+              orbit: orbit($0.orbit), parentPlanetId: "planet-1", shape: shape($0.shape))
           ]
         } ?? []),
       orbits: .init(binary: planetOrbit, hierarchy: hierarchy),
       photometry: .init(
-        gridRes: scenario.gridResolution,
-        limbDarkeningModel: .init(
-          default: .init(
-            kind: "quadratic", u1: scenario.star.limbDarkeningU1,
-            u2: scenario.star.limbDarkeningU2)),
+        gridRes: scenario.gridResolution, limbDarkeningModel: limbDarkeningModel(scenario.star),
         phaseCurve: phase(scenario.planetPhase), moonPhaseCurve: phase(scenario.moonPhase),
         dayNightVisibility: scenario.dayNightVisibility.map {
           .init(
             enabled: $0.enabled, reflectedModel: $0.reflectedModel?.rawValue,
             thermalModel: $0.thermalModel?.rawValue, clamp: $0.clamp)
-        }),
-      didactics: .init(activeLessonId: lessonID), binaryLab: nil)
+        }, brightnessPatches: brightnessPatches(scenario.brightnessPatches),
+        stellarVariability: scenario.stellarVariability.map(stellarVariability),
+        spotEvolution: scenario.spotEvolution.map(spotEvolution),
+        stellarSurface: scenario.stellarSurface.map(stellarSurface)),
+      didactics: .init(activeLessonId: lessonID), binaryLab: nil,
+      dynamics: dynamics(scenario))
+  }
+
+  /// Encodes the primary star's patches as `photometry.brightnessPatches`, or nil without any.
+  static func brightnessPatches(_ patches: [BrightnessPatch]) -> BrowserV4JSONValue? {
+    guard !patches.isEmpty else { return nil }
+    return .array(
+      patches.map { patch in
+        var members: [String: BrowserV4JSONValue] = [
+          "x": .number(patch.x), "y": .number(patch.y), "factor": .number(patch.factor),
+        ]
+        switch patch.shape {
+        case .circle(let radius):
+          members["shape"] = .string("circle")
+          members["r"] = .number(radius)
+        case .ellipse(let rx, let ry, let angle):
+          members["shape"] = .string("ellipse")
+          members["rx"] = .number(rx)
+          members["ry"] = .number(ry)
+          members["angle"] = .number(angle)
+        }
+        return .object(members)
+      })
+  }
+
+  /// Encodes a spot evolution as an enabled `photometry.spotEvolution` block.
+  static func spotEvolution(_ spot: SpotEvolution) -> BrowserV4JSONValue {
+    var members: [String: BrowserV4JSONValue] = [
+      "enabled": .bool(true), "rotationPhase0": .number(spot.rotationPhase0Radians),
+      "driftRateRadPerSec": .number(spot.driftRateRadiansPerSecond),
+      "coverage": .number(spot.coverage), "tRef": .number(spot.referenceEpochSeconds),
+    ]
+    if let period = spot.rotationPeriodSeconds { members["rotationPeriodSec"] = .number(period) }
+    if let lifetime = spot.lifetimeSeconds { members["lifetimeSec"] = .number(lifetime) }
+    return .object(members)
+  }
+
+  /// Encodes a star's quadratic law as the default `limbDarkeningModel`, or no model for a star
+  /// without a law, which the Browser then renders as a uniform disk.
+  static func limbDarkeningModel(_ star: Star) -> BrowserV4ScenarioDTO.LimbDarkeningModelDTO? {
+    guard star.limbDarkeningLawPresent else { return nil }
+    return .init(
+      default: .init(kind: "quadratic", u1: star.limbDarkeningU1, u2: star.limbDarkeningU2))
+  }
+
+  /// Encodes an authored body shape as the Browser `shape` object.
+  static func shape(_ value: BodyShape?) -> BrowserV4JSONValue? {
+    value.map {
+      .object(["oblateness": .number($0.oblateness), "angle": .number($0.angleRadians)])
+    }
+  }
+
+  /// Merges the moon drift block and the `physicsFeatures.nonSphericalFlux` switch into `dynamics`.
+  static func dynamics(_ scenario: EducationScenarioV4) -> BrowserV4JSONValue? {
+    var members: [String: BrowserV4JSONValue] = [:]
+    if case .object(let drift)? = scenario.moon?.orientationDrift.flatMap(dynamics) {
+      members.merge(drift) { _, new in new }
+    }
+    if scenario.nonSphericalFlux {
+      members["physicsFeatures"] = .object(["nonSphericalFlux": .bool(true)])
+    }
+    return members.isEmpty ? nil : .object(members)
+  }
+
+  /// Encodes a moon orientation drift as an enabled `dynamics.exomoonTimingShape` block.
+  ///
+  /// Non-finite rates and epochs are written as 0 and non-finite overrides are omitted, which keeps
+  /// the JSON valid without changing the drift the Browser evaluates.
+  static func dynamics(_ drift: OrbitOrientationDrift) -> BrowserV4JSONValue? {
+    guard drift.hasDrift else { return nil }
+    /// Returns a finite value unchanged and replaces a non-finite one with 0.
+    func finite(_ value: Double) -> BrowserV4JSONValue { .number(value.isFinite ? value : 0) }
+    var shape: [String: BrowserV4JSONValue] = [
+      "enabled": .bool(true), "velDt": .number(2),
+      "moonOmegaDot": finite(drift.omegaDotRadiansPerSecond),
+      "moonIncDot": finite(drift.inclinationDotRadiansPerSecond),
+      "moonOmegaSmallDot": finite(drift.argumentOfPeriapsisDotRadiansPerSecond),
+      "tRef": finite(drift.referenceEpochSeconds),
+    ]
+    let overrides = [
+      ("moonOmega0", drift.longitudeOfAscendingNodeOverrideRadians),
+      ("moonInc0", drift.inclinationOverrideRadians),
+      ("moonOmegaSmall0", drift.argumentOfPeriapsisOverrideRadians),
+    ]
+    for (key, value) in overrides {
+      if let value, value.isFinite { shape[key] = .number(value) }
+    }
+    return .object(["exomoonTimingShape": .object(shape)])
   }
 
   /// Converts native orbital elements while retaining V4's serialized field names.
   static func orbit(_ value: KeplerOrbit) -> BrowserV4ScenarioDTO.OrbitDTO {
     .init(
       a: value.semiMajorAxisMetres, e: value.eccentricity, inc: value.inclinationRadians,
-      longitudeOfAscendingNode: 0, omega: value.argumentOfPeriapsisRadians,
+      longitudeOfAscendingNode: value.longitudeOfAscendingNodeRadians,
+      omega: value.argumentOfPeriapsisRadians,
       period: value.periodSeconds,
       t0: -value.meanAnomalyAtEpochRadians * value.periodSeconds / (2 * .pi))
   }
@@ -256,17 +455,15 @@ public enum BrowserV4Export {
       orbits: .init(binary: orbit(binary.relativeOrbit), hierarchy: []),
       photometry: .init(
         gridRes: scenario.gridResolution,
-        limbDarkeningModel: .init(
-          default: .init(
-            kind: "quadratic", u1: binary.primary.star.limbDarkeningU1,
-            u2: binary.primary.star.limbDarkeningU2)),
-        phaseCurve: nil, moonPhaseCurve: nil),
+        limbDarkeningModel: limbDarkeningModel(binary.primary.star), phaseCurve: nil,
+        moonPhaseCurve: nil),
       didactics: .init(activeLessonId: lessonID),
       binaryLab: .init(
         enabled: scenario.binaryLab?.enabled ?? true,
         hideSkyUntilReveal: scenario.binaryLab?.hideSkyUntilReveal ?? true,
         requireHypothesis: scenario.binaryLab?.requireHypothesis ?? true,
-        lockParamsUntilHypothesis: scenario.binaryLab?.lockParamsUntilHypothesis ?? true))
+        lockParamsUntilHypothesis: scenario.binaryLab?.lockParamsUntilHypothesis ?? true),
+      dynamics: dynamics(scenario))
   }
 
   /// Projects native runtime settings to the Browser V4 metadata envelope.

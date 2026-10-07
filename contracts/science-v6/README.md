@@ -23,8 +23,7 @@ provenance of the first accepted byte representation.
 The job, artifact, and run-manifest schemas establish the future V6 result
 boundary. The transit-timing request, result, and ordered Arrow descriptor fix the
 explicit-ephemeris, dense-event, bounded-work, numerical-error, and provenance
-contract described by
-[ADR 0003](../../docs/decisions/0003-v6-transit-timing.md). They are fixtures and
+contract for V6 timing. They are fixtures and
 validation contracts only: no V6 job route or scientific result producer is
 currently advertised.
 

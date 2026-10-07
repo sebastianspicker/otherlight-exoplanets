@@ -1,7 +1,7 @@
 # Performance validation
 
 Performance changes must preserve Education V4, science V5/V6, workspace-v1, the
-capability manifests, Arrow columns, and the checked-in parity fixtures. Timing
+capability manifests, Arrow columns, and the shared sample scenarios. Timing
 is informational; work counts, queue bounds, equality checks, and compact
 retention are correctness requirements.
 

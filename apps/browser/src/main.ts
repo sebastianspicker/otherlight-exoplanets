@@ -6,7 +6,7 @@ import { showFatalAppError } from "./presentation/shell/fatalError";
 if (typeof document !== "undefined") {
   renderAppShell(document.getElementById("appShellRoot"));
   // Keep the lifecycle-heavy bootstrap behind the browser guard so Node-based
-  // characterization tests can import this entry without creating DOM state.
+  // tests can import this entry without creating DOM state.
   const { initApp } = await import("./composition/bootstrap");
 
   initApp().catch((err) => {

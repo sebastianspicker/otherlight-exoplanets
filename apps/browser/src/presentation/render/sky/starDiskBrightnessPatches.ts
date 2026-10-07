@@ -82,7 +82,8 @@ const drawBrightnessPatchShape = (
   const radiusY = finitePatchValue(patch.ry, 0) * pixelsPerUnit;
   if (!(radiusX > 0 && radiusY > 0)) return;
   ctx.beginPath();
-  ctx.ellipse(centerPx.x, centerPx.y, radiusX, radiusY, finitePatchValue(patch.angle, 0), 0, Math.PI * 2);
+  // Canvas y points down; the patch angle rotates the rx axis from +x toward +y (up).
+  ctx.ellipse(centerPx.x, centerPx.y, radiusX, radiusY, -finitePatchValue(patch.angle, 0), 0, Math.PI * 2);
   ctx.fill();
 };
 

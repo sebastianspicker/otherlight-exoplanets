@@ -31,8 +31,8 @@ public enum QuadraticLimbDarkening {
 
 /// Produces educational transit snapshots from Keplerian sky-plane geometry in SI units.
 ///
-/// The engine uses fixed Kepler orbits, a sampled limb-darkened stellar disk, circular opaque
-/// occulters, and additive phase terms. It intentionally omits N-body evolution and detailed
+/// The engine uses fixed Kepler orbits, a sampled limb-darkened stellar disk, circular or oblate
+/// opaque occulters, and additive phase terms. It intentionally omits N-body evolution and detailed
 /// radiative transfer so results stay deterministic and responsive for the teaching workspace.
 public struct SimulationEngine: Sendable {
   public let scenario: EducationScenarioV4
@@ -55,14 +55,29 @@ public struct SimulationEngine: Sendable {
     let planet = state.planet
     let relativePlanet = planet - state.star
     var points = [SkyPoint(body: "planet", position: planet)]
-    var occluders = [(position: relativePlanet, radius: scenario.planet.radiusMetres)]
+    var occluders = [
+      Occulter.body(
+        at: relativePlanet, radius: scenario.planet.radiusMetres, shape: scenario.planet.shape,
+        nonSphericalFlux: scenario.nonSphericalFlux)
+    ]
     let relativeMoon = state.moon.map { $0 - state.star }
     if let moonPosition = state.moon, let relativeMoon, let moon = scenario.moon {
       points.append(SkyPoint(body: "moon", position: moonPosition))
-      occluders.append((relativeMoon, moon.radiusMetres))
+      occluders.append(
+        .body(
+          at: relativeMoon, radius: moon.radiusMetres, shape: moon.shape,
+          nonSphericalFlux: scenario.nonSphericalFlux))
     }
 
-    let transitFactor = limbDarkenedUnionFlux(occluders)
+    // Patches evolve with absolute observer time, as the Browser's `tObsSec`.
+    let patches = StellarSurface.evolvedPatches(
+      scenario.brightnessPatches, spotEvolution: scenario.spotEvolution,
+      starRadius: scenario.star.radiusMetres, atAbsoluteSeconds: timeSeconds)
+    let unionFlux = transitVisibility(occluders, patches: StellarSurface.prepared(patches))
+    let stellar = stellarComponents(
+      unionFlux: unionFlux, patches: patches,
+      variability: stellarSurfaceVariability(state, atAbsoluteSeconds: timeSeconds))
+    let transitFactor = stellar.transitFactor
     let visibility = visibilityFractions(state)
     let planetPhase =
       visibility.planet
@@ -79,9 +94,10 @@ public struct SimulationEngine: Sendable {
           velocity: state.moonVelocity.map { $0 - state.starVelocity },
           bodyRadius: moon.radiusMetres)
     }
-    let total = transitFactor + planetPhase + moonPhase
+    let total = stellar.preTransit * transitFactor + planetPhase + moonPhase
     let diagnostics = timingDiagnostics(
-      at: timeSeconds, planet: relativePlanet, planetVelocity: state.planetVelocity - state.starVelocity,
+      at: timeSeconds, planet: relativePlanet,
+      planetVelocity: state.planetVelocity - state.starVelocity,
       moon: relativeMoon, moonVelocity: state.moonVelocity.map { $0 - state.starVelocity })
     let timingAvailable =
       diagnostics.planetTransitCenterSec != nil || diagnostics.moonTransitCenterSec != nil
@@ -95,7 +111,9 @@ public struct SimulationEngine: Sendable {
       RenderEvent(
         id: "timing-correction", kind: "timing", label: "Timing diagnostics available",
         active: timingAvailable),
-      RenderEvent(id: "conjunction", kind: "conjunction", label: "Conjunction", active: false),
+      RenderEvent(
+        id: "conjunction", kind: "conjunction", label: "Conjunction",
+        active: conjunctionActive(state)),
       RenderEvent(
         id: "secondary-eclipse", kind: "secondary-eclipse", label: "Secondary eclipse active",
         active: visibility.secondaryEclipseFraction > 1e-4),
@@ -111,15 +129,16 @@ public struct SimulationEngine: Sendable {
     return EducationStep(
       timeSeconds: timeSeconds, skyPoints: points, flux: total,
       fluxComponents: .init(
-        total: total, transitFactor: transitFactor, stellarPreTransit: 1, planetPhase: planetPhase,
-        moonPhase: moonPhase),
+        total: total, transitFactor: transitFactor, stellarPreTransit: stellar.preTransit,
+        planetPhase: planetPhase, moonPhase: moonPhase),
       timing: .init(
         transitNumber: transitNumber,
         calculatedSeconds: scenario.epochSeconds + Double(transitNumber) * period,
         observedMinusCalculatedSeconds: oc), transitTiming: diagnostics,
       renderSignals: .init(
         phase: phase < 0 ? phase + 1 : phase, dayNightFraction: 0.5 * (1 + cos(2 * .pi * phase)),
-        occultedFraction: 1 - transitFactor, events: events), warnings: [])
+        occultedFraction: 1 - transitFactor, events: events), warnings: [],
+      observables: observables(state, patches: patches))
   }
 
   /// Evaluates independent snapshots for each absolute SI time in seconds.
@@ -137,6 +156,14 @@ public struct SimulationEngine: Sendable {
     let relative = binary.relativeOrbit.position(at: elapsed)
     let primary = relative * (totalMass > 0 ? -secondaryMass / totalMass : 0)
     let secondary = relative * (totalMass > 0 ? primaryMass / totalMass : 1)
+    let relativeVelocity = binary.relativeOrbit.velocity(at: elapsed)
+    // As the Browser `planetBody`, the companion star takes the planet's place in the observables.
+    let observables = StepObservables(
+      rvStar: Self.radialVelocity(
+        relativeVelocity * (totalMass > 0 ? -secondaryMass / totalMass : 0)),
+      rvPlanet: Self.radialVelocity(
+        relativeVelocity * (totalMass > 0 ? primaryMass / totalMass : 1)),
+      astrometricOffsetStar: SkyOffset(x: primary.x, y: primary.y))
     let primaryVisible = binaryVisibleFlux(
       source: binary.primary, position: primary, foreground: binary.secondary,
       foregroundPosition: secondary)
@@ -166,7 +193,7 @@ public struct SimulationEngine: Sendable {
             id: "binary-eclipse", kind: "binary-eclipse", label: "Binary eclipse active",
             active: normalized < 0.999999)
         ]),
-      warnings: [])
+      warnings: [], observables: observables)
   }
 
   /// Integrates the source disk once, masking it only when the other luminous star is in front.
@@ -175,7 +202,17 @@ public struct SimulationEngine: Sendable {
   ) -> Double {
     guard source.luminosityScale > 0 else { return 0 }
     guard foregroundPosition.z > position.z else { return source.luminosityScale }
-    let resolution = max(60, min(1024, scenario.gridResolution))
+    if !source.star.limbDarkeningLawPresent {
+      let occulter = (
+        x: foregroundPosition.x - position.x, y: foregroundPosition.y - position.y,
+        radius: foreground.star.radiusMetres
+      )
+      return source.luminosityScale
+        * DiskIntegration.uniformDiskHardOcculterFlux(
+          starRadius: source.star.radiusMetres, occulters: [occulter], patches: [],
+          gridResolution: scenario.gridResolution)
+    }
+    let resolution = DiskIntegration.resolution(scenario.gridResolution, fallback: 60)
     let radius = source.star.radiusMetres
     let dy = 2 * radius / Double(resolution)
     var total = 0.0
@@ -203,42 +240,95 @@ public struct SimulationEngine: Sendable {
     return source.luminosityScale * (total > 0 ? visible / total : 1)
   }
 
+  /// Composes the primary star's pre- and post-transit flux with the spot modulation S(t) and the
+  /// additive stellar variability `var`.
+  ///
+  /// As the Browser `computeStellarComponents`, S multiplies the primary luminosity only with spot
+  /// evolution (static patches give S = 1) and `var` is weighted by the primary's visibility:
+  /// `pre = S + var`, `after = S · unionFlux + var · unionFlux`, and
+  /// `transitFactor = clamp01(after / pre)`, or 1 for a non-positive `pre`.
+  private func stellarComponents(
+    unionFlux: Double, patches: [BrightnessPatch], variability: Double
+  ) -> (preTransit: Double, transitFactor: Double) {
+    let spot =
+      scenario.spotEvolution == nil
+      ? 1
+      : StellarSurface.spottedDiskFluxFactor(
+        starRadius: scenario.star.radiusMetres, patches: patches,
+        u1: scenario.star.limbDarkeningU1, u2: scenario.star.limbDarkeningU2,
+        gridResolution: scenario.gridResolution)
+    let preTransit = spot + variability
+    let afterTransit = spot * unionFlux + variability * unionFlux
+    let transitFactor = preTransit > 0 ? min(1, max(0, afterTransit / preTransit)) : 1
+    return (preTransit, transitFactor)
+  }
+
+  /// Returns the primary star's visible fraction behind the planet and moon silhouettes in front.
+  ///
+  /// As the Browser `starVisibilityFromOcculters`, a star without a resolved limb-darkening law
+  /// and only circular occulters takes the uniform-disk Cartesian integrator; a law or an oblate
+  /// ellipse takes the midpoint chord grid.
+  private func transitVisibility(_ input: [Occulter], patches: [StellarSurface.PreparedPatch])
+    -> Double
+  {
+    let front = input.filter { $0.center.z > 0 }
+    guard !front.isEmpty, scenario.star.radiusMetres > 0 else { return 1 }
+    guard !scenario.star.limbDarkeningLawPresent else {
+      return limbDarkenedUnionFlux(front, patches: patches)
+    }
+    var circles: [(x: Double, y: Double, radius: Double)] = []
+    for occulter in front {
+      guard case .circle(let center, let radius) = occulter else {
+        return limbDarkenedUnionFlux(front, patches: patches)
+      }
+      circles.append((center.x, center.y, radius))
+    }
+    return DiskIntegration.uniformDiskHardOcculterFlux(
+      starRadius: scenario.star.radiusMetres, occulters: circles, patches: patches,
+      gridResolution: scenario.gridResolution)
+  }
+
   /// Samples the stellar disk once so overlapping occulters do not double-count blocked flux.
-  private func limbDarkenedUnionFlux(_ input: [(position: Vector3, radius: Double)]) -> Double {
+  ///
+  /// As the Browser mixed-shape integrator, a cell is blocked when it lies strictly inside any
+  /// opaque circle or oblate ellipse; the grid is the same for both shapes. Brightness patches
+  /// multiply the limb-darkened intensity and the flux is normalised to the same patched star:
+  /// `1 − blocked / total` for circles (`normalizedLimbFlux`) and `(total − blocked) / total` with
+  /// an ellipse (`starVisibilityWithShapeOcculters`).
+  private func limbDarkenedUnionFlux(
+    _ input: [Occulter], patches: [StellarSurface.PreparedPatch]
+  ) -> Double {
     let star = scenario.star
     let radius = star.radiusMetres
     let occulters = input.filter {
-      $0.position.z > 0 && hypot($0.position.x, $0.position.y) < radius + $0.radius
-    }
+      $0.center.z > 0 && hypot($0.center.x, $0.center.y) < radius + $0.reach
+    }.map(PreparedOcculter.init)
     guard !occulters.isEmpty else { return 1 }
-    let resolution = max(60, min(1024, scenario.gridResolution))
-    let dy = 2 * radius / Double(resolution)
-    let r2 = radius * radius
     var total = 0.0
     var blocked = 0.0
-    for iy in 0..<resolution {
-      let y = -radius + (Double(iy) + 0.5) * dy
-      let y2 = y * y
-      let xMax = sqrt(max(0, r2 - y2))
-      let dx = 2 * xMax / Double(resolution)
-      let area = dx * dy
-      for ix in 0..<resolution {
-        let x = -xMax + (Double(ix) + 0.5) * dx
-        let mu = sqrt(max(0, 1 - (x * x + y2) / r2))
-        let intensity = QuadraticLimbDarkening.intensity(
-          mu: mu, u1: star.limbDarkeningU1, u2: star.limbDarkeningU2)
-        let weighted = intensity * area
-        total += weighted
-        if occulters.contains(where: {
-          let dx = x - $0.position.x
-          let dy = y - $0.position.y
-          return dx * dx + dy * dy < $0.radius * $0.radius
-        }) {
-          blocked += weighted
-        }
+    DiskIntegration.forEachChordCell(
+      starRadius: radius,
+      resolution: DiskIntegration.resolution(scenario.gridResolution, fallback: 60)
+    ) { x, y, mu, area in
+      var intensity = QuadraticLimbDarkening.intensity(
+        mu: mu, u1: star.limbDarkeningU1, u2: star.limbDarkeningU2)
+      if !patches.isEmpty {
+        intensity *= StellarSurface.patchFactor(x: x, y: y, prepared: patches)
+      }
+      let weighted = intensity * area
+      total += weighted
+      if occulters.contains(where: { $0.blocks(x: x, y: y) }) {
+        blocked += weighted
       }
     }
-    return min(1, max(0, 1 - blocked / total))
+    // As the Browser `normalizedLimbFlux`, a fully dark patched disk counts as unobscured.
+    guard total > 1e-12 else { return 1 }
+    // The Browser picks the shape path from every occulter in front, overlapping or not.
+    let hasEllipse = input.contains {
+      if case .ellipse = $0, $0.center.z > 0 { return true }
+      return false
+    }
+    return min(1, max(0, hasEllipse ? (total - blocked) / total : 1 - blocked / total))
   }
 
   /// Solves a linearized transit center and contacts when the body crosses the stellar disk.

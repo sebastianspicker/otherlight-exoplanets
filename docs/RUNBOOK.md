@@ -149,5 +149,4 @@ Migrate a legacy Browser draft from standard input to standard output:
 pnpm migrate:v4 < input.json > output.json
 ```
 
-Validate migrated output before importing it. `pnpm native:fixtures` rewrites a
-tracked Education parity fixture and is reserved for intentional contract updates.
+Validate migrated output before importing it.

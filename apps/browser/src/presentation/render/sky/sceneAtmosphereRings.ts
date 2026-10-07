@@ -208,7 +208,8 @@ export function drawRingAnnulus(args: {
   const innerRx = toFinitePositiveOr(innerRadius, 1e-6) * pixelsPerUnit;
   const outerRy = outerRx * q;
   const innerRy = innerRx * q;
-  const ang = Number.isFinite(angle) ? angle : 0;
+  // Canvas y points down; physics angles rotate the major axis from +x toward +y (up).
+  const ang = Number.isFinite(angle) ? -angle : 0;
   const shade = clamp(0.25 + 0.7 * (1 / (1 + Math.abs(z) * 0.002)), 0.2, 1);
 
   ctx.save();

@@ -45,7 +45,7 @@ export function computeFluxBundle(
 ): FluxBundle {
   const luminousStars = activeLuminousStars(snap);
   const nonStars = activeNonStarOcculters(snap);
-  const visibility = computeVisibilityBundle(config, snap, luminousStars, nonStars);
+  const visibility = computeVisibilityBundle(config, snap, luminousStars, nonStars, tObsSec);
   const stellar = computeStellarComponents(config, snap, luminousStars, visibility, tObsSec);
   const visibleFractions = computeVisibleFractions(snap);
   const additivePlanetary = computeAdditivePlanetary(config, snap, visibleFractions.byBody);

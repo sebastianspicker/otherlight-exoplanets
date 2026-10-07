@@ -102,11 +102,15 @@ public struct EducationStep: Codable, Sendable, Hashable {
   public var transitTiming: TransitTimingDiagnostics
   public var renderSignals: RenderSignals
   public var warnings: [String]
+  /// The radial-velocity and astrometric observables (nil: not evaluated). The binary lab fills
+  /// the star and companion radial velocities and the primary's astrometric offset, without a
+  /// moon velocity or a Rossiter–McLaughlin anomaly.
+  public var observables: StepObservables?
   /// Creates a complete education snapshot for one simulation time.
   public init(
     timeSeconds: Double, skyPoints: [SkyPoint], flux: Double, fluxComponents: FluxComponents? = nil,
     timing: TransitTimingSignal, transitTiming: TransitTimingDiagnostics = .init(),
-    renderSignals: RenderSignals, warnings: [String]
+    renderSignals: RenderSignals, warnings: [String], observables: StepObservables? = nil
   ) {
     self.timeSeconds = timeSeconds
     self.skyPoints = skyPoints
@@ -118,5 +122,6 @@ public struct EducationStep: Codable, Sendable, Hashable {
     self.transitTiming = transitTiming
     self.renderSignals = renderSignals
     self.warnings = warnings
+    self.observables = observables
   }
 }

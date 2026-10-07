@@ -18,7 +18,10 @@ type BodyShapeParams = {
    */
   oblateness?: number;
 
-  /** Optional sky-plane orientation of the oblate axis [rad]. */
+  /**
+   * Sky-plane rotation of the equatorial (long) axis of the projected silhouette [rad], measured
+   * from +x toward +y. Used when `dynamics.physicsFeatures.nonSphericalFlux` is enabled.
+   */
   angle?: number;
 };
 
@@ -40,7 +43,11 @@ type BodySpinParams = {
   rotationPeriodSec?: number;
   /** Obliquity relative to orbital angular momentum [rad]. */
   obliquity?: number;
-  /** Sky-plane position angle of the projected spin axis [rad]. */
+  /**
+   * Sky-plane position angle of the projected spin axis [rad], measured from +y toward +x
+   * (astronomical convention; note `shape.angle` and `rings.positionAngle` are measured from +x
+   * toward +y). Default: the projected orbit normal of the first companion.
+   */
   axisPositionAngle?: number;
 };
 

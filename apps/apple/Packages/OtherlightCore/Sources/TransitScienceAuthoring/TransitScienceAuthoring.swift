@@ -84,7 +84,12 @@ public enum TransitScienceAuthoring {
   private static func scientificBodies(for education: EducationScenarioV4) throws
     -> [ScientificBodyV5]
   {
-    switch education.mode {
+    // As the Browser V5 compiler, any enabled `dynamics.physicsFeatures` flag is unsupported.
+    if education.nonSphericalFlux {
+      throw ScienceAuthoringError.invalid(
+        "education.nonSphericalFlux", "no advanced browser physics features")
+    }
+    return switch education.mode {
     case .generalLab:
       try generalBodies(for: education)
     case .detachedBinaryLab:
@@ -95,10 +100,16 @@ public enum TransitScienceAuthoring {
   /// Compiles the Education star, planet, and optional moon as a barycentric three-body initial state.
   private static func generalBodies(for education: EducationScenarioV4) throws -> [ScientificBodyV5]
   {
+    try assertNoSurfaceSettings(education)
     let star = try input(id: "star", kind: .star, star: education.star, path: "education.star")
     let planet = try input(
       id: "planet", kind: .planet, planet: education.planet, path: "education.planet")
     if let moon = education.moon {
+      // As the Browser V5 compiler, time-dependent exomoon orientation is not a dynamical input.
+      guard moon.orientationDrift == nil else {
+        throw ScienceAuthoringError.invalid(
+          "education.moon.orientationDrift", "no time-dependent exomoon orientation drift")
+      }
       let moonInput = try input(id: "moon", kind: .moon, moon: moon, path: "education.moon")
       let outer = try relativeState(
         orbit: education.planet.orbit, totalMass: star.mass + planet.mass + moonInput.mass,
@@ -120,6 +131,22 @@ public enum TransitScienceAuthoring {
     let (starState, planetState) = split(
       primary: star, secondaryMass: planet.mass, relative: relative)
     return [try body(star, state: starState), try body(planet, state: planetState)]
+  }
+
+  /// Rejects authored body shapes and the primary star's spin, as the Browser V5 compiler does.
+  ///
+  /// The Browser V5 compiler never reads photometry, so brightness patches, spot evolution,
+  /// stellar variability, and the stellar surface are ignored rather than rejected.
+  private static func assertNoSurfaceSettings(_ education: EducationScenarioV4) throws {
+    if education.star.spin != nil {
+      throw ScienceAuthoringError.invalid("education.star.spin", "no body spin settings")
+    }
+    if education.planet.shape != nil {
+      throw ScienceAuthoringError.invalid("education.planet.shape", "no body shape settings")
+    }
+    if education.moon?.shape != nil {
+      throw ScienceAuthoringError.invalid("education.moon.shape", "no body shape settings")
+    }
   }
 
   /// Compiles the V4 detached-binary teaching case without treating its placeholder planet as scientific.
@@ -177,7 +204,7 @@ public enum TransitScienceAuthoring {
     let period = try positive(orbit.periodSeconds, "\(path).periodSeconds")
     guard orbit.eccentricity.isFinite, orbit.eccentricity >= 0, orbit.eccentricity < 1,
       orbit.inclinationRadians.isFinite, orbit.argumentOfPeriapsisRadians.isFinite,
-      orbit.meanAnomalyAtEpochRadians.isFinite
+      orbit.meanAnomalyAtEpochRadians.isFinite, orbit.longitudeOfAscendingNodeRadians.isFinite
     else { throw ScienceAuthoringError.invalid(path, "finite bound-orbit elements") }
     let expected =
       2 * Double.pi * sqrt(pow(semiMajor, 3) / (ScienceLimits.gravitationalConstant * mass))

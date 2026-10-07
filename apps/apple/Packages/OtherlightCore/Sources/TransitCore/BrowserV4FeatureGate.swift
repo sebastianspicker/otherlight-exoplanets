@@ -82,17 +82,21 @@ enum BrowserV4FeatureGate {
     -> [String]
   {
     var features = contextFeatures(dto)
-    features += bodyExtensionFeatures(dto.bodies)
+    features += bodyExtensionFeatures(dto.bodies, mode: mode)
     features +=
       mode == .detachedBinaryLab
-      ? binaryFeatures(dto.bodies) : generalLabFeatures(dto.bodies)
+      ? binaryFeatures(dto.bodies) : generalLabFeatures(dto.bodies, orbits: dto.orbits)
     features += limbDarkeningFeatures(dto, mode: mode)
     features += photometryFeatures(dto.photometry)
+    features += stellarSurfaceFeatures(dto.photometry, mode: mode)
     features += phaseFeatures(dto.photometry)
     return features
   }
 
-  /// Rejects scientific execution, a tilted observer, node rotations, and N-body or GR dynamics.
+  /// Rejects scientific execution, a tilted observer, and N-body or GR dynamics.
+  ///
+  /// Node longitudes and the exomoon orientation drift of `dynamics.exomoonTimingShape` have
+  /// native representations and are imported by `BrowserV4Import`.
   private static func contextFeatures(_ dto: BrowserV4ScenarioDTO) -> [String] {
     var features: [String] = []
     if dto.runtime?.executionMode == "scientific-browser" {
@@ -101,28 +105,38 @@ enum BrowserV4FeatureGate {
     if let dir = dto.observer?.dir, dir != Vector3(x: 0, y: 0, z: 1) {
       features.append("observer.dir other than (0, 0, 1)")
     }
-    let orbits =
-      dto.bodies.planets.map(\.orbit) + dto.bodies.moons.map(\.orbit)
-      + (dto.orbits.map { [$0.binary] } ?? [])
-    if orbits.contains(where: { $0.longitudeOfAscendingNode != 0 }) {
-      features.append("orbit Omega other than 0")
-    }
     for key in ["nbodyPlanetMoon", "relativity"] where dto.dynamics?[key]?.isEnabled == true {
       features.append("dynamics.\(key)")
     }
     return features
   }
 
-  /// Rejects body shapes, rings, spin, gravity harmonics, tides, and physical stellar photometry.
-  private static func bodyExtensionFeatures(_ bodies: BrowserV4ScenarioDTO.BodiesDTO) -> [String] {
+  /// Rejects star shapes, unsupported planet and moon shapes, rings, spin, gravity harmonics,
+  /// tides, and physical stellar photometry.
+  ///
+  /// The general-lab primary star's `spin` is imported for the Rossiter–McLaughlin anomaly, and
+  /// the second star's `spin` is ignored in both modes as the Browser ignores it; the
+  /// detached-binary kernel does not evaluate spin, so the primary's stays rejected there.
+  private static func bodyExtensionFeatures(
+    _ bodies: BrowserV4ScenarioDTO.BodiesDTO, mode: EducationScenarioMode
+  ) -> [String] {
     var features: [String] = []
     if bodies.stars.count > 2 { features.append("more than two stars") }
     let extras: [(String, [BrowserV4JSONValue?])] =
-      bodies.stars.map { ($0.id, [$0.shape, $0.rings, $0.spin, $0.gravityHarmonics, $0.tides]) }
-      + bodies.planets.map { ($0.id, [$0.shape, $0.rings, $0.spin, $0.gravityHarmonics, $0.tides]) }
-      + bodies.moons.map { ($0.id, [$0.shape, $0.rings, $0.spin, $0.gravityHarmonics, $0.tides]) }
+      bodies.stars.enumerated().map { index, star in
+        // The Browser ignores the second star's spin; only the binary primary's is unsupported.
+        let spin = mode == .detachedBinaryLab && index == 0 ? star.spin : nil
+        return (star.id, [star.shape, star.rings, spin, star.gravityHarmonics, star.tides])
+      }
+      + bodies.planets.map { ($0.id, [$0.rings, $0.spin, $0.gravityHarmonics, $0.tides]) }
+      + bodies.moons.map { ($0.id, [$0.rings, $0.spin, $0.gravityHarmonics, $0.tides]) }
     for (id, values) in extras where values.contains(where: { $0?.hasContent == true }) {
       features.append("body \(id) shape, rings, spin, gravity harmonics, or tides")
+    }
+    let shapes = bodies.planets.map { ($0.id, $0.shape) } + bodies.moons.map { ($0.id, $0.shape) }
+    for (id, shape) in shapes where !isSupportedShape(shape) {
+      features.append(
+        "body \(id) shape other than a finite oblateness below 1 with an optional finite angle")
     }
     if bodies.stars.contains(where: {
       $0.teffK != nil || $0.loggCgs != nil || $0.metallicityDex != nil
@@ -132,6 +146,20 @@ enum BrowserV4FeatureGate {
     return features
   }
 
+  /// Accepts an absent or empty shape, or exactly a finite `oblateness` below 1 plus an optional
+  /// finite `angle`, which the native oblate silhouette represents; as in the Browser, a
+  /// non-positive oblateness neither shrinks the radius nor makes a silhouette.
+  private static func isSupportedShape(_ shape: BrowserV4JSONValue?) -> Bool {
+    guard let shape, shape.hasContent else { return true }
+    guard case .object(let members) = shape, case .number(let f)? = members["oblateness"],
+      f.isFinite, f < 1
+    else { return false }
+    if let angle = members["angle"] {
+      guard case .number(let value) = angle, value.isFinite else { return false }
+    }
+    return Set(members.keys).isSubset(of: ["oblateness", "angle"])
+  }
+
   /// Rejects planets and moons in the detached-binary lab.
   private static func binaryFeatures(_ bodies: BrowserV4ScenarioDTO.BodiesDTO) -> [String] {
     bodies.planets.isEmpty && bodies.moons.isEmpty
@@ -139,7 +167,12 @@ enum BrowserV4FeatureGate {
   }
 
   /// Rejects general-lab structures beyond one star-hosted planet with at most one moon.
-  private static func generalLabFeatures(_ bodies: BrowserV4ScenarioDTO.BodiesDTO) -> [String] {
+  ///
+  /// A moon without `parentPlanetId` takes its parent from `orbits.hierarchy` (the last link
+  /// naming it, as the Browser `hierarchyParentMap`).
+  private static func generalLabFeatures(
+    _ bodies: BrowserV4ScenarioDTO.BodiesDTO, orbits: BrowserV4ScenarioDTO.OrbitsDTO?
+  ) -> [String] {
     var features: [String] = []
     if bodies.planets.count > 1 { features.append("more than one planet") }
     if bodies.moons.count > 1 { features.append("more than one moon") }
@@ -156,10 +189,20 @@ enum BrowserV4FeatureGate {
     if let parent = planet.parentStarId, parent != bodies.stars.first?.id {
       features.append("planet orbiting the second star")
     }
-    if let moon = bodies.moons.first, moon.parentPlanetId != planet.id {
+    if let moon = bodies.moons.first, moonParent(moon, orbits: orbits) != planet.id {
       features.append("moon without the planet as parent")
     }
     return features
+  }
+
+  /// Returns a moon's parent planet identifier: `parentPlanetId`, else the hierarchy's.
+  private static func moonParent(
+    _ moon: BrowserV4ScenarioDTO.MoonDTO, orbits: BrowserV4ScenarioDTO.OrbitsDTO?
+  ) -> String? {
+    if let parent = moon.parentPlanetId { return parent }
+    return orbits?.hierarchy.last {
+      $0.childId == moon.id && !$0.childId.isEmpty && !$0.parentId.isEmpty
+    }?.parentId
   }
 
   /// Requires one resolvable quadratic law per luminous star and no coefficient constraints.
@@ -180,16 +223,16 @@ enum BrowserV4FeatureGate {
   }
 
   /// Rejects enabled photometry surfaces that the native kernel does not evaluate.
+  ///
+  /// Stellar variability and the stellar surface are evaluated in the general lab and checked by
+  /// `stellarSurfaceFeatures`.
   private static func photometryFeatures(_ photometry: BrowserV4ScenarioDTO.PhotometryDTO?)
     -> [String]
   {
     guard let photometry else { return [] }
     let switches: [(String, BrowserV4JSONValue?)] = [
-      ("photometry.stellarVariability", photometry.stellarVariability),
       ("photometry.forwardScattering", photometry.forwardScattering),
       ("photometry.atmosphereTransmission", photometry.atmosphereTransmission),
-      ("photometry.spotEvolution", photometry.spotEvolution),
-      ("photometry.stellarSurface", photometry.stellarSurface),
       ("photometry.atmosphereRT", photometry.atmosphereRT),
       ("photometry.spectralBandpass", photometry.spectralBandpass),
       ("photometry.thermalModelAdvanced", photometry.thermalModelAdvanced),
@@ -197,14 +240,66 @@ enum BrowserV4FeatureGate {
       ("photometry.instrument", photometry.instrument),
       ("photometry.instrumentNoise", photometry.instrumentNoise),
     ]
-    let patches =
-      photometry.brightnessPatches?.hasContent == true ? ["photometry.brightnessPatches"] : []
-    return patches + switches.filter { $0.1?.isEnabled == true }.map(\.0)
+    return switches.filter { $0.1?.isEnabled == true }.map(\.0)
+  }
+
+  /// Rejects brightness patches and spot evolution the native primary-star surface cannot mirror.
+  ///
+  /// General-lab patch arrays are imported; entries without a `circle` or `ellipse` shape or with
+  /// invalid fields are dropped as the Browser drops them. With spot evolution enabled the Browser
+  /// evolves the raw entries before sanitising them, so entries it would keep but the static
+  /// sanitiser drops or clamps are rejected. The detached-binary kernel has no stellar surface and
+  /// does not evaluate stellar variability, which the Browser phases from the binary companion.
+  private static func stellarSurfaceFeatures(
+    _ photometry: BrowserV4ScenarioDTO.PhotometryDTO?, mode: EducationScenarioMode
+  ) -> [String] {
+    guard let photometry else { return [] }
+    let patches = photometry.brightnessPatches
+    let evolving = photometry.spotEvolution?.isEnabled == true
+    if mode == .detachedBinaryLab {
+      return (patches?.hasContent == true ? ["photometry.brightnessPatches"] : [])
+        + (evolving ? ["photometry.spotEvolution"] : [])
+        + (photometry.stellarVariability?.isEnabled == true
+          ? ["photometry.stellarVariability"] : [])
+        + (photometry.stellarSurface?.isEnabled == true ? ["photometry.stellarSurface"] : [])
+    }
+    var features: [String] = []
+    if let patches, patches.hasContent {
+      guard case .array(let entries) = patches else {
+        return ["photometry.brightnessPatches other than an array"]
+      }
+      if evolving, entries.contains(where: diverges) {
+        features.append(
+          "photometry.brightnessPatches entry that spot evolution keeps without a valid circle"
+            + " or ellipse or with a negative factor")
+      }
+    }
+    return features
+  }
+
+  /// Reports whether the Browser `evolvePatch` keeps an entry the static sanitiser drops or clamps.
+  private static func diverges(_ entry: BrowserV4JSONValue) -> Bool {
+    guard entry["x"]?.finiteNumber != nil, entry["y"]?.finiteNumber != nil,
+      let factor = entry["factor"]?.finiteNumber, let radius = evolvedRadius(entry)
+    else { return false }
+    return !radius.sanitizable || factor < 0
+  }
+
+  /// Returns the radius `evolvePatch` uses (`sqrt(rx ry)` for an ellipse, else `r`) when it is
+  /// finite and positive, and whether the static sanitiser accepts the outline.
+  private static func evolvedRadius(_ entry: BrowserV4JSONValue) -> (
+    value: Double, sanitizable: Bool
+  )? {
+    let rx = entry["rx"]?.finiteNumber ?? .nan
+    let ry = entry["ry"]?.finiteNumber ?? .nan
+    let isEllipse = entry["shape"] == .string("ellipse")
+    let r = isEllipse ? sqrt(rx * ry) : entry["r"]?.finiteNumber ?? .nan
+    guard r.isFinite, r > 0 else { return nil }
+    return (r, isEllipse ? rx > 0 && ry > 0 : entry["shape"] == .string("circle"))
   }
 
   /// Rejects thermal inertia and unknown phase or day-night model names.
-  private static func phaseFeatures(_ photometry: BrowserV4ScenarioDTO.PhotometryDTO?) -> [String]
-  {
+  private static func phaseFeatures(_ photometry: BrowserV4ScenarioDTO.PhotometryDTO?) -> [String] {
     var features: [String] = []
     let curves = [
       ("photometry.phaseCurve", photometry?.phaseCurve),

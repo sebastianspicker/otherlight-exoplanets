@@ -60,12 +60,13 @@
     {
       "id": "timing.exomoon.ttv-tdv",
       "status": "bounded-approximation",
-      "claim": "Exomoon TTV/TDV diagnostics derive from projected planet-moon barycentric motion and contact geometry.",
+      "claim": "Exomoon TTV/TDV diagnostics derive from projected planet-moon barycentric motion and contact geometry. The Education snapshot may drift the moon orbit orientation linearly (node, inclination, periapsis rates from tRef).",
       "equation": "TTV = t_mid - (t_ref + N P); TDV = T_14/T_14,ref",
       "units": "time [s]",
       "validity": "Synthetic event-series diagnostic; phenomenological orientation drifts are educational unless produced by integrated dynamics.",
       "owners": [
         "apps/browser/src/domain/orbits/exomoonTiming.ts",
+        "apps/browser/src/domain/orbits/orbitOrientationDrift.ts",
         "apps/browser/src/domain/simulation/transitTimingSolve.ts",
         "apps/browser/src/domain/simulation/orbitTimingKey.ts"
       ],
@@ -74,7 +75,7 @@
     {
       "id": "photometry.transit.opaque-disks",
       "status": "bounded-approximation",
-      "claim": "Opaque circular and mixed-shape transits integrate the union of occulted stellar intensity without double counting overlaps.",
+      "claim": "Opaque circular and mixed-shape transits integrate the union of occulted stellar intensity without double counting overlaps. With physicsFeatures.nonSphericalFlux, oblate planet and moon silhouettes enter that union as ellipses (Seager and Hui 2002, spin axis in the sky plane).",
       "equation": "F = integral I(x,y) V(x,y) dA / integral I(x,y) dA",
       "units": "relative flux [1]",
       "validity": "Distant-observer projected geometry; grid tolerances must resolve the smallest structure. Current midpoint integrations do not return an a-posteriori error estimate and therefore are not research-validated.",
@@ -85,9 +86,10 @@
         "apps/browser/src/domain/photometry/occulterEllipse.ts",
         "apps/browser/src/domain/photometry/occulterTypes.ts",
         "apps/browser/src/domain/photometry/occulterSanitize.ts",
-        "apps/browser/src/domain/photometry/occulterShapeGuards.ts"
+        "apps/browser/src/domain/photometry/occulterShapeGuards.ts",
+        "apps/browser/src/domain/simulation/v4/nativeBodySilhouette.ts"
       ],
-      "references": ["mandel-agol-2002"]
+      "references": ["mandel-agol-2002", "seager-hui-2002"]
     },
     {
       "id": "photometry.limb-darkening.claret",
@@ -148,7 +150,7 @@
     {
       "id": "photometry.stellar.preview",
       "status": "educational",
-      "claim": "Preview stellar flux, variability, spots, and granulation are bounded relative-flux teaching models.",
+      "claim": "Preview stellar flux, variability, spots, and granulation are bounded relative-flux teaching models. Evolving spots rotate rigidly about a sky-plane axis as foreshortened projected patches with exponential lifetime, and scale the primary star by their disk-integrated flux deficit. With physicalAmplitudes enabled, Doppler beaming is -4 RV_star / c and ellipsoidal variation is -q (R_star / |r_rel|)^3 sin^2 i cos 2psi from the companion state, each scaled by an alpha factor.",
       "equation": "B_lambda(T)=2hc^2/[lambda^5(exp(hc/(lambda kT))-1)]; F_band proportional to R^2 integral B_lambda S(lambda) d lambda / integral S(lambda) d lambda",
       "units": "relative flux [1]",
       "validity": "Blackbody/surrogate filters, hand-derived limb coefficients, harmonic variability, and sinusoidal granulation are not atmosphere or PSD synthesis.",
@@ -156,9 +158,10 @@
         "apps/browser/src/domain/photometry/stellarBandFlux.ts",
         "apps/browser/src/domain/photometry/stellarVariability.ts",
         "apps/browser/src/domain/photometry/stellarVariabilityComponents.ts",
-        "apps/browser/src/domain/photometry/patches.ts"
+        "apps/browser/src/domain/photometry/patches.ts",
+        "apps/browser/src/domain/photometry/spotEvolution.ts"
       ],
-      "references": ["claret-2000"]
+      "references": ["claret-2000", "loeb-gaudi-2003", "morris-naftilan-1993"]
     },
     {
       "id": "measurement.exposure-noise.preview",
@@ -184,15 +187,17 @@
     {
       "id": "observables.rv-astrometry.preview",
       "status": "bounded-approximation",
-      "claim": "Preview radial velocity is the barycentric target velocity projected with positive recession, while preview astrometry is a linear sky-plane displacement.",
+      "claim": "Preview radial velocity is the barycentric target velocity projected with positive recession, while preview astrometry is a linear sky-plane displacement. With a stellar rotation period the Education V4 runtime adds the Rossiter-McLaughlin anomaly as the flux-weighted line-of-sight velocity of the visible limb-darkened disk of a rigidly rotating primary whose spin axis follows the first companion's orbit normal unless an axis position angle is authored.",
       "equation": "v_r = -v dot n; r_sky = r-(r dot n)n",
       "units": "radial velocity [m s^-1], linear sky offset [m]",
       "validity": "The observer vector points from system to observer. V4 astrometry is not angular and has no distance/parallax calibration. The V5 backend requires an explicit RV target and projects photocentre offsets onto the sky plane.",
       "owners": [
         "apps/browser/src/domain/simulation/v4/nativeEngineTiming.ts",
+        "apps/browser/src/domain/simulation/v4/nativeStellarSpin.ts",
+        "apps/browser/src/domain/photometry/rossiterMcLaughlin.ts",
         "services/science/science_backend/forward.py"
       ],
-      "references": ["murray-dermott-1999"]
+      "references": ["murray-dermott-1999", "ohta-2005"]
     },
     {
       "id": "runtime.v4.kepler-preview",

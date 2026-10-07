@@ -87,7 +87,6 @@
     "native:science:build": "source scripts/select-swift-toolchain.sh && swift build --package-path apps/apple/Packages/OtherlightScience",
     "data:real-systems:refresh": "node scripts/fetch-real-systems-snapshot.mjs",
     "migrate:v4": "node scripts/migrate-systemparams-v4.mjs",
-    "native:fixtures": "node scripts/export-native-parity-fixtures.mjs",
     "smoke:served": "bash ./scripts/smoke-served-app.sh",
     "smoke:pages": "node scripts/smoke-pages-app.mjs",
     "deadcode:report": "knip --include exports,types --reporter json --no-exit-code",

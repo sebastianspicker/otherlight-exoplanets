@@ -108,7 +108,7 @@ public struct BrowserV4ScenarioDTO: Codable, Sendable, Hashable {
   }
   /// Collects optional browser V4 photometry settings.
   public struct PhotometryDTO: Codable, Sendable, Hashable {
-    public let gridRes: Int?
+    public let gridRes: Double?
     public let limbDarkeningModel: LimbDarkeningModelDTO?
     public let phaseCurve: PhaseCurveDTO?
     public let moonPhaseCurve: PhaseCurveDTO?
@@ -219,6 +219,12 @@ public enum BrowserV4JSONValue: Codable, Sendable, Hashable {
   /// Returns the member value of an object, or nil for other values.
   public subscript(key: String) -> BrowserV4JSONValue? {
     if case .object(let members) = self { return members[key] }
+    return nil
+  }
+
+  /// Returns a finite number value, or nil for other values.
+  public var finiteNumber: Double? {
+    if case .number(let value) = self, value.isFinite { return value }
     return nil
   }
 
