@@ -8,16 +8,9 @@
 // Scientific intent / scope:
 // - Implements observer-space light-curve harmonics (not a physical RV + stellar-shape forward model).
 // - Amplitudes are provided directly in "stellar flux units" relative to a normalized baseline ~1.0.
-// - The harmonic phase phi is geometric, taken from the companion's position and velocity relative
-//   to the star (see signedConjunctionPhaseRad in dayNightVisibility.ts):
-//     z = (rRel . oHat) / |rRel|,  s = -(vRel . oHat) / vNorm,  phi = atan2(s, z)
-//   with vNorm = n a / sqrt(1 - e^2) and n = 2π / period from the companion orbit.
-//   phi = 0 at inferior conjunction (transit), phi = π at superior conjunction, and sin(phi) > 0
-//   while the star approaches the observer. Beaming = A_b sin(phi + offset) is therefore zero at
-//   both conjunctions and positive for an approaching star; ellipsoidal = -A_e cos(2(phi + offset))
-//   has minima at both conjunctions and maxima at quadratures.
-// - StellarVariabilityParams.phaseModel is kept for compatibility but no longer selects the phase;
-//   both "linear-period" and "true-anomaly" use the geometric phase.
+// - Beaming knobs retain their historical velocity-normalized phase surrogate. Ellipsoidal
+//   harmonics use the radial-free orbital tangent, with minima at geometric conjunction.
+// - StellarVariabilityParams.phaseModel is retained for compatibility.
 // - Without a companion state the harmonic terms are 0; constant, flare and pulsation terms remain.
 //
 // Physical amplitude mode (opt-in, physicalAmplitudes === true; Loeb & Gaudi 2003, Morris & Naftilan 1993):
@@ -38,7 +31,7 @@ import type { OrbitElements, StellarVariabilityParams } from "../model/types";
 import { clamp, isFiniteNumber, isFinitePositive } from "../model/units";
 import type { Vec3 } from "../orbits/vec3";
 import { vCross, vDot, vIsFinite, vLen, vNormalizeOrZero } from "../orbits/vec3";
-import { signedConjunctionPhaseRad } from "./dayNightVisibility";
+import { geometricConjunctionPhaseRad, signedConjunctionPhaseRad } from "./dayNightVisibility";
 import {
   finiteOrZero,
   hasNoVariability,
@@ -86,15 +79,18 @@ function variabilityPhase(
 }
 
 function harmonicVariabilityTerms(
-  phi: number,
+  phi: number | undefined,
+  ellipsoidalPhase: number | undefined,
   model: StellarVariabilityParams,
   components: StellarVariabilityComponents,
 ): number {
   const beamingOffset = finiteOrZero(model.beamingOffset);
   const ellipOffset = finiteOrZero(model.ellipsoidalOffset);
   return (
-    components.beamingAmp * Math.sin(phi + beamingOffset) -
-    components.ellipAmp * Math.cos(2 * (phi + ellipOffset))
+    (phi === undefined ? 0 : components.beamingAmp * Math.sin(phi + beamingOffset)) -
+    (ellipsoidalPhase === undefined
+      ? 0
+      : components.ellipAmp * Math.cos(2 * (ellipsoidalPhase + ellipOffset)))
   );
 }
 
@@ -149,8 +145,11 @@ function harmonicTerms(
   components: StellarVariabilityComponents,
   geometry: StellarVariabilityGeometry | undefined,
 ): number {
-  if (model.physicalAmplitudes === true) return physicalHarmonicTerms(phi, model, geometry);
-  return phi === undefined ? 0 : harmonicVariabilityTerms(phi, model, components);
+  const geometricPhase = geometry
+    ? geometricConjunctionPhaseRad(geometry.rRel, geometry.vRel, geometry.observerDir)
+    : undefined;
+  if (model.physicalAmplitudes === true) return physicalHarmonicTerms(geometricPhase, model, geometry);
+  return harmonicVariabilityTerms(phi, geometricPhase, model, components);
 }
 
 function combineVariabilityTerms(harmonic: number, components: StellarVariabilityComponents): number {

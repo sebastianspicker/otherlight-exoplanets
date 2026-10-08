@@ -8,45 +8,10 @@ type RootSolveResult = {
   converged: boolean;
 };
 
-type BracketScanResult = {
-  bracket?: [number, number];
-  scans: number;
-};
-
 type BracketsScanResult = {
   brackets: [number, number][];
   scans: number;
 };
-
-export function findBracketByScan(args: {
-  fn: (tSec: number) => number | undefined;
-  startSec: number;
-  endSec: number;
-  samples?: number;
-}): BracketScanResult {
-  const sampleCount = Math.max(4, Math.floor(args.samples ?? 32));
-  let prevT = args.startSec;
-  let prevV = args.fn(prevT);
-
-  for (let idx = 1; idx <= sampleCount; idx++) {
-    const alpha = idx / sampleCount;
-    const tSec = args.startSec + (args.endSec - args.startSec) * alpha;
-    const val = args.fn(tSec);
-    if (val === undefined) {
-      prevT = tSec;
-      prevV = val;
-      continue;
-    }
-    if (val === 0) return { bracket: [tSec, tSec], scans: idx + 1 };
-    if (prevV !== undefined && Number.isFinite(prevV) && (prevV <= 0 ? val >= 0 : val <= 0)) {
-      return { bracket: [prevT, tSec], scans: idx + 1 };
-    }
-    prevT = tSec;
-    prevV = val;
-  }
-
-  return { bracket: undefined, scans: sampleCount + 1 };
-}
 
 export function findBracketsByScan(args: {
   fn: (tSec: number) => number | undefined;

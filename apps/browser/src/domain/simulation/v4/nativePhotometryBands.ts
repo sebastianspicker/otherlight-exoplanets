@@ -1,5 +1,6 @@
 /** Resolves weighted photometry bands for native V4 scenarios. */
 import { spectralContaminationWeight } from "../../photometry/atmosphereRT/model";
+import { usesLegacyAtmosphereTransmission } from "./atmosphereSelection";
 import type { EducationScenarioV4 } from "./types";
 import type { WeightedPhotometryBand } from "./nativePhotometryTypes";
 
@@ -10,7 +11,7 @@ const isFinitePositive = (value: unknown): value is number =>
 
 export function resolveWeightedPhotometryBands(config: EducationScenarioV4): WeightedPhotometryBand[] {
   const phot = config.photometry;
-  const legacy = normalizeLegacyTransmissionGrid(config);
+  const legacy = usesLegacyAtmosphereTransmission(phot) ? normalizeLegacyTransmissionGrid(config) : null;
   const spectralBands = resolveSpectralBandpassBands(config, legacy);
   if (spectralBands) return spectralBands;
   if (legacy) return equalWeightLegacyBands(legacy);
@@ -67,8 +68,12 @@ const resolveSpectralBandpassBands = (
     Array.isArray(bandpass?.weights) && bandpass.weights.length === lambdaNm.length
       ? bandpass.weights
       : lambdaNm.map(() => 1);
-  const legacyTauScale =
-    legacy && legacy.lambdaNm.length === lambdaNm.length ? legacy.tauScale : lambdaNm.map(() => 1);
+  if (legacy && !sameWavelengthGrid(legacy.lambdaNm, lambdaNm)) {
+    throw new Error(
+      "Legacy atmosphere and spectral bandpass wavelengths must match exactly; interpolation is unsupported.",
+    );
+  }
+  const legacyTauScale = legacy?.tauScale ?? lambdaNm.map(() => 1);
   const normalized = normalizedSpectralWeights(lambdaNm, rawWeights, phot?.atmosphereRT);
   return lambdaNm.map((value, index) => ({
     lambdaNm: value,
@@ -76,6 +81,9 @@ const resolveSpectralBandpassBands = (
     legacyTauScale: legacyTauScale[index] ?? 1,
   }));
 };
+
+const sameWavelengthGrid = (first: number[], second: number[]): boolean =>
+  first.length === second.length && first.every((wavelength, index) => wavelength === second[index]);
 
 const enabledBandpassWavelengths = (
   bandpass: NonNullable<EducationScenarioV4["photometry"]>["spectralBandpass"] | undefined,

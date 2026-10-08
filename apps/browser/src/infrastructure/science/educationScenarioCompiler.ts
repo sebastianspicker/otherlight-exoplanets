@@ -159,17 +159,17 @@ function assertSupportedDynamics(
   const timing = dynamics?.exomoonTimingShape;
   if (
     timing?.enabled &&
-    [
-      timing.moonOmegaDot,
-      timing.moonIncDot,
-      timing.moonOmegaSmallDot,
-      timing.moonImpactYDot,
-      timing.moonOmega0,
-      timing.moonInc0,
-      timing.moonOmegaSmall0,
-    ].some((value) => value !== undefined && value !== 0)
+    [timing.moonOmegaDot, timing.moonIncDot, timing.moonOmegaSmallDot, timing.moonImpactYDot].some(
+      (value) => value !== undefined && value !== 0,
+    )
   ) {
     compilerError("time-dependent exomoon orientation or sky-plane drift is unsupported.");
+  }
+  if (
+    timing?.enabled &&
+    [timing.moonOmega0, timing.moonInc0, timing.moonOmegaSmall0].some((value) => value !== undefined)
+  ) {
+    compilerError("static exomoon orientation overrides are unsupported.");
   }
   for (const body of bodies) {
     if (body.shape) compilerError(`body "${body.id}" shape settings are unsupported.`);
@@ -226,6 +226,11 @@ function generalBodies(scenario: EducationScenarioV4): { bodies: ScientificBodyV
     compilerError("general-lab supports at most one moon for the V5 compiler.");
   const planetV4 = scenario.bodies.planets[0];
   const moonV4 = scenario.bodies.moons[0];
+  if ((planetV4.parentStarId ?? starA.id) !== starA.id || planetV4.parentSystem === "circumbinary") {
+    compilerError(
+      "general-lab supports only planets orbiting the primary star; host changes are unsupported.",
+    );
+  }
   if (moonV4 && moonV4.parentPlanetId !== planetV4.id)
     compilerError("the compiled moon must orbit the compiled planet.");
   assertGeneralHierarchy(scenario, planetV4, moonV4);

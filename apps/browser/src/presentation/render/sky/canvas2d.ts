@@ -32,7 +32,7 @@ export type { DebugOverlayData, DebugOverlayToggles } from "./overlays";
 export type Canvas2DRendererOptions = {
   /**
    * Background fill for the main view.
-   * Default: the Plate & Figure sky plate color.
+   * Default: the Deep Field sky plate color.
    */
   background?: string;
 
@@ -226,9 +226,11 @@ export class Canvas2DRenderer {
     const cssH = this.size?.cssH ?? 0;
     if (!(cssW > 0 && cssH > 0)) return;
 
+    // A dashed reticle through the plate centre, like an eyepiece crosshair.
     ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.strokeStyle = "rgba(160,176,214,0.11)";
     ctx.lineWidth = 1;
+    ctx.setLineDash([2, 6]);
     ctx.beginPath();
     ctx.moveTo(0, cssH * 0.5);
     ctx.lineTo(cssW, cssH * 0.5);
@@ -310,9 +312,24 @@ export class Canvas2DRenderer {
   }
 
   private drawFrameBackground(cssW: number, cssH: number): void {
-    this.ctx.clearRect(0, 0, cssW, cssH);
-    this.ctx.fillStyle = this.opts.background;
-    this.ctx.fillRect(0, 0, cssW, cssH);
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, cssW, cssH);
+    ctx.fillStyle = this.opts.background;
+    ctx.fillRect(0, 0, cssW, cssH);
+    if (this.opts.background !== PLATE_INK.sky) return;
+    // A faint, static sky glow behind the star keeps the plate from reading as a flat void.
+    const glow = ctx.createRadialGradient(
+      cssW * 0.5,
+      cssH * 0.5,
+      0,
+      cssW * 0.5,
+      cssH * 0.5,
+      Math.hypot(cssW, cssH) * 0.5,
+    );
+    glow.addColorStop(0, PLATE_INK.skyGlow);
+    glow.addColorStop(1, PLATE_INK.sky);
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, cssW, cssH);
   }
 
   private resolveFrameObserverDir(params: BrowserScenarioDraft, step: SimulationFrame): Vec3 {

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "science-v7",
+  "kind": "provenance",
+  "operation": "reduced-data-import",
+  "softwareVersion": "test-1",
+  "inputHashes": ["0000000000000000000000000000000000000000000000000000000000000000"],
+  "citations": ["Synthetic validation input"],
+  "licences": ["CC0-1.0"]
+}

@@ -1,7 +1,7 @@
 /*
- * Plate & Figure — native controls in one shape vocabulary.
- * Default buttons are ruled paper, primary actions are solid ink, quiet actions
- * are underlined text. Every control keeps its native behaviour.
+ * Deep Field — native controls in one shape vocabulary.
+ * Default buttons are quiet raised surfaces, the primary action is the accent,
+ * text actions are underlined. Every control keeps its native behaviour.
  */
 
 button,
@@ -12,6 +12,7 @@ summary {
   transition:
     border-color var(--dur) var(--ease),
     background-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
     color var(--dur) var(--ease);
 }
 
@@ -24,7 +25,7 @@ button {
   padding: 0 var(--s-4);
   border: var(--hair-strong);
   border-radius: var(--r-control);
-  background: var(--paper-raised);
+  background: var(--surface-2);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -35,11 +36,12 @@ button {
 }
 
 button:hover {
-  border-color: var(--ink);
+  border-color: var(--field-rule);
+  background: var(--surface-3);
 }
 
 button:active {
-  background: var(--paper-sunk);
+  background: var(--surface);
 }
 
 button:disabled {
@@ -49,34 +51,35 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Solid ink: the one action a surface exists for. */
+/* The accent: the one action a surface exists for. */
 .primary-action:not(:disabled),
 #btnApplyParams:not(:disabled),
 #didNextBtn:not(:disabled),
 #scienceRunBtn:not(:disabled) {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--on-ink);
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 0 var(--accent-glow);
+  color: var(--on-accent);
 }
 
 .primary-action:hover:not(:disabled),
 #btnApplyParams:hover:not(:disabled),
 #didNextBtn:hover:not(:disabled),
 #scienceRunBtn:hover:not(:disabled) {
-  border-color: var(--ink-hover);
-  background: var(--ink-hover);
-  color: var(--on-ink);
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  box-shadow: 0 0 0 4px var(--accent-wash);
+  color: var(--on-accent);
 }
 
 .primary-action:active:not(:disabled),
 #btnApplyParams:active:not(:disabled),
 #didNextBtn:active:not(:disabled) {
-  background: var(--ink);
+  background: var(--accent);
 }
 
 /* Quiet text actions: underlined, no box. */
 .text-action,
-.figure-heading button,
 #btnReset,
 #btnClearLC,
 #observatoryClearComparisonBtn {
@@ -85,7 +88,7 @@ button:disabled {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--ink);
+  color: var(--ink-2);
   text-decoration: underline;
   text-decoration-color: var(--rule-strong);
   text-decoration-thickness: 1px;
@@ -93,30 +96,34 @@ button:disabled {
 }
 
 .text-action:hover,
-.figure-heading button:hover,
 #btnReset:hover,
 #btnClearLC:hover,
 #observatoryClearComparisonBtn:hover {
   background: transparent;
+  color: var(--ink);
   text-decoration-color: currentcolor;
 }
 
 .text-action--forward::after {
   content: "→";
-  font-family: var(--font-serif);
   font-weight: 400;
+  transition: transform var(--dur) var(--ease);
 }
 
-/* Fields */
+.text-action--forward:hover::after {
+  transform: translateX(3px);
+}
+
+/* Fields: an inset well on the surface they sit on. */
 input[type="number"],
 input[type="text"],
 select,
 textarea {
   min-height: var(--control-h);
   padding: 0 var(--s-3);
-  border: var(--hair-strong);
+  border: 1px solid var(--field-rule);
   border-radius: var(--r-control);
-  background: var(--paper-raised);
+  background: rgb(3 5 10 / 55%);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: var(--t-base);
@@ -129,13 +136,15 @@ input[type="text"] {
 
 input[readonly] {
   border-style: dashed;
+  border-color: var(--rule-strong);
   background: transparent;
+  color: var(--ink-2);
 }
 
 textarea {
   width: 100%;
-  min-height: 88px;
-  padding: var(--s-2) var(--s-3);
+  min-height: 96px;
+  padding: var(--s-3);
   line-height: var(--lh-body);
   resize: vertical;
 }
@@ -147,44 +156,99 @@ textarea {
 
 select {
   max-width: 100%;
-  padding-right: 32px;
+  padding-right: 34px;
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%2345484b' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%23b4bccb' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
 }
 
+select option {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
 input[type="number"]:hover,
-input[type="text"]:hover,
+input[type="text"]:not([readonly]):hover,
 select:hover,
 textarea:hover {
-  border-color: var(--ink-2);
+  border-color: var(--ink-3);
 }
 
 input[type="number"]:focus,
-input[type="text"]:focus,
+input[type="text"]:not([readonly]):focus,
 select:focus,
 textarea:focus {
-  border-color: var(--ink);
-}
-
-input[type="range"],
-input[type="checkbox"] {
-  accent-color: var(--ink);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
 }
 
 input[type="checkbox"] {
   width: 18px;
   height: 18px;
   margin: 0;
+  accent-color: var(--accent);
 }
 
+/* Range: a hairline track that fills with the accent up to the thumb. */
 input[type="range"] {
   width: 100%;
   height: 24px;
   margin: 0;
+  background: transparent;
   cursor: pointer;
+  appearance: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--rule-2);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--space);
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 1px var(--field-rule);
+  appearance: none;
+  transition: box-shadow var(--dur) var(--ease);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--space);
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 1px var(--field-rule);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  background: var(--accent-strong);
+  box-shadow: 0 0 0 5px var(--accent-wash);
+}
+
+input[type="range"]:focus-visible {
+  outline-offset: 4px;
 }
 
 input[type="file"] {
@@ -200,7 +264,7 @@ input[type="file"]::file-selector-button {
   padding: 0 var(--s-3);
   border: var(--hair-strong);
   border-radius: var(--r-control);
-  background: var(--paper-raised);
+  background: var(--surface-2);
   color: var(--ink);
   font: 600 14px var(--font-sans);
   cursor: pointer;
@@ -211,7 +275,7 @@ input[aria-invalid="true"],
 input[aria-invalid="true"]:hover {
   border-color: var(--fault);
   background: var(--fault-wash);
-  box-shadow: inset 0 0 0 1px var(--fault);
+  box-shadow: 0 0 0 3px rgb(255 143 134 / 12%);
 }
 
 .field-error {
@@ -225,7 +289,8 @@ input[aria-invalid="true"]:hover {
 .form-error-summary {
   width: 100%;
   padding: var(--s-3) var(--s-4);
-  border-left: 3px solid var(--fault);
+  border: 1px solid rgb(255 143 134 / 30%);
+  border-radius: var(--r-control);
   background: var(--fault-wash);
   color: var(--ink);
 }
@@ -266,6 +331,7 @@ details > summary::before {
   border-right: 1.5px solid currentcolor;
   border-bottom: 1.5px solid currentcolor;
   content: "";
+  opacity: 0.8;
   transform: rotate(-45deg);
   transition: transform var(--dur) var(--ease);
 }
@@ -289,18 +355,22 @@ fieldset {
 
 legend {
   padding: 0 var(--s-2) 0 0;
-  color: var(--ink);
-  font-family: var(--font-serif);
-  font-size: var(--t-md);
-  font-style: italic;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
 }
 
 dialog {
   max-width: min(520px, calc(100vw - 32px));
   padding: var(--s-5);
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  background: var(--paper-raised);
+  border: var(--hair-2);
+  border-radius: var(--r-panel);
+  background: var(--surface-2);
+  box-shadow:
+    var(--lift),
+    0 24px 64px -12px rgb(0 0 0 / 80%);
   color: var(--ink);
 }
 
@@ -309,7 +379,8 @@ dialog h2 {
 }
 
 dialog::backdrop {
-  background: rgb(12 15 19 / 50%);
+  background: rgb(3 5 10 / 70%);
+  backdrop-filter: blur(4px);
 }
 
 .dialog-actions {
@@ -321,12 +392,6 @@ dialog::backdrop {
 }
 
 #dirtyDiscardBtn {
-  border-color: var(--fault);
+  border-color: rgb(255 143 134 / 45%);
   color: var(--fault);
-}
-
-@media (prefers-color-scheme: dark) {
-  select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%23bbb6ab' stroke-width='1.5'/%3E%3C/svg%3E");
-  }
 }

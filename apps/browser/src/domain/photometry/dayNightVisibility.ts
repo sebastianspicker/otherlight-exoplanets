@@ -157,10 +157,10 @@ export function applyPhaseOffset(alphaRad: number, offsetRad: number): number {
 }
 
 /**
- * Signed orbital phase psi in (-pi, pi] measured from inferior conjunction, from the body's position
+ * Legacy velocity-normalized beaming phase psi in (-pi, pi], from the body's position
  * rRel and velocity vRel relative to its star (observerDir points from the star toward the observer):
  *   z = (rRel . oHat) / |rRel|,  s = -(vRel . oHat) / vNorm,  psi = atan2(s, z)
- * - psi = 0 at inferior conjunction (body in front of the star), psi = pi at superior conjunction.
+ * For eccentric motion this legacy velocity-phase surrogate is not geometric conjunction.
  * - sin(psi) > 0 while the body recedes from the observer, i.e. while the star approaches.
  * vNorm defaults to |vRel| (exact for circular orbits). Returns undefined for degenerate input.
  */
@@ -176,6 +176,23 @@ export function signedConjunctionPhaseRad(
   const norm = isFinitePositive(vNorm) ? vNorm : vLen(vRel);
   if (!(rLen > 1e-15 && norm > 0 && vLen(oHat) > 0)) return undefined;
   const psi = Math.atan2(-vDot(vRel, oHat) / norm, vDot(rRel, oHat) / rLen);
+  return Number.isFinite(psi) ? psi : undefined;
+}
+
+/** Returns conjunction phase from position and the radial-free orbital tangent. */
+export function geometricConjunctionPhaseRad(rRel: Vec3, vRel: Vec3, observerDir: Vec3): number | undefined {
+  if (!vIsFinite(rRel) || !vIsFinite(vRel) || !vIsFinite(observerDir)) return undefined;
+  const oHat = vNormalizeOrZero(observerDir);
+  const rLen = vLen(rRel);
+  if (!(rLen > 1e-15 && vLen(oHat) > 0)) return undefined;
+  const rHat = vNormalizeOrZero(rRel);
+  const tangent = vAddScaled(vRel, rHat, -vDot(vRel, rHat));
+  const norm = vLen(tangent);
+  if (!(norm > 0)) return undefined;
+  const cosine = vDot(rHat, oHat);
+  const sine = -vDot(tangent, oHat) / norm;
+  if (Math.hypot(cosine, sine) < 1e-12) return undefined;
+  const psi = Math.atan2(sine, cosine);
   return Number.isFinite(psi) ? psi : undefined;
 }
 

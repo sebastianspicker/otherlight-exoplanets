@@ -36,12 +36,18 @@ public enum QuadraticLimbDarkening {
 /// radiative transfer so results stay deterministic and responsive for the teaching workspace.
 public struct SimulationEngine: Sendable {
   public let scenario: EducationScenarioV4
+  var transitReferenceCache: TransitReferenceEphemeris?
+  var solvedTransitCache: (number: Int, event: SolvedTransitEvent)?
+  var solvedMoonTransitCache: SolvedTransitEvent?
 
   /// Validates the scenario before accepting it; invalid physical inputs throw `ValidationError`.
   public init(scenario: EducationScenarioV4) throws {
     let issues = Self.validate(scenario)
     guard issues.isEmpty else { throw ValidationError(issues) }
     self.scenario = scenario
+    self.transitReferenceCache = Self.referenceEphemeris(for: scenario)
+    self.solvedTransitCache = nil
+    self.solvedMoonTransitCache = nil
   }
 
   /// Evaluates positions, flux components, and timing diagnostics at an absolute SI time in seconds.
@@ -95,12 +101,9 @@ public struct SimulationEngine: Sendable {
           bodyRadius: moon.radiusMetres)
     }
     let total = stellar.preTransit * transitFactor + planetPhase + moonPhase
-    let diagnostics = timingDiagnostics(
-      at: timeSeconds, planet: relativePlanet,
-      planetVelocity: state.planetVelocity - state.starVelocity,
-      moon: relativeMoon, moonVelocity: state.moonVelocity.map { $0 - state.starVelocity })
-    let timingAvailable =
-      diagnostics.planetTransitCenterSec != nil || diagnostics.moonTransitCenterSec != nil
+    let solvedTiming = timingSample(at: timeSeconds)
+    let diagnostics = solvedTiming.diagnostics
+    let timingAvailable = solvedTiming.signal.isValid || diagnostics.moonTransitCenterSec != nil
     let events = [
       RenderEvent(
         id: "transit", kind: "transit", label: "Transit attenuation active",
@@ -119,22 +122,13 @@ public struct SimulationEngine: Sendable {
         active: visibility.secondaryEclipseFraction > 1e-4),
     ]
     let period = scenario.planet.orbit.periodSeconds
-    let transitNumber = Int((elapsed / period).rounded())
     let phase = (elapsed / period).truncatingRemainder(dividingBy: 1)
-    // The toy O-C reads the moon's star-relative sky offset so stellar reflex motion cancels.
-    let oc =
-      relativeMoon.map {
-        $0.x / max(1, scenario.planet.orbit.semiMajorAxisMetres) * period / (2 * .pi) * 0.01
-      } ?? 0
     return EducationStep(
       timeSeconds: timeSeconds, skyPoints: points, flux: total,
       fluxComponents: .init(
         total: total, transitFactor: transitFactor, stellarPreTransit: stellar.preTransit,
         planetPhase: planetPhase, moonPhase: moonPhase),
-      timing: .init(
-        transitNumber: transitNumber,
-        calculatedSeconds: scenario.epochSeconds + Double(transitNumber) * period,
-        observedMinusCalculatedSeconds: oc), transitTiming: diagnostics,
+      timing: solvedTiming.signal, transitTiming: diagnostics,
       renderSignals: .init(
         phase: phase < 0 ? phase + 1 : phase, dayNightFraction: 0.5 * (1 + cos(2 * .pi * phase)),
         occultedFraction: 1 - transitFactor, events: events), warnings: [],
@@ -183,9 +177,7 @@ public struct SimulationEngine: Sendable {
       fluxComponents: .init(
         total: normalized, transitFactor: normalized, stellarPreTransit: baseline, planetPhase: 0,
         moonPhase: 0),
-      timing: .init(
-        transitNumber: Int((elapsed / binary.relativeOrbit.periodSeconds).rounded()),
-        calculatedSeconds: timeSeconds, observedMinusCalculatedSeconds: 0),
+      timing: .unavailable,
       renderSignals: .init(
         phase: phase < 0 ? phase + 1 : phase, dayNightFraction: 0, occultedFraction: 1 - normalized,
         events: [
@@ -331,46 +323,4 @@ public struct SimulationEngine: Sendable {
     return min(1, max(0, hasEllipse ? (total - blocked) / total : 1 - blocked / total))
   }
 
-  /// Solves a linearized transit center and contacts when the body crosses the stellar disk.
-  private func event(at time: Double, position: Vector3, velocity: Vector3, radius: Double) -> (
-    Double, Double, Double, Double
-  )? {
-    let speed2 = velocity.x * velocity.x + velocity.y * velocity.y
-    guard speed2 > 0 else { return nil }
-    let dt = -(position.x * velocity.x + position.y * velocity.y) / speed2
-    let x = position.x + velocity.x * dt
-    let y = position.y + velocity.y * dt
-    let z = position.z + velocity.z * dt
-    let impact = hypot(x, y)
-    let sum = scenario.star.radiusMetres + radius
-    guard impact < sum, z > 0 else { return nil }
-    let duration = 2 * sqrt(max(0, sum * sum - impact * impact)) / sqrt(speed2)
-    let center = time + dt
-    return (center, duration, center - duration / 2, center + duration / 2)
-  }
-
-  /// Builds optional planet and moon contact diagnostics from their current kinematics.
-  private func timingDiagnostics(
-    at time: Double, planet: Vector3, planetVelocity: Vector3, moon: Vector3?,
-    moonVelocity: Vector3?
-  ) -> TransitTimingDiagnostics {
-    var result = TransitTimingDiagnostics()
-    if let event = event(
-      at: time, position: planet, velocity: planetVelocity, radius: scenario.planet.radiusMetres)
-    {
-      result.planetTransitCenterSec = event.0
-      result.planetTransitDurationSec = event.1
-      result.planetIngressSec = event.2
-      result.planetEgressSec = event.3
-    }
-    if let moon, let moonVelocity, let radius = scenario.moon?.radiusMetres,
-      let event = event(at: time, position: moon, velocity: moonVelocity, radius: radius)
-    {
-      result.moonTransitCenterSec = event.0
-      result.moonTransitDurationSec = event.1
-      result.moonIngressSec = event.2
-      result.moonEgressSec = event.3
-    }
-    return result
-  }
 }

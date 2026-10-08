@@ -6,6 +6,13 @@ currently provides strict, process-memory V6 dataset imports but no V6 jobs. It 
 not a general astronomy service, and it does not replace the Browser Education
 simulation.
 
+The `/v3` family adds persistent, immutable V7 research inputs and explicit
+provenance. Its current scope is the [input foundation](../../contracts/science-v7/README.md):
+no V7 forward models or inference jobs are qualified. V7 supersedes the old
+research roadmap, while V5/V6 live behavior stays available through client
+cutover. [Workspace V2 migrations](../../contracts/workspace-v2/README.md)
+preserve original files and reject ambiguous scientific conversions.
+
 ## Requirements and installation
 
 The package requires Python `>=3.14.6,<3.15`. From the repository root, create an

@@ -1,7 +1,7 @@
 /*
- * Plate & Figure — Guided Labs.
- * A lesson reads like a worked page: one phase at a time, its prompt set in the
- * text serif, responses on ruled paper, hints and checks as margin notes.
+ * Deep Field — Guided Labs.
+ * A lesson reads like a worked page: one phase at a time, its prompt in large
+ * readable prose, responses in inset wells, hints and checks as margin notes.
  */
 
 .lab-rail {
@@ -9,14 +9,10 @@
   align-content: start;
   gap: var(--s-4);
   min-width: 0;
-  padding-bottom: var(--s-6);
 }
 
 .lab-rail__header .eyebrow {
-  color: var(--ink);
-  font-size: var(--t-lg);
-  font-style: normal;
-  font-weight: 600;
+  color: var(--accent);
 }
 
 .lab-rail__setup,
@@ -60,8 +56,8 @@
 
 .lab-rail__summary {
   margin: 0;
-  font-family: var(--font-serif);
-  font-size: var(--t-md);
+  color: var(--ink-2);
+  font-size: var(--t-base);
   line-height: var(--lh-body);
 }
 
@@ -74,11 +70,13 @@
 
 .lab-vocab-tag {
   padding: 0 var(--s-2);
-  border: var(--hair-strong);
-  border-radius: 2px;
+  border: var(--hair-2);
+  border-radius: var(--r-pill);
+  background: rgb(3 5 10 / 40%);
   color: var(--ink-2);
-  font-size: var(--t-xs);
-  line-height: 20px;
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  line-height: 22px;
 }
 
 /* The current phase */
@@ -91,21 +89,21 @@
 
 .lesson-progress {
   margin: 0;
-  color: var(--pencil);
+  color: var(--accent);
   font-family: var(--font-mono);
-  font-size: var(--t-xs);
-  letter-spacing: 0.04em;
+  font-size: var(--t-2xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
 }
 
 #didPhaseTitle {
-  font-size: var(--t-2xl);
-  line-height: var(--lh-tight);
+  font-size: var(--t-xl);
+  line-height: 1.2;
 }
 
 #didPhasePrompt {
   max-width: 62ch;
   color: var(--ink);
-  font-family: var(--font-serif);
   font-size: var(--t-md);
   line-height: var(--lh-body);
 }
@@ -113,16 +111,13 @@
 .lab-phase__example {
   display: grid;
   gap: var(--s-2);
-  padding: var(--s-3) 0 var(--s-3) var(--s-4);
-  border-left: 2px solid var(--ink);
+  padding: var(--s-3) var(--s-4);
+  border: var(--hair);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r-control);
+  background: rgb(3 5 10 / 40%);
   color: var(--ink);
-  font-family: var(--font-serif);
   font-size: var(--t-base);
-}
-
-.lab-phase__example .help {
-  font-family: var(--font-sans);
-  font-style: normal;
 }
 
 #didResponseComposer {
@@ -206,7 +201,7 @@
 #didCheckList {
   display: grid;
   gap: var(--s-1);
-  border-left-color: var(--ink);
+  border-left-color: var(--accent);
 }
 
 .check-item {
@@ -261,7 +256,8 @@
   padding: var(--s-3);
   overflow: auto;
   border: var(--hair);
-  background: var(--paper-sunk);
+  border-radius: var(--r-control);
+  background: rgb(3 5 10 / 50%);
   font-size: var(--t-xs);
   white-space: pre-wrap;
 }

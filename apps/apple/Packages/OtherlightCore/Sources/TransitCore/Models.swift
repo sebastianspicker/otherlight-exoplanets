@@ -138,48 +138,50 @@ public struct KeplerOrbit: Codable, Sendable, Hashable {
       x: vector.x * cos(node) - vector.y * sin(node),
       y: vector.x * sin(node) + vector.y * cos(node), z: vector.z)
   }
-  /// Solves elliptic Kepler's equation with the Browser's bounded, damped Newton scheme.
-  ///
-  /// The mean anomaly is wrapped to (-π, π]; the start value, derivative floor, 1 rad step limit,
-  /// clamping, tolerance, and iteration budget mirror `apps/browser/src/domain/orbits/kepler.ts`.
+  /// Solves elliptic Kepler motion with a bracket and a conditioning-aware anomaly bound.
   public static func eccentricAnomaly(mean: Double, eccentricity e: Double) -> Double {
+    guard mean.isFinite, e.isFinite, e >= 0, e < 1 else { return .nan }
     let wrapped = wrapToPi(mean)
-    guard mean.isFinite, e.isFinite, e > 0 else { return wrapped }
-    var eccentric = initialEccentricAnomaly(wrapped, eccentricity: e)
-    for _ in 0..<(e > 0.95 ? 60 : 30) {
-      let residual = eccentric - e * sin(eccentric) - wrapped
-      if abs(residual) <= 1e-12 { break }
-      let step = newtonStep(residual: residual, derivative: 1 - e * cos(eccentric))
-      eccentric = min(.pi, max(-.pi, eccentric + step))
-      if abs(step) <= 1e-12 { break }
+    guard e > 0, wrapped != 0 else { return wrapped }
+    let sign = wrapped < 0 ? -1.0 : 1.0
+    let target = abs(wrapped)
+    var lower = target
+    var upper = Double.pi
+    var value = e < 0.8 ? target + e * sin(target) : min(.pi, cbrt(6 * target))
+    for iteration in 0..<80 {
+      let squared = value * value
+      let difference =
+        abs(value) < 0.1
+        ? value * squared
+          * (1 / 6.0 + squared
+            * (-1 / 120.0 + squared
+              * (1 / 5040.0
+                + squared * (-1 / 362880.0 + squared / 39916800.0))))
+        : value - sin(value)
+      let residual = (1 - e) * value + e * difference - target
+      if residual < 0 { lower = value } else { upper = value }
+      let minSlope = (1 - e) + 2 * e * pow(sin(lower / 2), 2)
+      let roundoff = 8 * Double.ulpOfOne * (target + (1 - e) * value + e * abs(difference))
+      if min(upper - lower, (abs(residual) + roundoff) / minSlope) <= 1e-12 {
+        return sign * value
+      }
+      let slope = (1 - e) + 2 * e * pow(sin(value / 2), 2)
+      let next = value - residual / slope
+      value =
+        next > lower && next < upper && iteration % 4 != 3
+        ? next : lower + (upper - lower) / 2
     }
-    return wrapToPi(eccentric)
-  }
-  /// Starts near the root for moderate eccentricity and at ±π for highly eccentric orbits.
-  private static func initialEccentricAnomaly(_ wrapped: Double, eccentricity e: Double) -> Double {
-    if e < 0.8 { return wrapToPi(wrapped + e * sin(wrapped) * (1 + e * cos(wrapped))) }
-    if abs(wrapped) < 1e-12 { return 0 }
-    return wrapped > 0 ? .pi : -.pi
-  }
-  /// Returns a Newton step with the derivative floored at 1e-14 and the step limited to 1 rad.
-  private static func newtonStep(residual: Double, derivative: Double) -> Double {
-    var slope = derivative
-    if abs(slope) < 1e-14 {
-      let positive = slope == 0 ? residual > 0 : slope > 0
-      slope = positive ? 1e-14 : -1e-14
-    }
-    let step = -residual / slope
-    return abs(step) > 1 ? (step > 0 ? 1 : -1) : step
+    return .nan
   }
   /// Reduces an angle to one signed revolution remainder.
   static func wrap(_ value: Double) -> Double { value.truncatingRemainder(dividingBy: 2 * .pi) }
   /// Wraps an angle to (-π, π] with the Browser's `wrapToPi` convention.
   static func wrapToPi(_ value: Double) -> Double {
     guard value.isFinite else { return value }
-    var shifted = (value + .pi).truncatingRemainder(dividingBy: 2 * .pi)
-    if shifted < 0 { shifted += 2 * .pi }
-    let wrapped = shifted - .pi
-    return wrapped <= -.pi ? .pi : wrapped
+    var wrapped = value.truncatingRemainder(dividingBy: 2 * .pi)
+    if wrapped > .pi { wrapped -= 2 * .pi }
+    if wrapped <= -.pi { wrapped += 2 * .pi }
+    return wrapped
   }
 }
 

@@ -5,6 +5,7 @@ import {
   totalAtmosphereTransmission,
 } from "../../photometry/atmosphereRT/model";
 import { resolveWeightedPhotometryBands } from "./nativePhotometryBands";
+import { isUsableAtmosphereLayer } from "./atmosphereSelection";
 import type { PhotometricBody, VisibilityOcculter, WeightedPhotometryBand } from "./nativePhotometryTypes";
 import type { EducationScenarioV4 } from "./types";
 
@@ -44,8 +45,12 @@ const atmosphereRtOpacityForTarget = (
   bands: WeightedPhotometryBand[],
 ): number | undefined => {
   const rt = config.photometry?.atmosphereRT;
-  if (!(rt?.enabled && Array.isArray(rt.layers) && rt.layers.length > 0 && rt.target === target))
+  if (
+    !(rt?.enabled && Array.isArray(rt.layers) && rt.layers.length > 0 && (rt.target ?? "planet") === target)
+  )
     return undefined;
+  const layers = rt.layers.filter(isUsableAtmosphereLayer);
+  if (layers.length === 0) return undefined;
   let weightedOpacity = 0;
   for (const band of bands) {
     weightedOpacity +=
@@ -53,7 +58,7 @@ const atmosphereRtOpacityForTarget = (
       effectiveCircleAtmosphereOpacity({
         bodyRadius,
         lambdaNm: band.lambdaNm,
-        config: { ...rt, layers: rt.layers },
+        config: { ...rt, layers },
       });
   }
   return clamp01(weightedOpacity);
@@ -66,7 +71,7 @@ const legacyAtmosphereOpacityForTarget = (
   bands: WeightedPhotometryBand[],
 ): number => {
   const transmission = config.photometry?.atmosphereTransmission;
-  if (!transmission?.enabled || transmission.target !== target) return 1;
+  if (!transmission?.enabled || (transmission.target ?? "planet") !== target) return 1;
   let weightedOpacity = 0;
   for (const band of bands) {
     weightedOpacity +=
@@ -83,25 +88,27 @@ const rtPhotometricOcculter = (
   bands: WeightedPhotometryBand[],
 ): VisibilityOcculter | undefined => {
   const rt = config.photometry?.atmosphereRT;
-  if (!(rt?.enabled && rt.target === target && Array.isArray(rt.layers) && rt.layers.length > 0))
+  if (
+    !(rt?.enabled && (rt.target ?? "planet") === target && Array.isArray(rt.layers) && rt.layers.length > 0)
+  )
     return undefined;
-  const validLayers = rt.layers.filter(
-    (layer) =>
-      layer.r0 > 0 && layer.H > 0 && layer.tau0 >= 0 && Number.isFinite(layer.r0 + layer.H + layer.tau0),
-  );
+  const validLayers = rt.layers.filter(isUsableAtmosphereLayer);
   if (validLayers.length === 0) return undefined;
-  const outer = Math.max(body.r, ...validLayers.map((layer) => layer.r0 + 6 * layer.H));
+  const opaqueRadius = Math.max(body.r, ...validLayers.map((layer) => layer.r0));
+  const outer = Math.max(opaqueRadius, ...validLayers.map((layer) => layer.r0 + 6 * layer.H));
   const profile = { ...rt, layers: validLayers };
+  const transmissionByBand = bands.map((band) => ({
+    lambdaNm: band.lambdaNm,
+    weight: band.weight,
+    transmissionAtRadius: sampledAtmosphereTransmission(opaqueRadius, outer, (rho) =>
+      totalAtmosphereTransmission({ rho, config: profile, lambdaNm: band.lambdaNm }),
+    ),
+  }));
   return {
     r: outer,
     sky: body.sky,
-    transmissionAtRadius: sampledAtmosphereTransmission(body.r, outer, (rho) =>
-      bands.reduce(
-        (sum, band) =>
-          sum + band.weight * totalAtmosphereTransmission({ rho, config: profile, lambdaNm: band.lambdaNm }),
-        0,
-      ),
-    ),
+    transmissionByBand,
+    transmissionAtRadius: weightedTransmission(transmissionByBand),
   };
 };
 
@@ -112,48 +119,58 @@ const legacyPhotometricOcculter = (
   bands: WeightedPhotometryBand[],
 ): VisibilityOcculter | undefined => {
   const legacy = config.photometry?.atmosphereTransmission;
-  if (!(legacy?.enabled && legacy.target === target)) return undefined;
+  if (!(legacy?.enabled && (legacy.target ?? "planet") === target)) return undefined;
   const r0 = isFinitePositive(legacy.r0) ? legacy.r0 : body.r;
   const H = isFinitePositive(legacy.H) ? legacy.H : 0;
-  const outer = Math.max(body.r, r0 + 6 * H);
+  const opaqueRadius = Math.max(body.r, r0);
+  const outer = Math.max(opaqueRadius, r0 + 6 * H);
+  const transmissionByBand = bands.map((band) => ({
+    lambdaNm: band.lambdaNm,
+    weight: band.weight,
+    transmissionAtRadius: sampledAtmosphereTransmission(opaqueRadius, outer, (rho) =>
+      legacyTransmissionAtRadius({
+        rho,
+        bodyRadius: body.r,
+        r0,
+        H,
+        tau0: legacy.tau0 ?? 0,
+        tauScale: band.legacyTauScale,
+        kind: legacy.kind,
+      }),
+    ),
+  }));
   return {
     r: outer,
     sky: body.sky,
-    transmissionAtRadius: sampledAtmosphereTransmission(body.r, outer, (rho) =>
-      bands.reduce(
-        (sum, band) =>
-          sum +
-          band.weight *
-            legacyTransmissionAtRadius({
-              rho,
-              bodyRadius: body.r,
-              r0,
-              H,
-              tau0: legacy.tau0 ?? 0,
-              tauScale: band.legacyTauScale,
-              kind: legacy.kind,
-            }),
-        0,
-      ),
-    ),
+    transmissionByBand,
+    transmissionAtRadius: weightedTransmission(transmissionByBand),
   };
 };
 
+const weightedTransmission =
+  (
+    bands: Array<{ weight: number; transmissionAtRadius: (rho: number) => number }>,
+  ): ((rho: number) => number) =>
+  (rho) =>
+    bands.reduce((sum, band) => sum + band.weight * band.transmissionAtRadius(rho), 0);
+
 const sampledAtmosphereTransmission = (
-  bodyRadius: number,
+  opaqueRadius: number,
   outerRadius: number,
   evaluateShell: (rho: number) => number,
 ): ((rho: number) => number) => {
   const count = 256;
-  const width = outerRadius - bodyRadius;
-  if (!(width > 0)) return (rho) => (rho <= bodyRadius ? 0 : 1);
+  const width = outerRadius - opaqueRadius;
+  if (!(width > 0)) return (rho) => (rho <= opaqueRadius ? 0 : 1);
+  // Use a representable point outside the core even for an extremely thin shell.
+  const firstShellRadius = opaqueRadius + Math.max(Number.MIN_VALUE, opaqueRadius * Number.EPSILON);
   const values = Array.from({ length: count + 1 }, (_, index) =>
-    clamp01(evaluateShell(bodyRadius + (width * index) / count)),
+    clamp01(evaluateShell(Math.max(firstShellRadius, opaqueRadius + (width * index) / count))),
   );
   return (rho) => {
-    if (rho <= bodyRadius) return 0;
+    if (rho <= opaqueRadius) return 0;
     if (rho >= outerRadius) return 1;
-    const coordinate = ((rho - bodyRadius) / width) * count;
+    const coordinate = ((rho - opaqueRadius) / width) * count;
     const lower = Math.floor(coordinate);
     const fraction = coordinate - lower;
     return values[lower] * (1 - fraction) + values[lower + 1] * fraction;

@@ -173,10 +173,10 @@ const correlatedNoiseVariance = (inst: InstrumentConfig): number => {
 };
 
 const readNoiseDenominator = (inst: InstrumentConfig): number => {
-  return Math.max(
-    1e-9,
-    (inst.throughput ?? 1) * (inst.electronsPerUnitFlux ?? 1e6) * Math.max(1, inst.exposureSec ?? 1),
-  );
+  const throughput = Number.isFinite(inst.throughput) ? (inst.throughput as number) : 1;
+  const rate = Number.isFinite(inst.electronsPerUnitFlux) ? (inst.electronsPerUnitFlux as number) : 1e6;
+  const exposure = Number.isFinite(inst.exposureSec) ? (inst.exposureSec as number) : 0;
+  return throughput > 0 && rate > 0 && exposure > 0 ? throughput * rate * exposure : Infinity;
 };
 
 const readNoiseVariance = (inst: InstrumentConfig): number => {
@@ -206,10 +206,11 @@ const scintillationScale = (
 ): number => {
   const scintillation = atmosphere.scintillation;
   const airmass = currentAirmass(atmosphere, tSec);
-  const exposureSec = Math.max(1, inst.exposureSec ?? 1);
+  const exposureSec =
+    Number.isFinite(inst.exposureSec) && (inst.exposureSec as number) > 0 ? (inst.exposureSec as number) : 1;
   const airmassExponent = Math.max(0, scintillation?.airmassExponent ?? 1.5);
   const exposureExponent = Math.max(0, scintillation?.exposureExponent ?? 0.5);
-  return Math.max(1, airmass ** airmassExponent) / Math.max(1, exposureSec ** exposureExponent);
+  return Math.max(1, airmass ** airmassExponent) / exposureSec ** exposureExponent;
 };
 
 const scintillationVariance = (inst: InstrumentConfig, tSec: number): number => {

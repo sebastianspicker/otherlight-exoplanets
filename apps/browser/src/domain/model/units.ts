@@ -4,7 +4,7 @@
 //
 // Design goals:
 // - Single source of truth for clamp/wrap behavior across the repo.
-// - Consistent angle-wrapping domains (wrapTo2Pi, wrapToPi).
+// - Consistent angle-wrapping domains (wrapToPi).
 // - Unified parsing/sanitization helpers (toFiniteNumber, etc.) so other modules
 //   don't re-implement them ad-hoc.
 // - Keep this file dependency-free so it can be imported anywhere
@@ -56,7 +56,6 @@ export const JUPITER_MASS_KG = 1.89813e27;
 export const JUPITER_RADIUS_M = 6.9911e7;
 
 // Canonical names (readable).
-const TWO_PI = 2 * Math.PI;
 
 // Practical upper bound used for UI sanitization (strictly < 1 for elliptic orbits).
 export const ECC_MAX = 0.999;
@@ -88,34 +87,6 @@ export function clamp11(x: number): number {
 }
 
 /**
- * Wrap angle to [0, 2π).
- *
- * Guarantees:
- * - Finite input -> output in [0, 2π).
- * - 2π maps to 0 (up to floating error).
- */
-function wrapTo2Pi(rad: number): number {
-  if (!Number.isFinite(rad)) return rad;
-
-  // Modulo arithmetic is generally more stable for large angles than
-  // iterative subtraction, and handles the wrap-around logic cleanly.
-  let x = rad % TWO_PI;
-
-  // Javascript's % operator returns a result with the same sign as the dividend.
-  // We want a strictly non-negative result in [0, 2π).
-  if (x < 0) {
-    x += TWO_PI;
-  }
-
-  // Handle tiny floating point errors where x might become exactly 2π after addition
-  if (x >= TWO_PI) {
-    x = 0;
-  }
-
-  return x;
-}
-
-/**
  * Wrap angle to (-π, π].
  *
  * Guarantees:
@@ -125,8 +96,10 @@ function wrapTo2Pi(rad: number): number {
 export function wrapToPi(rad: number): number {
   if (!Number.isFinite(rad)) return rad;
 
-  // Shift by +π, wrap to [0,2π), shift back to [-π,π)
-  let x = wrapTo2Pi(rad + Math.PI) - Math.PI;
+  // Preserve small angles: adding π first destroys near-periapsis precision.
+  let x = rad % (2 * Math.PI);
+  if (x > Math.PI) x -= 2 * Math.PI;
+  if (x <= -Math.PI) x += 2 * Math.PI;
 
   // Map -π to +π for consistency with (-π, π].
   if (x <= -Math.PI) x = Math.PI;

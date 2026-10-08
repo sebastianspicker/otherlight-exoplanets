@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/science-v7/calibration.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "science-v7"
+    },
+    "kind": {
+      "const": "calibration"
+    },
+    "model": {
+      "const": "tabulated-passband-v1"
+    },
+    "sourceHash": {
+      "$ref": "common.schema.json#/$defs/hash"
+    },
+    "provenanceHash": {
+      "$ref": "common.schema.json#/$defs/hash"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "weighting": {
+      "enum": ["photon", "energy"]
+    },
+    "interpolation": {
+      "const": "piecewise-linear"
+    },
+    "outsideDomain": {
+      "const": "reject"
+    },
+    "wavelengthM": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "minItems": 2,
+      "maxItems": 100000
+    },
+    "response": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "minItems": 2,
+      "maxItems": 100000
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "model",
+    "sourceHash",
+    "provenanceHash",
+    "version",
+    "weighting",
+    "interpolation",
+    "outsideDomain",
+    "wavelengthM",
+    "response"
+  ],
+  "additionalProperties": false
+}

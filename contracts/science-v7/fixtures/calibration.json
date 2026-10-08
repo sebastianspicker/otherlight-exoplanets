@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "science-v7",
+  "kind": "calibration",
+  "model": "tabulated-passband-v1",
+  "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "provenanceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "version": "1",
+  "weighting": "photon",
+  "interpolation": "piecewise-linear",
+  "outsideDomain": "reject",
+  "wavelengthM": [4e-7, 5e-7, 6e-7],
+  "response": [0, 1, 0]
+}

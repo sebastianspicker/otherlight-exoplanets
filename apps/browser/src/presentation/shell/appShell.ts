@@ -10,6 +10,7 @@ import {
   renderRadiusRelationship,
   renderObservatoryFooter,
 } from "../observatory/templates/observatory";
+import { renderFieldGuide } from "../observatory/templates/fieldGuide";
 import { renderScientificWorkspace } from "../science/templates/scientificWorkspace";
 import { runtimeAssetUrl } from "../../application/deployment";
 
@@ -25,6 +26,8 @@ export function createAppDocumentHtml(baseUrl = import.meta.env.BASE_URL): strin
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <meta name="referrer" content="strict-origin-when-cross-origin" />
+      <meta name="color-scheme" content="dark" />
+      <meta name="theme-color" content="#07090d" />
       <title>Otherlight: Exoplanet learning &amp; scientific modeling</title>
       <link rel="icon" href="${runtimeAssetUrl("favicon.svg", baseUrl)}" type="image/svg+xml" />
     </head>
@@ -60,6 +63,7 @@ function appShellInnerHtml(baseUrl = import.meta.env.BASE_URL): string {
             ${renderRadiusRelationship()}
           </div>
           ${renderCommandStrip()}
+          ${renderFieldGuide()}
           ${renderObservatoryFooter()}
         </div>
         ${renderScientificWorkspace()}

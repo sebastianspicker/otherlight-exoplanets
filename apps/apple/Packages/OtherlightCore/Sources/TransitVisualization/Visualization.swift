@@ -35,8 +35,22 @@ public struct PlotSnapshot: Codable, Sendable, Hashable {
 /// Collects observed-minus-calculated timing signals for an O-C visualization.
 public struct OCSnapshot: Codable, Sendable, Hashable {
   public let timings: [TransitTimingSignal]
-  /// Extracts timing signals from steps without recomputing the simulation.
-  public init(steps: [EducationStep]) { timings = steps.map(\.timing) }
+  /// Extracts one valid solved timing signal per transit index without recomputing the simulation.
+  public init(steps: [EducationStep]) {
+    var seen = Set<Int>()
+    timings = steps.compactMap { step in
+      let timing = step.timing
+      guard timing.isValid,
+        let transitNumber = timing.transitNumber,
+        timing.ephemerisEpochSeconds?.isFinite == true,
+        timing.ephemerisPeriodSeconds?.isFinite == true, (timing.ephemerisPeriodSeconds ?? 0) > 0,
+        timing.calculatedSeconds?.isFinite == true,
+        timing.observedMinusCalculatedSeconds?.isFinite == true,
+        seen.insert(transitNumber).inserted
+      else { return nil }
+      return timing
+    }
+  }
 }
 /// Produces concise text alternatives for scene, plot, and O-C snapshots.
 public enum AccessibleSummary {

@@ -76,11 +76,11 @@ export type DebugOverlayData = {
 type DebugLineWriter = (s: string) => void;
 
 const DEFAULT_THEME: OverlayTheme = {
-  textColor: "rgba(255,255,255,0.78)",
-  panelFill: "rgba(0,0,0,0.55)",
-  panelStroke: "rgba(255,255,255,0.18)",
-  accent: "rgba(76,201,240,0.95)",
-  warn: "rgba(255,120,120,0.95)",
+  textColor: "rgba(223,228,238,0.82)",
+  panelFill: "rgba(3,5,10,0.72)",
+  panelStroke: "rgba(160,176,214,0.22)",
+  accent: "rgba(138,180,255,0.95)",
+  warn: "rgba(255,143,134,0.95)",
   font: `12px ${FIGURE_FONTS.mono}`,
   fontSmall: `11px ${FIGURE_FONTS.mono}`,
 };

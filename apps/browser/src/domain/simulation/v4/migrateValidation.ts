@@ -6,6 +6,7 @@
  * objects it leaves open (bodies, orbits, photometry, didactics, ...) stay open.
  */
 import { isValidStaticOrbit } from "./orbitSanitizer";
+import { usesLegacyAtmosphereTransmission } from "./atmosphereSelection";
 
 type UnknownRecord = Record<string, unknown>;
 type ValidationCollections = {
@@ -77,7 +78,21 @@ function collectSpectralBandpassIssues(photometry: unknown): string[] {
   if (weights.length > 0 && weights.length !== lambdaNm.length) {
     issues.push("photometry.spectralBandpass.weights must match lambdaNm length when provided");
   }
+  issues.push(...collectLegacyWavelengthIssues(photometry, lambdaNm));
   return issues;
+}
+
+function collectLegacyWavelengthIssues(photometry: UnknownRecord, bandpass: unknown[]): string[] {
+  const legacy = photometry.atmosphereTransmission;
+  if (!usesLegacyAtmosphereTransmission(photometry) || !isObject(legacy)) return [];
+  const wavelengths = arrayOrEmpty(legacy.lambdaNm).filter((value) => isFiniteNumber(value) && value > 0);
+  if (wavelengths.length === 0 || bandpass.length === 0) return [];
+  return wavelengths.length === bandpass.length &&
+    wavelengths.every((value, index) => value === bandpass[index])
+    ? []
+    : [
+        "Legacy atmosphere and spectral bandpass wavelengths must match exactly; interpolation is unsupported.",
+      ];
 }
 
 function validateTopLevelFields(input: UnknownRecord, errors: string[]): void {

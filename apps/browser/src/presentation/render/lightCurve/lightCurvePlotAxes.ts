@@ -4,7 +4,7 @@
  * Exports:
  *  - `TimeScaleInfo`: shared layout descriptor used by axes and annotations.
  *  - `xOfTime`: converts a time value to a canvas x-coordinate.
- *  - `drawAxes`: draws the journal-style frame, inward ticks, faint flux rules and labels.
+ *  - `drawAxes`: draws the framed figure, inward ticks, faint flux rules and labels.
  */
 
 import { FIGURE_FONTS, figureInk } from "../canvas/figureInk";
@@ -71,14 +71,14 @@ export function drawAxes(args: {
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.strokeStyle = ink.frame;
+    ctx.strokeStyle = ink.tick;
     ctx.moveTo(marginLeft, yPos);
     ctx.lineTo(marginLeft + TICK, yPos);
     ctx.moveTo(marginLeft + plotW - TICK, yPos);
     ctx.lineTo(marginLeft + plotW, yPos);
     ctx.stroke();
 
-    ctx.fillStyle = ink.ink2;
+    ctx.fillStyle = ink.ink3;
     ctx.fillText(formatTickValue(tickVal, yRange), marginLeft - 6, yPos);
   }
 
@@ -100,14 +100,14 @@ export function drawAxes(args: {
       if (xPos < marginLeft + 2 || xPos > marginLeft + plotW - 2) continue;
 
       ctx.beginPath();
-      ctx.strokeStyle = ink.frame;
+      ctx.strokeStyle = ink.tick;
       ctx.moveTo(xPos, marginTop + plotH);
       ctx.lineTo(xPos, marginTop + plotH - TICK);
       ctx.moveTo(xPos, marginTop);
       ctx.lineTo(xPos, marginTop + TICK);
       ctx.stroke();
 
-      ctx.fillStyle = ink.ink2;
+      ctx.fillStyle = ink.ink3;
       ctx.fillText(formatTickValue(tickVal, tickSpan), xPos, marginTop + plotH + 6);
     }
   }

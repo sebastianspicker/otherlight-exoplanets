@@ -1,5 +1,9 @@
 # V5 local scientific contract
 
+[V7](../../contracts/science-v7/README.md) is authoritative for new research
+development. This document describes retained V5 live behavior and legacy
+artifacts during browser/macOS client cutover.
+
 V5 is an asynchronous, loopback-only contract for bounded Newtonian
 radial-velocity jobs, and it is independent of the Browser Education runtime. A
 successful V5 job means the strict request and execution contract held; it does

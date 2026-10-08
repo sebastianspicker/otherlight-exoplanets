@@ -120,6 +120,9 @@ jobs:
       - name: Complexity check
         run: bash scripts/check-complexity.sh
 
+      - name: Check V7 runtime schema parity
+        run: uv run --project services/science python scripts/export-research-contracts.py --check
+
       - name: Pyright
         run: uv run --project services/science pyright services/science
 

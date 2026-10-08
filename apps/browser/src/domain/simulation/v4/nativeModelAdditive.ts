@@ -1,6 +1,7 @@
 /** Computes additive planetary and lunar flux contributions for native V4. */
 import { clamp01 } from "../../model/units";
 import type { PhaseCurveParams } from "../../model/types";
+import { fluxStarWithTransmissiveOcculters } from "../../photometry/transitTransmission";
 import { bodyPhaseFlux } from "../../photometry/phaseCurve";
 import { vSub } from "../../orbits/vec3";
 import { circleOverlapArea } from "./nativePhotometry";
@@ -66,11 +67,11 @@ export const computeAdditiveLunar = (
  * Visible fraction of every planet and moon disk behind foreground occulters (stars, planets
  * and moons with larger sky.z). A star in front of a planet produces the secondary eclipse.
  */
-export function computeVisibleFractions(snap: NativeSnapshot): VisibleFractions {
+export function computeVisibleFractions(snap: NativeSnapshot, gridRes?: number): VisibleFractions {
   const occulters = snap.bodies.filter((body) => body.active && body.r > 0);
   const byBody = new Map<string, number>();
   for (const body of [...snap.planets, ...snap.moons])
-    byBody.set(body.id, bodyVisibleFraction(body, occulters));
+    byBody.set(body.id, bodyVisibleFraction(body, occulters, gridRes));
   const planet = snap.planets[0];
   const moon = snap.moons[0];
   const stars = occulters.filter((body) => body.kind === "star");
@@ -79,8 +80,8 @@ export function computeVisibleFractions(snap: NativeSnapshot): VisibleFractions 
     planetVisibleFraction: planet ? byBody.get(planet.id) : undefined,
     moonVisibleFraction: moon ? byBody.get(moon.id) : undefined,
     mutualOverlapFraction: planet && moon ? mutualOverlapFraction(planet, moon) : 0,
-    planetStarOccultedFraction: planet ? 1 - bodyVisibleFraction(planet, stars) : undefined,
-    moonStarOccultedFraction: moon ? 1 - bodyVisibleFraction(moon, stars) : undefined,
+    planetStarOccultedFraction: planet ? 1 - bodyVisibleFraction(planet, stars, gridRes) : undefined,
+    moonStarOccultedFraction: moon ? 1 - bodyVisibleFraction(moon, stars, gridRes) : undefined,
   };
 }
 
@@ -92,19 +93,43 @@ const mutualOverlapFraction = (a: NativeBodyState, b: NativeBodyState): number =
   return clamp01(overlap / smallerArea);
 };
 
-// Product of per-occulter visible fractions. Exact for a single foreground occulter; when two
-// occulters overlap the same body it treats their shadows as statistically independent instead
-// of computing the exact union area, so it is an approximation in that rare case.
-const bodyVisibleFraction = (body: NativeBodyState, occulters: NativeBodyState[]): number =>
-  occulters.reduce((visible, occulter) => {
-    if (occulter.id === body.id) return visible;
+/** Exact single-circle visibility; multiple opaque shadows share one sampled union mask. */
+function bodyVisibleFraction(body: NativeBodyState, occulters: NativeBodyState[], gridRes?: number): number {
+  if (!(body.r > 0)) return 1;
+  const foreground = occulters.filter(
+    (other) =>
+      other.id !== body.id &&
+      other.sky.z > body.sky.z &&
+      Math.hypot(other.sky.x - body.sky.x, other.sky.y - body.sky.y) < body.r + other.r,
+  );
+  if (foreground.length === 0) return 1;
+  if (
+    foreground.some(
+      (other) =>
+        other.r >= body.r &&
+        Math.hypot(other.sky.x - body.sky.x, other.sky.y - body.sky.y) <= other.r - body.r,
+    )
+  )
+    return 0;
+  if (foreground.length === 1) {
+    const other = foreground[0];
     const overlap = circleOverlapArea(
       body.r,
-      occulter.r,
-      Math.hypot(body.sky.x - occulter.sky.x, body.sky.y - occulter.sky.y),
+      other.r,
+      Math.hypot(other.sky.x - body.sky.x, other.sky.y - body.sky.y),
     );
-    return visible * (visibleFractionWhenOcculted(occulter, body, overlap) ?? 1);
-  }, 1);
+    return clamp01(1 - overlap / (Math.PI * body.r * body.r));
+  }
+  return fluxStarWithTransmissiveOcculters({
+    rStar: body.r,
+    occulters: foreground.map((other) => ({
+      dx: other.sky.x - body.sky.x,
+      dy: other.sky.y - body.sky.y,
+      r0: other.r,
+    })),
+    gridRes,
+  });
+}
 
 const phaseFluxForBody = (
   config: EducationScenarioV4,
@@ -128,13 +153,4 @@ const phaseFluxForBody = (
     dayNightVisibility: photometry?.dayNightVisibility,
     thermalModelAdvanced: photometry?.thermalModelAdvanced,
   });
-};
-
-const visibleFractionWhenOcculted = (
-  foreground: NativeBodyState,
-  background: NativeBodyState,
-  overlap: number,
-): number | undefined => {
-  const area = Math.PI * background.r * background.r;
-  return foreground.sky.z > background.sky.z && area > 0 ? clamp01(1 - overlap / area) : undefined;
 };

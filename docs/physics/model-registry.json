@@ -19,8 +19,12 @@
       "claim": "Bound elliptic two-body states solve Kepler's equation and transform PQW state vectors into the inertial frame.",
       "equation": "M = E - e sin(E); r = a(1 - e cos(E))",
       "units": "a,r [m], M,E [rad], t [s]",
-      "validity": "Osculating two-body ellipse with 0 <= e < 1; no parabolic or hyperbolic branch.",
-      "owners": ["apps/browser/src/domain/orbits/kepler.ts", "apps/browser/src/domain/simulation/orbits.ts"],
+      "validity": "Elliptic two-body motion with 0 <= e < 1. Safeguarded bracketed iteration bounds eccentric-anomaly error using conditioning; explicit strict iteration budgets fail on nonconvergence. No parabolic or hyperbolic branch.",
+      "owners": [
+        "apps/browser/src/domain/orbits/kepler.ts",
+        "apps/browser/src/domain/simulation/orbits.ts",
+        "apps/apple/Packages/OtherlightCore/Sources/TransitCore/Models.swift"
+      ],
       "references": ["murray-dermott-1999"]
     },
     {
@@ -36,10 +40,10 @@
     {
       "id": "dynamics.barycenter.planet-moon",
       "status": "bounded-approximation",
-      "claim": "Planet and moon positions split their relative vector about the pair barycentre in inverse proportion to mass.",
+      "claim": "Browser Education hierarchies place complete stellar and planetary subtrees barycentrically, including binary planetary systems and circumbinary reflex. Each authored relative orbit is preserved; hierarchy evaluation is independent of array order.",
       "equation": "r_p = r_b - m_m r_rel/(m_p+m_m); r_m = r_b + m_p r_rel/(m_p+m_m)",
       "units": "mass [kg], position [m]",
-      "validity": "Finite positive masses; missing masses deliberately disable the split in the educational compatibility path.",
+      "validity": "Browser missing/non-positive masses contribute zero in the educational compatibility path; finite positive subsystem totals enable their splits. This is algebraic composed-Kepler kinematics, not interacting N-body evolution. Swift supports only its explicitly accepted topologies.",
       "owners": ["apps/browser/src/domain/orbits/barycenter.ts"],
       "references": ["murray-dermott-1999"]
     },
@@ -60,15 +64,23 @@
     {
       "id": "timing.exomoon.ttv-tdv",
       "status": "bounded-approximation",
-      "claim": "Exomoon TTV/TDV diagnostics derive from projected planet-moon barycentric motion and contact geometry. The Education snapshot may drift the moon orbit orientation linearly (node, inclination, periapsis rates from tRef).",
+      "claim": "Exomoon TTV/TDV diagnostics derive from projected planet-moon barycentric motion and contact geometry. The Education snapshot may drift the moon orbit orientation linearly (node, inclination, periapsis rates from tRef). Swift O-C and duration variation use solved event centers and contacts against an explicit moonless reference ephemeris; missing events remain unavailable, with independent moon diagnostics.",
       "equation": "TTV = t_mid - (t_ref + N P); TDV = T_14/T_14,ref",
       "units": "time [s]",
-      "validity": "Synthetic event-series diagnostic; phenomenological orientation drifts are educational unless produced by integrated dynamics.",
+      "validity": "Browser scientific-preview contacts isolate the connected transit using a global relative-speed bound and bounded adaptive work; absent bounds or exhausted solves fall back with nonconverged diagnostics. Interactive browser timing remains linearized. Phenomenological orientation drifts are educational, not integrated dynamics.",
       "owners": [
         "apps/browser/src/domain/orbits/exomoonTiming.ts",
         "apps/browser/src/domain/orbits/orbitOrientationDrift.ts",
         "apps/browser/src/domain/simulation/transitTimingSolve.ts",
-        "apps/browser/src/domain/simulation/orbitTimingKey.ts"
+        "apps/browser/src/domain/simulation/orbitTimingKey.ts",
+        "apps/browser/src/domain/simulation/transitContactIsolation.ts",
+        "apps/browser/src/domain/simulation/v4/nativeTrajectoryBounds.ts",
+        "apps/browser/src/domain/simulation/v4/nativeTransitImpact.ts",
+        "apps/browser/src/domain/simulation/transitTimingExact.ts",
+        "apps/browser/src/domain/simulation/transitTimingExactCenter.ts",
+        "apps/browser/src/domain/simulation/transitTimingExactContacts.ts",
+        "apps/browser/src/domain/simulation/transitTimingEphemeris.ts",
+        "apps/apple/Packages/OtherlightCore/Sources/TransitCore/SimulationTiming.swift"
       ],
       "references": ["kipping-2009-ttv", "kipping-2009-tdv"]
     },
@@ -78,7 +90,7 @@
       "claim": "Opaque circular and mixed-shape transits integrate the union of occulted stellar intensity without double counting overlaps. With physicsFeatures.nonSphericalFlux, oblate planet and moon silhouettes enter that union as ellipses (Seager and Hui 2002, spin axis in the sky plane).",
       "equation": "F = integral I(x,y) V(x,y) dA / integral I(x,y) dA",
       "units": "relative flux [1]",
-      "validity": "Distant-observer projected geometry; grid tolerances must resolve the smallest structure. Current midpoint integrations do not return an a-posteriori error estimate and therefore are not research-validated.",
+      "validity": "Distant-observer projected geometry; grid tolerances must resolve the smallest structure. Current midpoint integrations do not return an a-posteriori error estimate and therefore are not research-validated. A single circular opaque occulter on an unpatched uniform source uses analytic circle overlap in Browser and Swift, without a pixel-size detection threshold. When a second occulter reaches the source, the switch to finite-grid integration can introduce a flux discontinuity, especially for small bodies.",
       "owners": [
         "apps/browser/src/domain/photometry/transitLimbDarkened.ts",
         "apps/browser/src/domain/photometry/diskMidpoint.ts",
@@ -109,15 +121,20 @@
     {
       "id": "photometry.transit.transmissive",
       "status": "bounded-approximation",
-      "claim": "Transmissive occulters multiply radial transmissions while retaining an opaque physical core.",
-      "equation": "F = integral I product_i T_i(rho_i) dA / integral I dA",
+      "claim": "Foreground transmissions multiply at each wavelength before normalized passband averaging. Opaque core boundaries are separate from continuous atmospheric profiles, and emission never determines foreground stellar opacity.",
+      "equation": "F = sum_lambda w_lambda integral I_lambda product_i T_i(lambda,rho_i) dA / integral I_lambda dA",
       "units": "relative flux [1]",
-      "validity": "Transmission profiles are inputs; the TypeScript exponential halo is not a radiative-transfer solution.",
+      "validity": "Shared normalized spectral grids and input transmission profiles; six-scale-height halo truncation and finite spatial/profile sampling remain preview approximations. The exponential halo is not a hydrostatic radiative-transfer solution.",
       "owners": [
         "apps/browser/src/domain/photometry/transitTransmission.ts",
         "apps/browser/src/domain/photometry/atmosphereRT/model.ts",
         "apps/browser/src/domain/photometry/atmosphereRT/gaussianFeatures.ts",
-        "apps/browser/src/domain/simulation/v4/nativePhotometry.ts"
+        "apps/browser/src/domain/simulation/v4/nativePhotometry.ts",
+        "apps/browser/src/domain/simulation/v4/atmosphereSelection.ts",
+        "apps/browser/src/domain/simulation/v4/nativePhotometryBands.ts",
+        "apps/browser/src/domain/simulation/v4/nativePhotometryAtmosphere.ts",
+        "apps/browser/src/domain/simulation/v4/nativePhotometryVisibility.ts",
+        "apps/browser/src/domain/simulation/v4/nativePhotometrySpectral.ts"
       ],
       "references": ["molliere-2019"]
     },
@@ -127,7 +144,7 @@
       "claim": "The preview lane supplies Lambert/cosine phase weights and a one-pole thermal-lag surrogate.",
       "equation": "Phi_L(alpha) = [sin(alpha)+(pi-alpha)cos(alpha)]/pi",
       "units": "relative flux [1]",
-      "validity": "Phenomenological broadband teaching model; not a temperature-map, energy-balance, or atmospheric emission solution.",
+      "validity": "Phenomenological broadband teaching model; not a temperature-map, energy-balance, or atmospheric emission solution. Occulted planet and moon light assumes uniform projected source intensity; multiple foreground masks share a finite-grid union.",
       "owners": [
         "apps/browser/src/domain/photometry/dayNightVisibility.ts",
         "apps/browser/src/domain/photometry/phaseCurve.ts",
@@ -150,7 +167,7 @@
     {
       "id": "photometry.stellar.preview",
       "status": "educational",
-      "claim": "Preview stellar flux, variability, spots, and granulation are bounded relative-flux teaching models. Evolving spots rotate rigidly about a sky-plane axis as foreshortened projected patches with exponential lifetime, and scale the primary star by their disk-integrated flux deficit. With physicalAmplitudes enabled, Doppler beaming is -4 RV_star / c and ellipsoidal variation is -q (R_star / |r_rel|)^3 sin^2 i cos 2psi from the companion state, each scaled by an alpha factor.",
+      "claim": "Preview stellar flux, variability, spots, and granulation are bounded relative-flux teaching models. Evolving spots rotate rigidly about a sky-plane axis as foreshortened projected patches with exponential lifetime, and scale the primary star by their disk-integrated flux deficit. With physicalAmplitudes enabled, Doppler beaming is -4 RV_star / c and ellipsoidal variation is -q (R_star / |r_rel|)^3 sin^2 i cos 2psi from the companion state, each scaled by an alpha factor. Ellipsoidal phase uses the radial-free orbital tangent; the historical velocity-normalized beaming knob convention is retained independently.",
       "equation": "B_lambda(T)=2hc^2/[lambda^5(exp(hc/(lambda kT))-1)]; F_band proportional to R^2 integral B_lambda S(lambda) d lambda / integral S(lambda) d lambda",
       "units": "relative flux [1]",
       "validity": "Blackbody/surrogate filters, hand-derived limb coefficients, harmonic variability, and sinusoidal granulation are not atmosphere or PSD synthesis.",
@@ -166,7 +183,7 @@
     {
       "id": "measurement.exposure-noise.preview",
       "status": "bounded-approximation",
-      "claim": "Exposure smearing averages physical flux before seeded detector/observer perturbations are applied.",
+      "claim": "Exposure smearing averages physical flux before seeded detector/observer perturbations are applied. Positive subsecond exposures follow the declared scintillation power law; displayed read-noise uncertainty uses the same exposure scaling as detector counts.",
       "equation": "F_exp(t) = Delta t^-1 integral F(tau) d tau",
       "units": "relative flux or electrons as explicitly configured",
       "validity": "Preview systematics are synthetic and mutable-state order dependent; they are not calibrated mission pipelines.",
@@ -187,7 +204,7 @@
     {
       "id": "observables.rv-astrometry.preview",
       "status": "bounded-approximation",
-      "claim": "Preview radial velocity is the barycentric target velocity projected with positive recession, while preview astrometry is a linear sky-plane displacement. With a stellar rotation period the Education V4 runtime adds the Rossiter-McLaughlin anomaly as the flux-weighted line-of-sight velocity of the visible limb-darkened disk of a rigidly rotating primary whose spin axis follows the first companion's orbit normal unless an axis position angle is authored.",
+      "claim": "Preview radial velocity is the barycentric target velocity projected with positive recession, while preview astrometry is a linear sky-plane displacement. With a stellar rotation period the Education V4 runtime adds the Rossiter-McLaughlin anomaly relative to the same unocculted limb-darkened, patched disk at the same time. The primary rotates rigidly and its spin axis follows the first companion's orbit normal unless an axis position angle is authored.",
       "equation": "v_r = -v dot n; r_sky = r-(r dot n)n",
       "units": "radial velocity [m s^-1], linear sky offset [m]",
       "validity": "The observer vector points from system to observer. V4 astrometry is not angular and has no distance/parallax calibration. The V5 backend requires an explicit RV target and projects photocentre offsets onto the sky plane.",

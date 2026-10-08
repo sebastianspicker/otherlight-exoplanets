@@ -9,9 +9,9 @@
 import { wrapToPi } from "../model/units";
 
 export type SolveKeplerEOptions = {
-  /** Max Newton iterations. Default: 30. */
+  /** Max Newton iterations. Default: 80. */
   maxIters?: number;
-  /** Convergence tolerance on residual/step. Default: 1e-12. */
+  /** Absolute eccentric-anomaly error tolerance. Default: 1e-12. */
   tol?: number;
   /**
    * If true: throw when the solver does not converge within maxIters
@@ -37,7 +37,7 @@ export type KeplerSolveDiagnostics = {
    */
   warnIterCount?: number;
   /**
-   * Log when the step limiter (|dE| capped to MAX_STEP) triggers this often.
+   * Log when safeguarding falls back to bisection this often.
    * Default: 6
    */
   warnStepLimitedCount?: number;
@@ -65,10 +65,6 @@ type KeplerIterationRun = {
   lastAbsDE: number;
 };
 
-const HIGH_ECCENTRICITY_MIN_ITERS = 60;
-const MAX_NEWTON_STEP_RAD = 1.0;
-const DERIVATIVE_FLOOR = 1e-14;
-
 function assertEllipticKeplerInputs(M: number, e: number): void {
   if (!Number.isFinite(M) || !Number.isFinite(e)) {
     throw new Error("solveKeplerE: M and e must be finite numbers.");
@@ -81,14 +77,12 @@ function assertEllipticKeplerInputs(M: number, e: number): void {
 function resolveKeplerOptions(
   maxItersOrOpts: number | SolveKeplerEOptions,
   tolArg: number,
-  e: number,
 ): ResolvedKeplerOptions {
   const opts = typeof maxItersOrOpts === "object" && maxItersOrOpts !== null ? maxItersOrOpts : undefined;
   const maxItersRaw: number | undefined = opts ? opts.maxIters : (maxItersOrOpts as number);
   const tolRaw = opts ? opts.tol : tolArg;
-  const minIters = e > 0.95 ? HIGH_ECCENTRICITY_MIN_ITERS : 1;
   return {
-    maxIters: Math.max(minIters, finiteFloorAtLeast(maxItersRaw, 30, 1)),
+    maxIters: finiteFloorAtLeast(maxItersRaw, 80, 1),
     tol: finiteNonNegativeOrDefault(tolRaw, 1e-12),
     strict: Boolean(opts?.strict),
   };
@@ -104,7 +98,7 @@ function finiteNonNegativeOrDefault(value: number | undefined, fallback: number)
 
 function initialEccentricAnomaly(Mw: number, e: number): number {
   if (e < 0.8) return wrapToPi(Mw + e * Math.sin(Mw) * (1 + e * Math.cos(Mw)));
-  return Math.abs(Mw) < 1e-12 ? 0 : Math.sign(Mw) * Math.PI;
+  return Mw === 0 ? 0 : Math.sign(Mw) * Math.min(Math.PI, Math.cbrt(6 * Math.abs(Mw)));
 }
 
 function resolveKeplerDiagnostics(diag: KeplerSolveDiagnostics | undefined): ResolvedKeplerDiagnostics {
@@ -156,20 +150,14 @@ function formatKeplerDiagnostics(context: {
   ].join(" ");
 }
 
+/** Avoids cancellation of E - sin(E) near a nearly parabolic periapsis. */
 function keplerResidual(E: number, e: number, Mw: number): number {
-  return E - e * Math.sin(E) - Mw;
-}
-
-function regularizedDerivative(fp: number, f: number): number {
-  if (Math.abs(fp) >= DERIVATIVE_FLOOR) return fp;
-  const sign = fp === 0 ? (f > 0 ? 1 : -1) : Math.sign(fp);
-  return sign * DERIVATIVE_FLOOR;
-}
-
-function limitedNewtonStep(f: number, fp: number): { dE: number; limited: boolean } {
-  const rawStep = -f / fp;
-  if (Math.abs(rawStep) <= MAX_NEWTON_STEP_RAD) return { dE: rawStep, limited: false };
-  return { dE: Math.sign(rawStep) * MAX_NEWTON_STEP_RAD, limited: true };
+  const x2 = E * E;
+  const difference =
+    Math.abs(E) < 0.1
+      ? E * x2 * (1 / 6 + x2 * (-1 / 120 + x2 * (1 / 5040 + x2 * (-1 / 362880 + x2 / 39916800))))
+      : E - Math.sin(E);
+  return (1 - e) * E + e * difference - Mw;
 }
 
 function runKeplerNewtonIterations(
@@ -179,28 +167,43 @@ function runKeplerNewtonIterations(
   tol: number,
   initialE: number,
 ): KeplerIterationRun {
-  let E = initialE;
+  const sign = Mw < 0 ? -1 : 1;
+  const mean = Math.abs(Mw);
+  let lower = mean;
+  let upper = Math.PI;
+  let E = Math.abs(initialE);
   let stepLimitedCount = 0;
   let lastAbsF = Number.POSITIVE_INFINITY;
   let lastAbsDE = Number.POSITIVE_INFINITY;
-
   for (let k = 0; k < maxIters; k++) {
-    const f = keplerResidual(E, e, Mw);
+    const f = keplerResidual(E, e, mean);
     lastAbsF = Math.abs(f);
-    if (lastAbsF <= tol)
-      return { E, converged: true, iterationsUsed: k + 1, stepLimitedCount, lastAbsF, lastAbsDE };
-
-    const fp = regularizedDerivative(1 - e * Math.cos(E), f);
-    const step = limitedNewtonStep(f, fp);
-    if (step.limited) stepLimitedCount++;
-    // Mw is wrapped to (-pi, pi] and E shares its sign with |E| <= pi, so clamp instead of wrapping.
-    E = Math.min(Math.PI, Math.max(-Math.PI, E + step.dE));
-    lastAbsDE = Math.abs(step.dE);
-    if (lastAbsDE <= tol)
-      return { E, converged: true, iterationsUsed: k + 1, stepLimitedCount, lastAbsF, lastAbsDE };
+    if (f < 0) lower = E;
+    else upper = E;
+    // f' is increasing on [0, π]; residual / min(f') bounds the anomaly error.
+    const minDerivative = 1 - e + 2 * e * Math.sin(lower / 2) ** 2;
+    const roundoff = 8 * Number.EPSILON * (mean + (1 - e) * E + e * Math.abs(E - Math.sin(E)));
+    const error = Math.min(upper - lower, (lastAbsF + roundoff) / minDerivative);
+    if (mean === 0 || error <= tol) {
+      return {
+        E: sign * E,
+        converged: true,
+        iterationsUsed: k + 1,
+        stepLimitedCount,
+        lastAbsF,
+        lastAbsDE: error,
+      };
+    }
+    const derivative = 1 - e + 2 * e * Math.sin(E / 2) ** 2;
+    let next = E - f / derivative;
+    if (!(next > lower && next < upper) || k % 4 === 3) {
+      next = lower + (upper - lower) / 2;
+      stepLimitedCount++;
+    }
+    lastAbsDE = Math.abs(next - E);
+    E = next;
   }
-
-  return { E, converged: false, iterationsUsed: maxIters, stepLimitedCount, lastAbsF, lastAbsDE };
+  return { E: sign * E, converged: false, iterationsUsed: maxIters, stepLimitedCount, lastAbsF, lastAbsDE };
 }
 
 function throwStrictKeplerNonConvergence(
@@ -216,7 +219,7 @@ function throwStrictKeplerNonConvergence(
 }
 
 /**
- * Solves elliptic Kepler's equation M = E - e sin(E) in radians using damped Newton iterations.
+ * Solves elliptic Kepler's equation M = E - e sin(E) in radians using bracketed, safeguarded Newton iterations.
  * Inputs are validated strictly; a non-convergent strict solve throws, while non-strict mode returns its bounded estimate.
  *
  * @param M Mean anomaly [rad] (any real).
@@ -228,14 +231,14 @@ function throwStrictKeplerNonConvergence(
 export function solveKeplerE(
   M: number,
   e: number,
-  maxItersOrOpts: number | SolveKeplerEOptions = 30,
+  maxItersOrOpts: number | SolveKeplerEOptions = 80,
   tolArg = 1e-12,
   diag?: KeplerSolveDiagnostics,
 ): number {
   assertEllipticKeplerInputs(M, e);
   if (e === 0) return wrapToPi(M);
 
-  const options = resolveKeplerOptions(maxItersOrOpts, tolArg, e);
+  const options = resolveKeplerOptions(maxItersOrOpts, tolArg);
   const Mw = wrapToPi(M);
   const run = runKeplerNewtonIterations(Mw, e, options.maxIters, options.tol, initialEccentricAnomaly(Mw, e));
   const diagnostics = resolveKeplerDiagnostics(diag);

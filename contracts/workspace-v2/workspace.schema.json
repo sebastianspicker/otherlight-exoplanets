@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/workspace-v2/workspace.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "workspace-v2"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "sourceHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "../science-v7/common.schema.json#/$defs/hash"
+      },
+      "minItems": 1,
+      "maxItems": 64
+    },
+    "provenanceHash": {
+      "$ref": "../science-v7/common.schema.json#/$defs/hash"
+    },
+    "educationArchiveHash": {
+      "$ref": "../science-v7/common.schema.json#/$defs/hash"
+    },
+    "scenarioHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "../science-v7/common.schema.json#/$defs/hash"
+      },
+      "minItems": 0,
+      "maxItems": 64
+    },
+    "observationHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "../science-v7/common.schema.json#/$defs/hash"
+      },
+      "minItems": 0,
+      "maxItems": 64
+    },
+    "calibrationHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "../science-v7/common.schema.json#/$defs/hash"
+      },
+      "minItems": 0,
+      "maxItems": 64
+    },
+    "resultHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "../science-v7/common.schema.json#/$defs/hash"
+      },
+      "minItems": 0,
+      "maxItems": 64
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "title",
+    "sourceHashes",
+    "provenanceHash",
+    "scenarioHashes",
+    "observationHashes",
+    "calibrationHashes",
+    "resultHashes"
+  ],
+  "additionalProperties": false
+}

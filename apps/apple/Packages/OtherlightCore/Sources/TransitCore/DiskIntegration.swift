@@ -42,7 +42,8 @@ enum DiskIntegration {
   /// Returns the visible fraction of a uniform stellar disk behind opaque circles, as the Browser
   /// `fluxStarWithTransmissiveOcculters` evaluates it without a limb-darkening law.
   ///
-  /// The N×N Cartesian grid spans `[−R, R]²` with `step = 2R / N`, N the clamped `gridRes` with
+  /// One unpatched circular occulter uses analytic overlap, resolving arbitrarily small disks.
+  /// Otherwise the N×N Cartesian grid spans `[−R, R]²` with `step = 2R / N`, N the clamped `gridRes` with
   /// fallback 256 and minimum 32; cells outside the disk are skipped. The intensity is the
   /// "multiply" patch factor (cells with a non-positive one are skipped), a cell is blocked when
   /// `hypot(x − dx, y − dy) <= r` for any occulter, and the result is `clamp01(ΣI·T / ΣI)`, or 1
@@ -54,6 +55,13 @@ enum DiskIntegration {
     guard starRadius.isFinite, starRadius > 0 else { return 1 }
     let circles = reachingCircles(occulters, starRadius: starRadius)
     guard !circles.isEmpty else { return 1 }
+    if circles.count == 1, patches.isEmpty {
+      let circle = circles[0]
+      let area = CircularOccultation.overlapArea(
+        radius: 1, circle.radius / starRadius,
+        separation: hypot(circle.x, circle.y) / starRadius)
+      return min(1, max(0, 1 - area / .pi))
+    }
     let count = resolution(gridResolution, fallback: 256, minimum: 32)
     let step = 2 * starRadius / Double(count)
     let half = 0.5 * step

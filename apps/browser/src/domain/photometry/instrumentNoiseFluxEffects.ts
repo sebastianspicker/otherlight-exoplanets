@@ -139,8 +139,7 @@ const scintillationTransmission = (
   const sigmaFlux = Math.max(0, toFiniteNumber(scintillation.sigmaFlux, 0));
   const airmassExponent = Math.max(0, toFiniteNumber(scintillation.airmassExponent, 1.5));
   const exposureExponent = Math.max(0, toFiniteNumber(scintillation.exposureExponent, 0.5));
-  const exposureScale = Math.max(1e-6, toFiniteNonNeg(exposureSec, 1));
-  const sigma =
-    (sigmaFlux * Math.max(1, airmass ** airmassExponent)) / Math.max(1, exposureScale ** exposureExponent);
+  const exposureScale = toFiniteNonNeg(exposureSec, 1) || 1;
+  const sigma = (sigmaFlux * Math.max(1, airmass ** airmassExponent)) / exposureScale ** exposureExponent;
   return Math.max(0, 1 + normalSample(state.rng, 0, sigma));
 };

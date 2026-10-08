@@ -90,20 +90,25 @@
     "smoke:served": "bash ./scripts/smoke-served-app.sh",
     "smoke:pages": "node scripts/smoke-pages-app.mjs",
     "deadcode:report": "knip --include exports,types --reporter json --no-exit-code",
-    "deadcode:exports": "node scripts/check-deadcode-exports.mjs"
+    "deadcode:exports": "node scripts/check-deadcode-exports.mjs",
+    "test": "vitest run --config apps/browser/vitest.config.ts",
+    "test:watch": "vitest --config apps/browser/vitest.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/jsdom": "28.0.3",
     "@types/node": "^25.5.0",
     "@typescript/native": "npm:typescript@7.0.2",
     "eslint": "10.1.0",
     "jscpd": "5.0.12",
+    "jsdom": "29.1.1",
     "knip": "6.27.0",
     "prettier": "3.4.2",
     "stylelint": "17.15.0",
     "stylelint-config-standard": "40.0.0",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-eslint": "8.63.0",
-    "vite": "8.0.16"
+    "vite": "8.0.16",
+    "vitest": "4.1.1"
   }
 }

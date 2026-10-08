@@ -38,6 +38,8 @@ type StellarSurfaceConfig = NonNullable<NonNullable<EducationScenarioV4["photome
 
 export const activeLuminousStars = (snap: NativeSnapshot): NativeBodyState[] =>
   snap.stars.filter((star) => star.active && star.luminosity > 0 && star.r > 0);
+const activeOpaqueStars = (snap: NativeSnapshot): NativeBodyState[] =>
+  snap.stars.filter((star) => star.active && star.r > 0);
 export const activeNonStarOcculters = (snap: NativeSnapshot): NativeBodyState[] =>
   snap.bodies.filter((body) => body.kind !== "star" && body.active && body.r > 0);
 
@@ -50,9 +52,10 @@ export function computeVisibilityBundle(
 ): VisibilityBundle {
   const byStar = new Map<string, number>();
   const byStarBinary = new Map<string, number>();
+  const opaqueStars = activeOpaqueStars(snap);
   let nOcculters = 0;
   for (const star of luminousStars) {
-    const frontStars = luminousStars.filter((other) => other.id !== star.id && other.sky.z > star.sky.z);
+    const frontStars = opaqueStars.filter((other) => other.id !== star.id && other.sky.z > star.sky.z);
     const visibility = visibilityForStar(config, snap, star, frontStars, nonStars, tObsSec);
     byStar.set(star.id, visibility.visible);
     byStarBinary.set(star.id, visibility.binaryVisible);

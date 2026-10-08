@@ -185,7 +185,8 @@ extension SimulationEngine {
   /// Returns the signed conjunction phase `ψ = atan2(−(v·ô) / vNorm, (r·ô) / |r|)`, or nil.
   ///
   /// Mirrors the Browser `signedConjunctionPhaseRad`: ψ = 0 at inferior conjunction, π at superior
-  /// conjunction, and sin ψ > 0 while the star approaches. `vNorm` falls back to `|v|` when the
+  /// conjunction for circular motion; eccentric motion retains the legacy beaming surrogate.
+  /// `vNorm` falls back to `|v|` when the
   /// supplied scale is absent or not finite and positive.
   public static func signedConjunctionPhase(
     relativePosition r: Vector3, relativeVelocity v: Vector3, observerDirection: Vector3,
@@ -197,6 +198,24 @@ extension SimulationEngine {
     let norm = velocityScale.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? v.length
     guard distance > 1e-15, norm > 0, oHat.length > 0 else { return nil }
     let psi = atan2(-dot(v, oHat) / norm, dot(r, oHat) / distance)
+    return psi.isFinite ? psi : nil
+  }
+
+  /// Returns geometric conjunction phase using the radial-free orbital tangent.
+  private static func geometricConjunctionPhase(
+    relativePosition r: Vector3, relativeVelocity v: Vector3, observerDirection: Vector3
+  ) -> Double? {
+    guard isFinite(r), isFinite(v), isFinite(observerDirection) else { return nil }
+    let oHat = normalizedOrZero(observerDirection)
+    let distance = r.length
+    guard distance > 1e-15, oHat.length > 0 else { return nil }
+    let radial = r * (1 / distance)
+    let tangent = v - radial * dot(v, radial)
+    guard tangent.length > 0 else { return nil }
+    let cosine = dot(radial, oHat)
+    let sine = -dot(tangent, oHat) / tangent.length
+    guard hypot(cosine, sine) > 1e-12 else { return nil }
+    let psi = atan2(sine, cosine)
     return psi.isFinite ? psi : nil
   }
 
@@ -225,16 +244,26 @@ extension SimulationEngine {
         relativePosition: $0.relativePosition, relativeVelocity: $0.relativeVelocity,
         observerDirection: $0.observerDirection, velocityScale: $0.velocityScale)
     }
+    let ellipsoidalPhase = geometry.flatMap {
+      geometricConjunctionPhase(
+        relativePosition: $0.relativePosition, relativeVelocity: $0.relativeVelocity,
+        observerDirection: $0.observerDirection)
+    }
     var harmonic = 0.0
     if model.physicalAmplitudes {
       if let geometry {
         harmonic =
-          physicalBeaming(model, geometry) + physicalEllipsoidal(phase, model, geometry)
+          physicalBeaming(model, geometry) + physicalEllipsoidal(ellipsoidalPhase, model, geometry)
       }
-    } else if let phase {
-      harmonic =
-        beamingAmplitude * sin(phase + finiteOrZero(model.beamingOffsetRadians))
-        - ellipsoidalAmplitude * cos(2 * (phase + finiteOrZero(model.ellipsoidalOffsetRadians)))
+    } else {
+      if let phase {
+        harmonic += beamingAmplitude * sin(phase + finiteOrZero(model.beamingOffsetRadians))
+      }
+      if let ellipsoidalPhase {
+        harmonic -=
+          ellipsoidalAmplitude
+          * cos(2 * (ellipsoidalPhase + finiteOrZero(model.ellipsoidalOffsetRadians)))
+      }
     }
     let out = constant + harmonic + flare + pulsations
     guard out.isFinite else { return 0 }

@@ -627,6 +627,31 @@
         "evidence": [],
         "reason": "V6 scientific provenance is intentionally unavailable in the Education-only iPad app."
       }
+    },
+    {
+      "id": "science.v7-research",
+      "area": "science",
+      "title": "Shared V7 research platform",
+      "website": {
+        "status": "unavailable",
+        "evidence": ["contracts/science-v7/README.md", "services/science/science_backend/api_v3_http.py"],
+        "reason": "The Python V7 input foundation persists original files, observations, calibrations and provenance. Joint forward models, research UI/client cutover and scientific qualification remain incomplete."
+      },
+      "macos": {
+        "status": "unavailable",
+        "evidence": ["contracts/science-v7/README.md", "services/science/science_backend/api_v3_http.py"],
+        "reason": "The Python V7 input foundation persists original files, observations, calibrations and provenance. Joint forward models, research UI/client cutover and scientific qualification remain incomplete."
+      },
+      "iphone": {
+        "status": "unavailable",
+        "evidence": ["contracts/science-v7/README.md", "services/science/science_backend/api_v3_http.py"],
+        "reason": "The Python V7 input foundation persists original files, observations, calibrations and provenance. Joint forward models, research UI/client cutover and scientific qualification remain incomplete."
+      },
+      "ipad": {
+        "status": "unavailable",
+        "evidence": ["contracts/science-v7/README.md", "services/science/science_backend/api_v3_http.py"],
+        "reason": "The Python V7 input foundation persists original files, observations, calibrations and provenance. Joint forward models, research UI/client cutover and scientific qualification remain incomplete."
+      }
     }
   ]
 }

@@ -191,17 +191,21 @@ extension SimulationEngine {
       field: field, into: &issues)
   }
 
-  /// Reports non-finite planet and detached-binary node longitudes.
+  /// Validates every angular element of the orbit actually evaluated by this mode.
   private static func validateNodeLongitudes(
     _ scenario: EducationScenarioV4, into issues: inout [ValidationIssue]
   ) {
-    var orbits = [("planet.orbit", scenario.planet.orbit)]
-    if let binary = scenario.detachedBinary {
-      orbits.append(("detachedBinary.relativeOrbit", binary.relativeOrbit))
+    let name = scenario.detachedBinary == nil ? "planet.orbit" : "detachedBinary.relativeOrbit"
+    let orbit = scenario.detachedBinary?.relativeOrbit ?? scenario.planet.orbit
+    for (field, value) in [
+      ("inclinationRadians", orbit.inclinationRadians),
+      ("argumentOfPeriapsisRadians", orbit.argumentOfPeriapsisRadians),
+      ("meanAnomalyAtEpochRadians", orbit.meanAnomalyAtEpochRadians),
+      ("longitudeOfAscendingNodeRadians", orbit.longitudeOfAscendingNodeRadians),
+    ] where !value.isFinite {
+      issues.append(.nonFinite(field: "\(name).\(field)"))
     }
-    for (name, orbit) in orbits where !orbit.longitudeOfAscendingNodeRadians.isFinite {
-      issues.append(.nonFinite(field: "\(name).longitudeOfAscendingNodeRadians"))
-    }
+    if !scenario.epochSeconds.isFinite { issues.append(.nonFinite(field: "epochSeconds")) }
   }
 
   /// Reports moon radius and relative-orbit violations with the Browser V4 orbit rules.
@@ -249,11 +253,13 @@ extension SimulationEngine {
     let starMass: [(String, Double)] =
       scenario.mode == .detachedBinaryLab
       ? [] : [("star.massKilograms", scenario.star.massKilograms)]
+    let orbit = scenario.detachedBinary?.relativeOrbit ?? scenario.planet.orbit
+    let prefix = scenario.detachedBinary == nil ? "planet.orbit" : "detachedBinary.relativeOrbit"
     let positive: [(String, Double)] =
       [("star.radiusMetres", scenario.star.radiusMetres)] + starMass + [
         ("planet.radiusMetres", scenario.planet.radiusMetres),
-        ("planet.orbit.semiMajorAxisMetres", scenario.planet.orbit.semiMajorAxisMetres),
-        ("planet.orbit.periodSeconds", scenario.planet.orbit.periodSeconds),
+        ("\(prefix).semiMajorAxisMetres", orbit.semiMajorAxisMetres),
+        ("\(prefix).periodSeconds", orbit.periodSeconds),
       ]
     for (name, value) in positive {
       if !value.isFinite {
@@ -268,9 +274,11 @@ extension SimulationEngine {
   private static func validateEccentricity(
     _ scenario: EducationScenarioV4, into issues: inout [ValidationIssue]
   ) {
-    if !(0..<1).contains(scenario.planet.orbit.eccentricity) {
+    let orbit = scenario.detachedBinary?.relativeOrbit ?? scenario.planet.orbit
+    let prefix = scenario.detachedBinary == nil ? "planet.orbit" : "detachedBinary.relativeOrbit"
+    if !(0..<1).contains(orbit.eccentricity) {
       issues.append(
-        .outOfRange(field: "planet.orbit.eccentricity", value: scenario.planet.orbit.eccentricity))
+        .outOfRange(field: "\(prefix).eccentricity", value: orbit.eccentricity))
     }
   }
 

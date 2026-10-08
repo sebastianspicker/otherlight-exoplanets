@@ -1,0 +1,121 @@
+/*
+ * Deep Field — the field guide: six concept cards that teach how to read the
+ * figures. Relations are set in the text serif like displayed equations.
+ */
+
+.field-guide {
+  display: grid;
+  gap: var(--s-5);
+  margin-top: var(--s-8);
+}
+
+.field-guide__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: end;
+  gap: var(--s-2) var(--s-7);
+}
+
+.field-guide__header .kicker {
+  grid-column: 1 / -1;
+  color: var(--accent);
+}
+
+.field-guide__header h2 {
+  font-family: var(--font-serif);
+  font-size: var(--t-2xl);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: var(--lh-tight);
+}
+
+.field-guide__lead {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-base);
+}
+
+.field-guide__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--hair);
+  border-radius: var(--r-panel);
+  background: var(--rule);
+  list-style: none;
+}
+
+.concept {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-5);
+  background: var(--surface);
+}
+
+.concept:hover {
+  background: linear-gradient(180deg, rgb(138 180 255 / 4%), transparent 70%), var(--surface);
+}
+
+.concept__index {
+  margin: 0;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--track-label);
+}
+
+.concept h3 {
+  font-size: var(--t-md);
+}
+
+.concept__relation {
+  margin: 0;
+  padding: var(--s-3) 0;
+  border-block: var(--hair);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--t-md);
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
+.concept__relation sub,
+.concept__relation sup {
+  font-size: 0.62em;
+  font-style: normal;
+}
+
+.concept__body {
+  flex: 1;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  line-height: 1.6;
+}
+
+.concept__body i {
+  font-family: var(--font-serif);
+  font-size: 1.08em;
+}
+
+.concept__try {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+
+.concept__try-label {
+  margin-right: var(--s-1);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}

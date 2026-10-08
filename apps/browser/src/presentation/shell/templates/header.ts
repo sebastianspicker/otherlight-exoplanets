@@ -17,8 +17,8 @@ export function renderHeaderTemplate(
       <div class="masthead">
         <div class="brand-lockup">
           <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true" focusable="false">
-            <circle cx="17" cy="20" r="14" stroke="currentColor" stroke-width="1.5" />
-            <circle cx="27" cy="20" r="7" fill="currentColor" />
+            <circle class="brand-mark__star" cx="17" cy="20" r="14" stroke-width="1.5" />
+            <circle class="brand-mark__body" cx="27" cy="20" r="7" stroke-width="1.25" />
           </svg>
           <h1>Otherlight</h1>
         </div>

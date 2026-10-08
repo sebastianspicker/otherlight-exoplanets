@@ -15,7 +15,7 @@ source terms before refreshing that dataset.
 ## Fonts
 
 The Browser self-hosts three typefaces as subset, variable WOFF2 files under
-`apps/browser/src/presentation/styles/plate-figure/fonts/`, each under the
+`apps/browser/src/presentation/styles/deep-field/fonts/`, each under the
 [SIL Open Font License 1.1](https://openfontlicense.org). Each license text is
 kept beside its font file.
 

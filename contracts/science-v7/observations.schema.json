@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/science-v7/observations.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "science-v7"
+    },
+    "kind": {
+      "const": "observations"
+    },
+    "observable": {
+      "enum": ["relative-flux", "radial-velocity", "event-time", "astrometry"]
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "enum": ["flux", "rv", "oc", "xi", "eta"]
+      },
+      "minItems": 1,
+      "maxItems": 2
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "enum": ["1", "m/s", "s", "rad"]
+      },
+      "minItems": 1,
+      "maxItems": 2
+    },
+    "instrumentId": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "timeConvention": {
+      "$ref": "common.schema.json#/$defs/timeConvention"
+    },
+    "sourceHash": {
+      "$ref": "common.schema.json#/$defs/hash"
+    },
+    "provenanceHash": {
+      "$ref": "common.schema.json#/$defs/hash"
+    },
+    "calibrationHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/hash"
+      },
+      "minItems": 0,
+      "maxItems": 64
+    },
+    "correctionHistory": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/correction"
+      },
+      "minItems": 0,
+      "maxItems": 64
+    },
+    "uncertaintyModel": {
+      "const": "independent-gaussian"
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "time": {
+            "$ref": "common.schema.json#/$defs/time"
+          },
+          "exposureSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 31557600
+          },
+          "value": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -1e100,
+              "maximum": 1e100
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "sigma": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "masked": {
+            "type": "boolean"
+          }
+        },
+        "required": ["time", "exposureSeconds", "value", "sigma", "masked"],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 100000
+    },
+    "astrometricReference": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "gnomonic-icrs-v1"
+        },
+        "raRad": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 6.283185307179586
+        },
+        "decRad": {
+          "type": "number",
+          "minimum": -1.5707963267948966,
+          "maximum": 1.5707963267948966
+        }
+      },
+      "required": ["projection", "raRad", "decRad"],
+      "additionalProperties": false
+    },
+    "ephemeris": {
+      "type": "object",
+      "properties": {
+        "epoch": {
+          "$ref": "common.schema.json#/$defs/time"
+        },
+        "periodSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": ["epoch", "periodSeconds"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "observable",
+    "components",
+    "units",
+    "instrumentId",
+    "timeConvention",
+    "sourceHash",
+    "provenanceHash",
+    "calibrationHashes",
+    "correctionHistory",
+    "uncertaintyModel",
+    "rows"
+  ],
+  "additionalProperties": false
+}

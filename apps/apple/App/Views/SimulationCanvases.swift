@@ -243,13 +243,18 @@ private struct StaticOCChart: View, Equatable {
       let plot = CGRect(origin: .zero, size: size).insetBy(dx: 24, dy: 18)
       let middle = plot.midY
       drawResidualAxes(context, in: plot)
-      let points = series.oc.timings
+      let points = series.oc.timings.compactMap { timing -> (number: Int, residual: Double)? in
+        guard timing.isValid, let number = timing.transitNumber,
+          let residual = timing.observedMinusCalculatedSeconds, residual.isFinite
+        else { return nil }
+        return (number, residual)
+      }
       guard points.count > 1 else { return }
       for point in points {
         let x =
-          plot.minX + CGFloat(point.transitNumber - points[0].transitNumber)
-          / CGFloat(max(1, points.last!.transitNumber - points[0].transitNumber)) * plot.width
-        let y = middle - point.observedMinusCalculatedSeconds / 120 * plot.height * 0.45
+          plot.minX + CGFloat(point.number - points[0].number)
+          / CGFloat(max(1, points.last!.number - points[0].number)) * plot.width
+        let y = middle - point.residual / 120 * plot.height * 0.45
         context.fill(
           Path(ellipseIn: CGRect(x: x - 3, y: y - 3, width: 6, height: 6)),
           with: .color(PlateFigure.pencil))

@@ -77,14 +77,15 @@ extension SimulationEngine {
         vEqSinI: equatorialSpeed * geometry.sinI, axisPositionAngle: geometry.axisPositionAngle))
   }
 
-  /// Returns the flux-weighted RV anomaly in m/s of the visible disk of a rigidly rotating star.
+  /// Returns transit-minus-unocculted RV in m/s for the same rotating stellar brightness map.
   ///
   /// With star-centred sky coordinates, `v_los(x, y) = v_eq sin i_* (x cos λ − y sin λ) / R*` and
-  /// `ΔRV = −∫_blocked I v_los dA / (∫_disk I dA − ∫_blocked I dA)`, where I is the quadratic
+  /// `ΔRV = (M_disk − M_blocked)/(F_disk − F_blocked) − M_disk/F_disk`, where M integrates
+  /// `I v_los` and F integrates I. I is the quadratic
   /// limb-darkened intensity times the "multiply" patch factor and blocked is the union of the
   /// opaque circles on the transit midpoint grid (clamped `gridRes`, fallback 60). As the Browser,
   /// the moment integrates the shifted weight `I max(0, v_los + V0)` with `V0 = |v_eq sin i_*|`
-  /// and subtracts `V0 ∫_blocked I`. The result is 0 without an overlapping occulter, for invalid
+  /// and subtracts `V0 ∫ I`. The result is 0 without an overlapping occulter, for invalid
   /// inputs, or when the visible flux is at most 1e-12 of the total, and never NaN.
   public static func rossiterMcLaughlinVelocity(_ input: RossiterMcLaughlinInput) -> Double {
     let starRadius = input.starRadius
@@ -100,6 +101,7 @@ extension SimulationEngine {
     var total = 0.0
     var blocked = 0.0
     var shiftedBlocked = 0.0
+    var shiftedTotal = 0.0
     DiskIntegration.forEachChordCell(
       starRadius: starRadius,
       resolution: DiskIntegration.resolution(input.gridResolution, fallback: 60)
@@ -109,6 +111,9 @@ extension SimulationEngine {
         intensity *= StellarSurface.patchFactor(x: x, y: y, prepared: prepared)
       }
       total += intensity * area
+      let lineOfSight = vEqSinI * (x * cosL - y * sinL) / starRadius
+      let shifted = intensity * max(0, lineOfSight + v0) * area
+      shiftedTotal += shifted
       let inside = circles.contains {
         let ox = x - $0.center.x
         let oy = y - $0.center.y
@@ -116,13 +121,14 @@ extension SimulationEngine {
       }
       guard inside else { return }
       blocked += intensity * area
-      let lineOfSight = vEqSinI * (x * cosL - y * sinL) / starRadius
-      shiftedBlocked += intensity * max(0, lineOfSight + v0) * area
+      shiftedBlocked += shifted
     }
     let clampedBlocked = min(blocked, total)
     let visible = total - clampedBlocked
     guard visible > 1e-12 * total else { return 0 }
-    let anomaly = -(shiftedBlocked - v0 * clampedBlocked) / visible
+    let baselineVelocity = shiftedTotal / total - v0
+    let blockedMoment = shiftedBlocked - v0 * clampedBlocked
+    let anomaly = (baselineVelocity * clampedBlocked - blockedMoment) / visible
     return anomaly.isFinite ? anomaly : 0
   }
 }

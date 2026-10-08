@@ -13,9 +13,11 @@ import type { Vec3 } from "../../orbits/vec3";
 import { vIsFinite, vLenSq, vNormalizeOrZero, vSub } from "../../orbits/vec3";
 import { orbitTimingKey } from "../orbitTimingKey";
 import { computeTransitReferenceEpochSec, estimateTransitEventWithDiagnostics } from "../transitTimingSolve";
+import { bodySampleAt, eccentricTimeKnots } from "./nativeTrajectoryBounds";
+import type { TransitEventSampler } from "../transitContactIsolation";
 import { closestFrontApproach, type ClosestApproach } from "./nativeTransitImpact";
 import type { MoonBodyV4, PlanetBodyV4, EducationScenarioV4 } from "./types";
-import { buildNativeSnapshot, orbitStateAt, type NativeBodyState, type NativeSnapshot } from "./nativeModel";
+import { orbitStateAt, type NativeBodyState, type NativeSnapshot } from "./nativeModel";
 import { conjunctionActiveForSnapshot } from "./nativeConjunction";
 import { rossiterMcLaughlinForSnapshot } from "./nativeStellarSpin";
 
@@ -99,24 +101,7 @@ function isBinaryStarBody(snap: NativeSnapshot, body: NativeBodyState): boolean 
   return body.id === snap.stars[1]?.id;
 }
 
-type SampleAt = (trialSec: number) => ProjectedSample | undefined;
-
-function bodySampleAt(
-  config: EducationScenarioV4,
-  obs: Vec3,
-  selectBody: (snap: NativeSnapshot) => NativeBodyState | undefined,
-): SampleAt {
-  return (trialSec: number) => {
-    const trialSnap = buildNativeSnapshot(config, trialSec);
-    const trialStar = trialSnap.stars[0];
-    const trialBody = selectBody(trialSnap);
-    if (!trialStar || !trialBody) return undefined;
-    return {
-      sky: relativeSky(trialBody, trialStar),
-      vSky: skyVelocity(trialBody, trialStar, obs),
-    };
-  };
-}
+type SampleAt = TransitEventSampler;
 
 function exactSampleAt(
   config: EducationScenarioV4,
@@ -375,7 +360,8 @@ function planetClosestApproach(
   if (!(Number.isFinite(periodSec) && (periodSec as number) > 0 && Number.isFinite(t0Sec))) return undefined;
   const sampleAt = bodySampleAt(config, snap.observerDir, planetBody);
   const halfSec = (periodSec as number) / 2;
-  return closestFrontApproach(sampleAt, t0Sec - halfSec, t0Sec + halfSec, 96);
+  const knots = eccentricTimeKnots(planetReferenceOrbit(config, snap, planet).e, halfSec * 2, t0Sec);
+  return closestFrontApproach(sampleAt, t0Sec - halfSec, t0Sec + halfSec, 96, knots);
 }
 
 function moonClosestApproach(

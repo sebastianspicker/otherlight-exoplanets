@@ -11,6 +11,7 @@ import {
 import { patchFactorAt, sanitizeBrightnessPatches } from "../../photometry/patches";
 import { fluxLimbDarkenedDiskDetailed } from "../../photometry/transitLimbDarkened";
 import { fluxStarWithTransmissiveOcculters } from "../../photometry/transitTransmission";
+import { integrateCircularSpectralVisibility } from "./nativePhotometrySpectral";
 import type { VisibilityOcculter, VisibilityStar, VisibilityStarSurface } from "./nativePhotometryTypes";
 import type { EducationScenarioV4, StarBodyV4 } from "./types";
 
@@ -56,6 +57,10 @@ export function starVisibilityFromOcculters(
   surface?: VisibilityStarSurface,
 ): number {
   if (!(star.r > 0) || occulters.length === 0) return 1;
+  const bandedOcculters = occulters.filter((occulter) => occulter.transmissionByBand);
+  if (bandedOcculters.length > 0) {
+    return spectralVisibility(config, star, occulters, bandedOcculters, surface);
+  }
   const opacities = occulters.map(occulterOpacity);
   const limbDarkeningLaw = resolveStarLimbDarkeningLaw(config, star);
   const brightnessPatches = surface?.brightnessPatches;
@@ -72,6 +77,11 @@ export function starVisibilityFromOcculters(
   const allOpaque = occulters.every(
     (occulter, index) => !occulter.transmissionAtRadius && opacities[index] >= 1 - 1e-12,
   );
+  if (allOpaque && !limbDarkeningLaw && !brightnessPatches?.length && occulters.length === 1) {
+    const occulter = occulters[0];
+    const distance = Math.hypot(occulter.sky.x - star.sky.x, occulter.sky.y - star.sky.y);
+    return clamp01(1 - circleOverlapArea(1, occulter.r / star.r, distance / star.r) / Math.PI);
+  }
   if (limbDarkeningLaw && allOpaque) {
     return fluxLimbDarkenedDiskDetailed({
       rStar: star.r,
@@ -88,6 +98,65 @@ export function starVisibilityFromOcculters(
     brightnessPatches,
     gridRes: config.photometry?.gridRes,
   });
+}
+
+/** Integrates each common spectral channel after composing its foreground masks. */
+function spectralVisibility(
+  config: EducationScenarioV4,
+  star: VisibilityStar,
+  occulters: VisibilityOcculter[],
+  bandedOcculters: VisibilityOcculter[],
+  surface?: VisibilityStarSurface,
+): number {
+  const bands = bandedOcculters[0].transmissionByBand!;
+  const totalWeight = bands.reduce((sum, band) => sum + band.weight, 0);
+  if (bands.length === 0 || !Number.isFinite(totalWeight) || Math.abs(totalWeight - 1) > 1e-12) {
+    throw new Error("Atmospheric occulter spectral weights must be normalized and non-empty.");
+  }
+  for (const occulter of bandedOcculters.slice(1)) {
+    const otherBands = occulter.transmissionByBand!;
+    if (
+      otherBands.length !== bands.length ||
+      otherBands.some(
+        (band, index) =>
+          band.lambdaNm !== bands[index].lambdaNm || Math.abs(band.weight - bands[index].weight) > 1e-12,
+      )
+    ) {
+      throw new Error("Atmospheric occulters must share the same wavelength grid and normalized weights.");
+    }
+  }
+  if (!occulters.some((occulter) => occulter.ring || occulter.ellipse)) {
+    return integrateCircularSpectralVisibility({
+      star,
+      occulters,
+      bands,
+      limbDarkeningLaw: resolveStarLimbDarkeningLaw(config, star),
+      surface,
+      gridRes: config.photometry?.gridRes,
+    });
+  }
+  return spectralVisibilityByBand(config, star, occulters, bands, surface);
+}
+
+function spectralVisibilityByBand(
+  config: EducationScenarioV4,
+  star: VisibilityStar,
+  occulters: VisibilityOcculter[],
+  bands: NonNullable<VisibilityOcculter["transmissionByBand"]>,
+  surface?: VisibilityStarSurface,
+): number {
+  const broadbandVisibility = bands.reduce((sum, band, bandIndex) => {
+    const monochromaticOcculters = occulters.map((occulter) => {
+      const spectral = occulter.transmissionByBand?.[bandIndex];
+      return {
+        ...occulter,
+        transmissionAtRadius: spectral?.transmissionAtRadius ?? occulter.transmissionAtRadius,
+        transmissionByBand: undefined,
+      };
+    });
+    return sum + band.weight * starVisibilityFromOcculters(config, star, monochromaticOcculters, surface);
+  }, 0);
+  return clamp01(broadbandVisibility);
 }
 
 /**

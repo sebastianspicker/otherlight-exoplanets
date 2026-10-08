@@ -5,16 +5,17 @@
 // it does not compute photometry.
 //
 // Kinematics: each authored Kepler orbit is a two-body relative orbit. A planet's orbit
-// describes its planet-moon system barycentre relative to the parent star; the planet is
-// displaced from that barycentre by -sum(m_moon * rel_moon) / M_system. A single parent
-// star with finite positive mass is displaced by -sum(M_system * rel_system) / M_total
-// (stellar reflex), so relative orbits stay exactly as authored. Missing or non-positive
-// masses disable the respective split (educational compatibility path).
+// describes its subtree barycentre relative to its parent. Each subtree is split using
+// its complete descendant mass, including the binary and circumbinary levels. Missing
+// or non-positive masses are treated as zero in the educational compatibility path.
 
 import { projectToSky } from "../../orbits/frames";
-import { driftedOrbitElements, hasOrbitOrientationDrift } from "../../orbits/orbitOrientationDrift";
+import {
+  driftedOrbitElements,
+  hasOrbitOrientationDrift,
+  orbitOrientationVelocity,
+} from "../../orbits/orbitOrientationDrift";
 import { muFromPeriodAndA, type SolveKeplerEOptions } from "../../orbits/kepler";
-import type { OrbitElements } from "../../model/types";
 import type { Vec3 } from "../../orbits/vec3";
 import { vAdd, vScale, vSub } from "../../orbits/vec3";
 import { posFromResolvedElements, stateFromResolvedElements } from "../orbits";
@@ -145,14 +146,28 @@ function createSnapshotContext(config: EducationScenarioV4, tObsSec: number): Sn
   };
 }
 
-function binaryMassWeights(starA: StarBodyV4, starB: StarBodyV4): BinaryMassWeights {
-  const mA = finiteOrDefault(starA.m, 0);
-  const mB = finiteOrDefault(starB.m, 0);
-  const mTot = mA > 0 && mB > 0 ? mA + mB : 0;
-  return {
-    starA: mTot > 0 ? -mB / mTot : 0,
-    starB: mTot > 0 ? mA / mTot : 1,
+/** Includes every descendant before placing the two stellar subsystem barycentres. */
+function binaryMassWeights(ctx: SnapshotBuildContext): BinaryMassWeights {
+  const sources = [...ctx.config.bodies.planets, ...ctx.config.bodies.moons];
+  const mass = (id: string, own: number, visiting = new Set<string>()): number => {
+    if (visiting.has(id)) throw new Error("buildNativeSnapshot: cyclic hierarchy.");
+    const path = new Set(visiting).add(id);
+    return sources.reduce(
+      (total, body) => {
+        const parent =
+          "parentPlanetId" in body
+            ? (body.parentPlanetId ?? ctx.hmap.get(body.id))
+            : planetParentId(ctx, body as PlanetBodyV4);
+        return parent === id ? total + mass(body.id, finiteOrDefault(body.m, 0), path) : total;
+      },
+      Math.max(0, own),
+    );
   };
+  const [a, b] = ctx.config.bodies.stars;
+  const mA = mass(a.id, finiteOrDefault(a.m, 0));
+  const mB = mass(b.id, finiteOrDefault(b.m, 0));
+  const total = mA + mB;
+  return { starA: total > 0 ? -mB / total : 0, starB: total > 0 ? mA / total : 1 };
 }
 
 function detachedBinaryFallbackPassband(config: EducationScenarioV4): string | undefined {
@@ -223,7 +238,7 @@ function addState(
 function addBinaryStarStates(ctx: SnapshotBuildContext): void {
   const [starA, starB] = ctx.config.bodies.stars;
   const binary = orbitStateAt(ctx.config.orbits.binary, ctx.tObsSec, ctx.keplerOpts);
-  const weights = binaryMassWeights(starA, starB);
+  const weights = binaryMassWeights(ctx);
   const luminosities = detachedBinaryLuminosities(ctx.config, starA, starB);
   assertDetachedBinaryPhysicalLuminosities(ctx.config, luminosities.source);
 
@@ -303,9 +318,8 @@ function orbitingBodyState(
   body: OrbitingBodySource,
   bodyKind: "planet" | "moon",
   parentId?: string,
-  orbit: OrbitElements = body.orbit,
+  rel: OrbitState = orbitStateAt(body.orbit, ctx.tObsSec, ctx.keplerOpts),
 ): NativeBodyState {
-  const rel = orbitStateAt(orbit, ctx.tObsSec, ctx.keplerOpts);
   const parent = requireKnownParent(ctx.config, ctx.byId, bodyKind, body.id, parentId);
   const base = bodyBase(parent);
   const rAbs = vAdd(base.r, rel.r);
@@ -338,10 +352,10 @@ function addPlanetState(ctx: SnapshotBuildContext, p: PlanetBodyV4): void {
   addState(ctx.planets, ctx.byId, orbitingBodyState(ctx, p, "planet", planetParentId(ctx, p)));
 }
 
-/** Applies the authored exomoon orientation drift to the moon orbit; planets and the binary never drift. */
-function effectiveMoonOrbit(config: EducationScenarioV4, moon: MoonBodyV4, tObsSec: number): OrbitElements {
-  const exo = config.dynamics?.exomoonTimingShape;
-  if (!exo || exo.enabled !== true) return moon.orbit;
+/** Evaluates moon position and its full time derivative, including orientation drift. */
+function moonOrbitState(ctx: SnapshotBuildContext, moon: MoonBodyV4): OrbitState {
+  const exo = ctx.config.dynamics?.exomoonTimingShape;
+  if (!exo || exo.enabled !== true) return orbitStateAt(moon.orbit, ctx.tObsSec, ctx.keplerOpts);
   const drift = {
     omegaDot: exo.moonOmegaDot,
     incDot: exo.moonIncDot,
@@ -351,17 +365,15 @@ function effectiveMoonOrbit(config: EducationScenarioV4, moon: MoonBodyV4, tObsS
     omega0: exo.moonOmegaSmall0,
     tRefSec: exo.tRef,
   };
-  return hasOrbitOrientationDrift(drift) ? driftedOrbitElements(moon.orbit, drift, tObsSec) : moon.orbit;
+  if (!hasOrbitOrientationDrift(drift)) return orbitStateAt(moon.orbit, ctx.tObsSec, ctx.keplerOpts);
+  const orbit = driftedOrbitElements(moon.orbit, drift, ctx.tObsSec);
+  const rel = orbitStateAt(orbit, ctx.tObsSec, ctx.keplerOpts);
+  return { r: rel.r, v: vAdd(rel.v, orbitOrientationVelocity(moon.orbit, drift, ctx.tObsSec, rel.r)) };
 }
 
 function addMoonState(ctx: SnapshotBuildContext, m: MoonBodyV4): void {
   const parentId = m.parentPlanetId ?? ctx.hmap.get(m.id);
-  const orbit = effectiveMoonOrbit(ctx.config, m, ctx.tObsSec);
-  addState(ctx.moons, ctx.byId, orbitingBodyState(ctx, m, "moon", parentId, orbit));
-}
-
-function isFinitePositiveMass(m: unknown): m is number {
-  return Number.isFinite(m) && (m as number) > 0;
+  addState(ctx.moons, ctx.byId, orbitingBodyState(ctx, m, "moon", parentId, moonOrbitState(ctx, m)));
 }
 
 function childBodies(ctx: SnapshotBuildContext, parentId: string): NativeBodyState[] {
@@ -399,48 +411,43 @@ function weightedReflex(
   return { r, v };
 }
 
-/**
- * Places a planet about its planet-moon barycentre and returns the system mass M_j.
- * Returns undefined when the planet mass is unusable; a moon without a finite positive mass
- * disables the split (planet stays at the barycentre, moons treated as massless).
- */
-function applyPlanetMoonSplit(ctx: SnapshotBuildContext, planet: NativeBodyState): number | undefined {
-  const mPlanet = planet.source.m;
-  if (!isFinitePositiveMass(mPlanet)) return undefined;
-  const moons = ctx.moons.filter((moon) => moon.parentId === planet.id);
-  if (moons.length === 0 || !moons.every((moon) => isFinitePositiveMass(moon.source.m))) return mPlanet;
-  const members = moons.map((moon) => ({ body: moon, mass: moon.source.m as number }));
-  const mSystem = members.reduce((sum, member) => sum + member.mass, mPlanet);
-  translateSubtree(ctx, planet, weightedReflex(ctx, members, mSystem));
-  return mSystem;
-}
-
-/**
- * Applies the stellar reflex of a star about its planet systems. Circumbinary planets have no
- * parent star and therefore induce no reflex here; the binary split stays as authored.
- */
-function applyStellarReflex(
-  ctx: SnapshotBuildContext,
-  star: NativeBodyState,
-  systemMasses: Map<NativeBodyState, number>,
-): void {
-  const mStar = star.source.m;
-  if (!isFinitePositiveMass(mStar)) return;
-  const members = ctx.planets
-    .filter((planet) => planet.parentId === star.id && systemMasses.has(planet))
-    .map((planet) => ({ body: planet, mass: systemMasses.get(planet)! }));
-  if (members.length === 0) return;
-  const mTotal = members.reduce((sum, member) => sum + member.mass, mStar);
-  translateSubtree(ctx, star, weightedReflex(ctx, members, mTotal));
-}
-
+/** Splits each subtree from the leaves upward, preserving every authored relative orbit. */
 function applyBarycentricMotion(ctx: SnapshotBuildContext): void {
-  const systemMasses = new Map<NativeBodyState, number>();
-  for (const planet of ctx.planets) {
-    const mSystem = applyPlanetMoonSplit(ctx, planet);
-    if (mSystem !== undefined) systemMasses.set(planet, mSystem);
+  const split = (body: NativeBodyState): number => {
+    const members = childBodies(ctx, body.id).map((child) => ({ body: child, mass: split(child) }));
+    const total = members.reduce((sum, member) => sum + member.mass, body.m);
+    if (total > 0) translateSubtree(ctx, body, weightedReflex(ctx, members, total));
+    return total;
+  };
+  const stellarMass = ctx.stars.reduce((sum, star) => sum + split(star), 0);
+  const outer = ctx.planets.filter((planet) => !planet.parentId).map((body) => ({ body, mass: split(body) }));
+  const total = outer.reduce((sum, member) => sum + member.mass, stellarMass);
+  if (total > 0 && outer.length > 0) {
+    const shift = weightedReflex(ctx, outer, total);
+    [...ctx.stars, ...outer.map((member) => member.body)].forEach((body) =>
+      translateSubtree(ctx, body, shift),
+    );
   }
-  ctx.stars.forEach((star) => applyStellarReflex(ctx, star, systemMasses));
+}
+
+/** Materializes parents first; cyclic and unresolved graphs fail rather than depend on array order. */
+function addOrbitingStates(ctx: SnapshotBuildContext): void {
+  const pending = new Map(ctx.config.bodies.planets.map((body) => [body.id, body]));
+  while (pending.size > 0) {
+    let progress = false;
+    for (const [id, body] of pending) {
+      const parent = planetParentId(ctx, body);
+      if (parent && !ctx.byId.has(parent)) continue;
+      addPlanetState(ctx, body);
+      pending.delete(id);
+      progress = true;
+    }
+    if (!progress) throw new Error("buildNativeSnapshot: cyclic or unresolved planet hierarchy.");
+  }
+  ctx.config.bodies.moons.forEach((moon) => addMoonState(ctx, moon));
+  // Preserve authored display order; only evaluation order is topological.
+  const order = new Map(ctx.config.bodies.planets.map((body, index) => [body.id, index]));
+  ctx.planets.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
 }
 
 function buildSnapshotResult(ctx: SnapshotBuildContext): NativeSnapshot {
@@ -463,8 +470,7 @@ function buildSnapshotResult(ctx: SnapshotBuildContext): NativeSnapshot {
 export function buildNativeSnapshot(config: EducationScenarioV4, tObsSec: number): NativeSnapshot {
   const ctx = createSnapshotContext(config, tObsSec);
   addBinaryStarStates(ctx);
-  ctx.config.bodies.planets.forEach((planet) => addPlanetState(ctx, planet));
-  ctx.config.bodies.moons.forEach((moon) => addMoonState(ctx, moon));
+  addOrbitingStates(ctx);
   applyBarycentricMotion(ctx);
   return buildSnapshotResult(ctx);
 }

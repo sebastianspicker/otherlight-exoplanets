@@ -66,6 +66,31 @@ public struct OrbitOrientationDrift: Codable, Sendable, Hashable {
     return drifted
   }
 
+  /// Returns the orientation contribution Ω_frame × r in the observer frame (sky x = −inertial y).
+  /// Raw angles keep the derivative continuous through inclination folding at zero and π.
+  public func orientationVelocity(
+    of orbit: KeplerOrbit, atAbsoluteSeconds seconds: Double, position: Vector3
+  ) -> Vector3 {
+    let elapsed = seconds - Self.finite(referenceEpochSeconds, or: 0)
+    let node =
+      Self.finite(
+        longitudeOfAscendingNodeOverrideRadians, or: orbit.longitudeOfAscendingNodeRadians)
+      + Self.finite(omegaDotRadiansPerSecond, or: 0) * elapsed
+    let inclination =
+      Self.finite(inclinationOverrideRadians, or: orbit.inclinationRadians)
+      + Self.finite(inclinationDotRadiansPerSecond, or: 0) * elapsed
+    let inclinationRate = Self.finite(inclinationDotRadiansPerSecond, or: 0)
+    let periapsisRate = Self.finite(argumentOfPeriapsisDotRadiansPerSecond, or: 0)
+    let angular = Vector3(
+      x: -inclinationRate * sin(node) + periapsisRate * cos(node) * sin(inclination),
+      y: inclinationRate * cos(node) + periapsisRate * sin(node) * sin(inclination),
+      z: Self.finite(omegaDotRadiansPerSecond, or: 0) + periapsisRate * cos(inclination))
+    return Vector3(
+      x: angular.y * position.z - angular.z * position.y,
+      y: angular.z * position.x - angular.x * position.z,
+      z: angular.x * position.y - angular.y * position.x)
+  }
+
   /// Keeps the inclination inside [0, π] without changing the orientation, as the Browser does:
   /// `Rx(−i) = Rz(π) Rx(i) Rz(π)`, so a negative inclination is the same orbit with the node and
   /// the periapsis advanced by π. The inclination is first reduced to (−π, π].

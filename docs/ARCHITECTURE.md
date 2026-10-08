@@ -1,5 +1,16 @@
 # Architecture
 
+The [V7 research platform decision](adr/2026-10-08-v7-research-platform.md)
+defines the accepted direction for new research work. Its implementation and
+qualification remain incomplete. The operational architecture below describes
+the current V4/V5/V6 clients and runtimes; legacy execution is retained until
+V7 client cutover.
+
+The service also exposes the [V7 input foundation](../contracts/science-v7/README.md)
+under `/v3`: persistent original bytes, strict normalized inputs and pinned
+provenance. It advertises no V7 execution. Workspace V2 migration is an explicit
+offline tool; live clients still read/write Workspace V1.
+
 Otherlight is one repository and one pnpm project — not a JavaScript package
 monorepo. It combines a primary Browser application, a SwiftUI Education app, an
 optional local scientific service, a static screenshot tour, and a set of
@@ -287,7 +298,8 @@ For the operational and scientific details, see the
 
 ## Planned boundaries
 
-This project keeps no binding decision records: every boundary below is current
+New binding research decisions are recorded under `docs/adr/`. The V7 decision
+supersedes conflicting future-direction statements here. Every boundary below is current
 direction that may be revised whenever an improvement calls for it.
 
 - The portable mobile Education app and the macOS-only scientific host are

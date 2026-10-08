@@ -1,11 +1,13 @@
 /*
- * Plate & Figure — masthead, running head, experiment title and phases,
+ * Deep Field — masthead, evidence line, experiment title and phases,
  * scenario strip, status line, and colophon.
  */
 
-.app-header,
+.masthead,
+.running-head,
 .observatory-heading,
 .mainGrid,
+.field-guide,
 .command-strip,
 .observatory-footer,
 .fatal-error {
@@ -13,15 +15,23 @@
   margin-inline: auto;
 }
 
-/* Masthead */
+/* Masthead: a translucent instrument bar that stays with the reader. */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  border-bottom: var(--hair);
+  background: rgb(7 9 13 / 78%);
+  backdrop-filter: saturate(140%) blur(14px);
+}
+
 .masthead {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-3) var(--s-6);
-  min-height: 72px;
-  padding: var(--s-3) 0;
-  border-bottom: 1px solid var(--ink);
+  min-height: var(--masthead-h);
+  padding: var(--s-2) 0;
 }
 
 .brand-lockup {
@@ -31,15 +41,25 @@
 }
 
 .brand-mark {
-  width: 30px;
-  height: 30px;
-  color: var(--ink);
+  width: 28px;
+  height: 28px;
+  overflow: visible;
+}
+
+.brand-mark__star {
+  fill: rgb(244 207 138 / 14%);
+  stroke: var(--star);
+}
+
+.brand-mark__body {
+  fill: var(--space);
+  stroke: var(--ink);
 }
 
 .brand-lockup h1 {
-  font-size: var(--t-xl);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: var(--t-md);
+  font-weight: 650;
+  letter-spacing: 0.01em;
   line-height: 1;
 }
 
@@ -47,51 +67,58 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-2) var(--s-5);
+  gap: var(--s-2) var(--s-6);
 }
 
 /* The evidence-kind switch is a segmented control; the workspace switch is tabs. */
 .profile-nav {
   display: inline-flex;
   gap: 2px;
-  padding: 2px;
-  border: var(--hair-strong);
-  border-radius: var(--r-control);
+  padding: 3px;
+  border: var(--hair-2);
+  border-radius: var(--r-pill);
+  background: rgb(3 5 10 / 60%);
 }
 
 .profile-nav__item {
-  min-height: 32px;
-  padding: 0 var(--s-3);
+  min-height: 30px;
+  padding: 0 var(--s-4);
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--ink-2);
+  font-size: var(--t-sm);
 }
 
 .profile-nav__item:hover {
-  background: var(--paper-sunk);
+  background: var(--surface-2);
   color: var(--ink);
 }
 
 .profile-nav__item[aria-current="page"],
 .profile-nav__item[aria-current="page"]:hover {
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--surface-3);
+  box-shadow:
+    inset 0 0 0 1px var(--rule-strong),
+    0 1px 2px rgb(0 0 0 / 40%);
+  color: var(--ink);
 }
 
 .mode-nav {
   display: inline-flex;
-  gap: var(--s-4);
+  align-self: stretch;
+  gap: var(--s-5);
 }
 
 .mode-nav__item {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--ink-2);
+  font-size: 14px;
 }
 
 .mode-nav__item:hover {
@@ -102,7 +129,7 @@
 
 .mode-nav__item[aria-current="page"],
 .mode-nav__item[aria-current="page"]:hover {
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--accent);
   background: transparent;
   color: var(--ink);
 }
@@ -113,41 +140,81 @@
   margin-left: auto;
 }
 
-/* Running head: always states what kind of evidence is on screen. */
-.running-head {
-  margin: 0;
-  padding: var(--s-2) 0;
-  border-bottom: var(--hair);
+#workspaceOpenBtn,
+#workspaceSaveBtn {
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-color: var(--rule-2);
+  background: transparent;
   color: var(--ink-2);
-  font-family: var(--font-serif);
-  font-size: var(--t-base);
-  line-height: 1.4;
+  font-size: var(--t-sm);
+}
+
+#workspaceOpenBtn:hover,
+#workspaceSaveBtn:hover {
+  border-color: var(--rule-strong);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* Evidence line: always states what kind of evidence is on screen. */
+.running-head {
+  display: flex;
+  margin-block: 0;
+  padding: 0 0 var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+  line-height: 1.45;
+}
+
+.running-head > span::before {
+  display: inline-block;
+  margin-right: var(--s-2);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+  content: "";
+  transform: translateY(-1px);
+}
+
+.running-head > [data-product-profile="scientific"]::before {
+  background: var(--star);
+  box-shadow: 0 0 0 3px rgb(244 207 138 / 12%);
 }
 
 .running-head em {
   color: var(--ink);
+  font-style: normal;
   font-weight: 600;
 }
 
 /* Experiment title and phase stepper */
 .observatory-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
   align-items: end;
-  gap: var(--s-4) var(--col-gap);
-  padding: var(--s-7) 0 var(--s-6);
+  gap: var(--s-5) var(--s-7);
+  padding: var(--s-8) 0 var(--s-6);
+}
+
+.observatory-heading .kicker {
+  color: var(--accent);
 }
 
 .observatory-heading h2 {
-  margin-top: var(--s-1);
+  margin-top: var(--s-3);
+  font-family: var(--font-serif);
   font-size: var(--t-display);
   font-weight: 500;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   line-height: var(--lh-tight);
 }
 
 #observatorySubtitle {
-  margin: var(--s-2) 0 0;
+  max-width: 52ch;
+  margin: var(--s-3) 0 0;
   color: var(--ink-2);
   font-size: var(--t-md);
 }
@@ -155,19 +222,24 @@
 .experiment-phases {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  min-width: min(100%, 480px);
+  gap: var(--s-2);
+  min-width: 0;
 }
 
 .experiment-phases button {
+  display: flex;
   justify-content: flex-start;
-  min-height: 48px;
-  padding: var(--s-2) var(--s-4) 0 0;
+  gap: var(--s-3);
+  min-height: 52px;
+  padding: var(--s-3) var(--s-2) 0 0;
   border: 0;
-  border-top: 2px solid var(--rule);
+  border-top: 2px solid var(--rule-2);
   border-radius: 0;
   background: transparent;
   color: var(--ink-2);
-  font-size: var(--t-base);
+  font-size: 14px;
+  text-align: left;
+  white-space: normal;
 }
 
 .scenario-source__tabs button {
@@ -181,18 +253,13 @@
 }
 
 .experiment-phases button:hover {
-  border-top-color: var(--ink-2);
-  background: transparent;
-  color: var(--ink);
-}
-
-.scenario-source__tabs button:hover {
+  border-top-color: var(--ink-3);
   background: transparent;
   color: var(--ink);
 }
 
 .experiment-phases button[aria-current="step"] {
-  border-top-color: var(--pencil);
+  border-top-color: var(--accent);
   color: var(--ink);
 }
 
@@ -201,46 +268,60 @@
   border-top-color: var(--rule);
 }
 
+.scenario-source__tabs button:hover {
+  background: transparent;
+  color: var(--ink);
+}
+
 .scenario-source__tabs button[aria-pressed="true"] {
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--accent);
   color: var(--ink);
 }
 
 .phase-index {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: var(--hair-strong);
+  border-radius: 50%;
   color: var(--ink-3);
-  font-family: var(--font-serif);
-  font-size: var(--t-lg);
-  font-style: italic;
-  font-weight: 400;
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  font-weight: 600;
 }
 
 .experiment-phases button[aria-current="step"] .phase-index {
-  color: var(--pencil);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 /* Scenario strip and status line */
 .command-strip {
   display: grid;
   gap: var(--s-3);
-  margin-top: var(--s-6);
-  padding: var(--s-3) 0 var(--s-4);
-  border-top: 1px solid var(--ink);
+  margin-top: var(--s-5);
+  padding: var(--s-3) var(--s-5) var(--s-4);
+  border: var(--hair);
+  border-radius: var(--r-panel);
+  background: var(--surface);
 }
 
 .experiment-tools > summary {
-  font-family: var(--font-serif);
-  font-size: var(--t-lg);
-  font-weight: 500;
+  min-height: 44px;
   color: var(--ink);
+  font-size: var(--t-base);
 }
 
 .command-strip__left {
-  padding: var(--s-4) 0 var(--s-2);
+  padding: var(--s-3) 0 var(--s-2);
 }
 
 .command-strip__context {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 240px);
   align-items: start;
   gap: var(--s-4) var(--col-gap);
 }
@@ -274,7 +355,8 @@
 
 .scenario-source__tabs {
   display: flex;
-  gap: var(--s-4);
+  gap: var(--s-5);
+  border-bottom: var(--hair);
 }
 
 .scenario-source__panel {
@@ -301,6 +383,8 @@
   align-items: baseline;
   gap: var(--s-1) var(--s-3);
   min-width: 0;
+  padding-top: var(--s-3);
+  border-top: var(--hair);
   color: var(--ink-2);
   font-size: var(--t-sm);
   overflow-wrap: anywhere;
@@ -308,10 +392,17 @@
 
 .app-status::before {
   flex: none;
-  width: 7px;
-  height: 7px;
-  background: var(--ink);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pass);
   content: "";
+  transform: translateY(-1px);
+}
+
+#appStatusMessage {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 #appRetryBtn {
@@ -326,11 +417,12 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--s-3) var(--s-6);
+  margin-top: var(--s-7);
   margin-bottom: var(--s-6);
   padding-top: var(--s-4);
   border-top: var(--hair);
   color: var(--ink-3);
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
 }
 
 .observatory-footer p {
@@ -338,16 +430,18 @@
 }
 
 .observatory-footer__topics {
-  color: var(--ink-2);
-  font-family: var(--font-serif);
-  font-size: var(--t-base);
-  font-style: italic;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
 }
 
 .fatal-error {
   margin-block: var(--s-5);
   padding: var(--s-4) var(--s-5);
-  border-left: 3px solid var(--fault);
+  border: 1px solid rgb(255 143 134 / 35%);
+  border-radius: var(--r-panel);
   background: var(--fault-wash);
   color: var(--ink);
 }

@@ -1,223 +1,36 @@
 /*
- * Plate & Figure — the margin column (controlled inputs, equation, results)
- * and the model tools below the spread (parameters, display, O-C history).
+ * Deep Field — the model tools below the spread: system parameters and quick
+ * controls, display settings, the model boundary and the O-C history.
  */
 
-.panel {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-}
-
-.radius-comparison h2,
-.radius-relationship h2 {
-  margin-bottom: var(--s-4);
-  font-size: var(--t-xl);
-  line-height: 1.15;
-}
-
-#radiusComparisonForm {
-  display: grid;
-  gap: var(--s-3);
-}
-
-/* Trace keys repeat the figure's line styles so A and B never rely on color. */
-.trace-key {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  color: var(--ink);
-  font-size: var(--t-md);
-  font-weight: 700;
-}
-
-.trace-key__line {
-  width: 22px;
-  border-top: 2px dashed var(--trace-a);
-}
-
-.trace-b {
-  color: var(--trace-b);
-}
-
-.trace-b .trace-key__line {
-  border-top: 2.5px solid var(--trace-b);
-}
-
-.radius-input-row {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 2.2em;
-  align-items: center;
-  gap: var(--s-3);
-}
-
-.radius-input-row input {
-  width: 100%;
-  min-height: 48px;
-  font-family: var(--font-mono);
-  font-size: var(--t-lg);
-  text-align: right;
-}
-
-.unit {
-  color: var(--ink-2);
-  font-family: var(--font-serif);
-  font-size: var(--t-md);
-  font-style: italic;
-}
-
-#radiusBaselineHelp {
-  padding-left: calc(56px + var(--s-3));
-}
-
-.radius-conditions {
-  display: grid;
-  margin: var(--s-2) 0;
-  border-top: var(--hair);
-}
-
-.radius-conditions > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: var(--s-3);
-  padding: var(--s-2) 0;
-  border-bottom: var(--hair);
-}
-
-.radius-conditions dt {
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-}
-
-.radius-conditions dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-#observatoryCompareBtn {
-  width: 100%;
-  min-height: 48px;
-  font-size: var(--t-md);
-}
-
-.comparison-status {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-}
-
-.comparison-status:empty {
-  display: none;
-}
-
-#radiusComparisonForm:has([aria-invalid="true"]) .comparison-status {
-  color: var(--fault);
-  font-weight: 600;
-}
-
-#observatoryClearComparisonBtn {
-  justify-self: start;
-  font-size: var(--t-sm);
-}
-
-.radius-assumptions {
-  margin-top: var(--s-3);
-}
-
-.radius-assumptions > .help {
-  margin-top: var(--s-2);
-}
-
-/* The relationship: equation set like a displayed formula, results as a table. */
-.radius-equation {
-  margin: 0 0 var(--s-5);
-  color: var(--ink);
-  font-family: var(--font-serif);
-  font-size: clamp(30px, 1.4rem + 1vw, 40px);
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.radius-equation sub,
-.radius-equation sup {
-  font-size: 0.55em;
-  font-style: normal;
-}
-
-.radius-results {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.radius-results caption {
-  padding-bottom: var(--s-2);
-  color: var(--ink-2);
-  font-family: var(--font-serif);
-  font-size: var(--t-base);
-  font-style: italic;
-  text-align: left;
-}
-
-.radius-results tr {
-  border-top: var(--hair);
-}
-
-.radius-results tr:last-child {
-  border-bottom: var(--hair);
-}
-
-.radius-results th,
-.radius-results td {
-  padding: var(--s-2) 0;
-  text-align: left;
-  vertical-align: baseline;
-}
-
-.radius-results td {
-  font-family: var(--font-mono);
-  font-size: var(--t-xl);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.radius-ratio {
-  margin: var(--s-3) 0 var(--s-2);
-  font-size: var(--t-base);
-}
-
-.radius-ratio ~ .help {
-  margin-top: var(--s-2);
-}
-
-#observatoryInterpretBtn {
-  margin-top: var(--s-4);
-  font-size: var(--t-md);
-}
-
-/* Model tools: two disclosed columns under the spread. */
+/* Model tools: two disclosed panels under the spread. */
 .observatory-model-tools {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 0 var(--col-gap);
-  border-top: 1px solid var(--ink);
+  gap: var(--col-gap);
 }
 
 .model-tools {
-  padding: var(--s-3) 0;
+  padding: var(--s-2) var(--s-5);
+  border: var(--hair);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+}
+
+.model-tools[open] {
+  padding-bottom: var(--s-5);
 }
 
 .model-tools > summary {
+  min-height: 48px;
   color: var(--ink);
-  font-family: var(--font-serif);
-  font-size: var(--t-lg);
-  font-weight: 500;
+  font-size: var(--t-base);
 }
 
 .model-tools[open] > :not(summary) {
-  margin-top: var(--s-4);
+  margin-top: var(--s-3);
 }
 
 .panel-heading {
@@ -231,15 +44,16 @@
 .display-controls > h2,
 .model-boundary h2,
 .oc-history > h3 {
-  font-size: var(--t-lg);
+  font-size: var(--t-md);
 }
 
 .panel-heading__status {
   padding: 1px var(--s-2);
   border: var(--hair-strong);
-  border-radius: 2px;
+  border-radius: var(--r-pill);
   color: var(--ink-2);
-  font-size: var(--t-xs);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
 }
 
 .parameter-intro {
@@ -265,8 +79,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s-1) var(--s-3);
-  padding: var(--s-3) 0 var(--s-3) var(--s-3);
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-3) var(--s-1) var(--s-3) var(--s-3);
   border-bottom: var(--hair);
   border-left: 2px solid transparent;
 }
@@ -286,7 +100,8 @@
 }
 
 .quickControlValue {
-  color: var(--ink);
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
   font-size: var(--t-sm);
   text-align: right;
 }
@@ -311,7 +126,8 @@
 
 .quickControl:focus-within,
 .quickControl--focus {
-  border-left-color: var(--pencil);
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, var(--accent-wash), transparent 70%);
 }
 
 .quickControl--dimmed {
@@ -356,11 +172,11 @@
 
 .paramActions {
   position: sticky;
-  top: 0;
+  top: var(--header-h);
   z-index: 1;
   padding: var(--s-3) 0;
   border-bottom: var(--hair);
-  background: var(--paper);
+  background: var(--surface);
 }
 
 #paramForm label {
@@ -453,19 +269,22 @@
 }
 
 .model-boundary {
+  margin-block: var(--s-4);
   padding: var(--s-4);
-  border: 0;
-  border-left: 3px solid var(--ink);
-  background: var(--paper-sunk);
+  border: 1px solid rgb(244 207 138 / 20%);
+  border-radius: var(--r-control);
+  background: radial-gradient(100% 120% at 0% 0%, rgb(244 207 138 / 6%), transparent 60%), rgb(3 5 10 / 40%);
 }
 
 .model-boundary .eyebrow {
-  font-size: var(--t-base);
+  color: var(--star);
 }
 
 .oc-history .scientific-figure {
   margin-top: var(--s-2);
+  overflow: hidden;
   border: var(--hair);
+  border-radius: var(--r-control);
 }
 
 .oc-history figcaption {

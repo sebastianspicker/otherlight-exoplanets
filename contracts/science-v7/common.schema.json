@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/science-v7/common.schema.json",
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "time": {
+      "type": "object",
+      "properties": {
+        "jd1": {
+          "type": "integer",
+          "minimum": 2000000,
+          "maximum": 3000000
+        },
+        "jd2": {
+          "type": "number",
+          "minimum": -0.5,
+          "exclusiveMaximum": 0.5
+        }
+      },
+      "required": ["jd1", "jd2"],
+      "additionalProperties": false
+    },
+    "vector3": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": -1e100,
+        "maximum": 1e100
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "timeConvention": {
+      "type": "object",
+      "properties": {
+        "scale": {
+          "enum": ["TDB", "TT", "UTC"]
+        },
+        "reference": {
+          "enum": ["observer-arrival", "barycentric-arrival"]
+        },
+        "exposureTimestamp": {
+          "enum": ["start", "midpoint", "end"]
+        },
+        "referenceDataHashes": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/hash"
+          },
+          "minItems": 0,
+          "maxItems": 32
+        }
+      },
+      "required": ["scale", "reference", "exposureTimestamp", "referenceDataHashes"],
+      "additionalProperties": false
+    },
+    "correction": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "provenanceHash": {
+          "$ref": "common.schema.json#/$defs/hash"
+        }
+      },
+      "required": ["operation", "version", "provenanceHash"],
+      "additionalProperties": false
+    },
+    "numericalBudget": {
+      "type": "object",
+      "properties": {
+        "trajectory": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "propagation": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "spatial": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "spectral": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "exposure": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": ["trajectory", "propagation", "spatial", "spectral", "exposure"],
+      "additionalProperties": false
+    }
+  }
+}

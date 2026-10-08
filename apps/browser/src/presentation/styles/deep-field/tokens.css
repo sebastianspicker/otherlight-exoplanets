@@ -1,60 +1,72 @@
 /*
- * Plate & Figure — design tokens and document base.
+ * Deep Field — design tokens and document base.
  *
- * Paper and ink carry the interface; blue pencil marks "your change" (trace B,
- * the current step, active edits). The sky plate stays dark in both themes.
+ * A dark observatory: near-black space carries layered, hairline-ruled
+ * surfaces; text is starlight; one ice-blue accent means "your change" (trace B,
+ * the current step, active edits). The sky plate is the deepest surface.
  * Canvas figures mirror these roles in presentation/render/canvas/figureInk.ts.
  */
 
 :root {
-  /* Paper and ink */
-  --paper: #f3efe6;
-  --paper-raised: #fbf9f4;
-  --paper-sunk: #e8e3d7;
-  --ink: #17191b;
-  --ink-2: #45484b;
-  --ink-3: #5d6063;
-  --rule: #d6cfc0;
-  --rule-strong: #8f887b;
+  /* Space and surfaces, from the page ground up */
+  --space: #07090d;
+  --surface: #0d1017;
+  --surface-2: #131824;
+  --surface-3: #1a2030;
+  --plate: #03050a;
+
+  /* Starlight text */
+  --ink: #e9ecf2;
+  --ink-2: #b4bccb;
+  --ink-3: #8e97aa;
+  --on-accent: #07101f;
+
+  /* Rules: hairlines between regions, a 3:1 boundary for fields */
+  --rule: rgb(160 176 214 / 10%);
+  --rule-2: rgb(160 176 214 / 17%);
+  --rule-strong: rgb(160 176 214 / 30%);
+  --field-rule: #5b6580;
 
   /* Annotation and state */
-  --pencil: #1f55b3;
-  --pencil-wash: #e1e7f1;
-  --caution: #72500a;
-  --caution-wash: #f2e5c3;
-  --fault: #9e2a2b;
-  --fault-wash: #f6dcd8;
-  --pass: #2b6a3e;
-  --pass-wash: #dcead9;
+  --accent: #8ab4ff;
+  --accent-strong: #b1ccff;
+  --accent-wash: rgb(138 180 255 / 12%);
+  --accent-glow: rgb(138 180 255 / 28%);
+  --star: #f4cf8a;
+  --caution: #e8c26e;
+  --caution-wash: rgb(232 194 110 / 9%);
+  --fault: #ff8f86;
+  --fault-wash: rgb(255 143 134 / 9%);
+  --pass: #7fd6a4;
+  --pass-wash: rgb(127 214 164 / 9%);
 
   /* Evidence roles */
   --trace-a: var(--ink);
-  --trace-b: var(--pencil);
-  --plate: #0c0f13;
-  --plate-ink: #e6e1d4;
-  --plate-ink-3: #8f8b82;
-  --plate-rule: #3a3d42;
-  --ink-hover: #33373a;
-  --focus: var(--ink);
-  --on-ink: var(--paper);
+  --trace-b: var(--accent);
+  --plate-ink: #dfe4ee;
+  --plate-ink-3: #7f899e;
+  --plate-rule: rgb(160 176 214 / 14%);
+  --focus: var(--accent-strong);
 
   /* Type */
   --font-serif: "STIX Two Text", "STIX Two", georgia, serif;
   --font-sans: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", menlo, consolas, monospace;
+  --t-2xs: 11px;
   --t-xs: 12px;
   --t-sm: 13px;
   --t-base: 15px;
   --t-md: 17px;
   --t-lg: 20px;
-  --t-xl: 26px;
-  --t-2xl: 34px;
-  --t-display: clamp(34px, 1.6rem + 1.8vw, 52px);
-  --lh-tight: 1.12;
+  --t-xl: 24px;
+  --t-2xl: 32px;
+  --t-display: clamp(34px, 1.5rem + 2vw, 56px);
+  --lh-tight: 1.08;
   --lh-snug: 1.3;
-  --lh-body: 1.55;
+  --lh-body: 1.6;
+  --track-label: 0.09em;
 
-  /* Space: a 4 px base, doubling at the section scale */
+  /* Space: a 4 px base */
   --s-1: 4px;
   --s-2: 8px;
   --s-3: 12px;
@@ -62,47 +74,29 @@
   --s-5: 24px;
   --s-6: 32px;
   --s-7: 48px;
-  --s-8: 64px;
+  --s-8: 72px;
 
-  /* Shape, rules, motion, layout */
-  --r-control: 3px;
+  /* Shape, rules, depth, motion, layout */
+  --r-control: 8px;
+  --r-panel: 14px;
+  --r-pill: 999px;
   --hair: 1px solid var(--rule);
+  --hair-2: 1px solid var(--rule-2);
   --hair-strong: 1px solid var(--rule-strong);
-  --dur: 160ms;
+  --lift: inset 0 1px 0 rgb(255 255 255 / 3.5%), 0 1px 2px rgb(0 0 0 / 35%),
+    0 12px 32px -18px rgb(0 0 0 / 70%);
+  --dur: 180ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --page-max: 1440px;
-  --gutter: clamp(16px, 3.2vw, 40px);
-  --col-gap: clamp(24px, 3.4vw, 48px);
+  --page-max: 1480px;
+  --gutter: clamp(16px, 3vw, 40px);
+  --col-gap: clamp(16px, 2.2vw, 28px);
   --control-h: 40px;
+  --masthead-h: 64px;
+  --header-h: 92px; /* sticky masthead plus evidence line; 0 where the header scrolls away */
   --z-sticky: 20;
 
-  color-scheme: light;
-  accent-color: var(--ink);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #131416;
-    --paper-raised: #1c1d20;
-    --paper-sunk: #0e0f10;
-    --ink: #ebe6db;
-    --ink-2: #bbb6ab;
-    --ink-3: #99958c;
-    --rule: #34332f;
-    --rule-strong: #6b675f;
-    --pencil: #8fb3ff;
-    --pencil-wash: #1c2536;
-    --caution: #e2bf76;
-    --caution-wash: #2d2616;
-    --fault: #ff9f96;
-    --fault-wash: #3a1d1b;
-    --pass: #8fd0a0;
-    --pass-wash: #18281c;
-    --plate-rule: #2e3136;
-    --ink-hover: #fffaf0;
-
-    color-scheme: dark;
-  }
+  color-scheme: dark;
+  accent-color: var(--accent);
 }
 
 *,
@@ -113,16 +107,23 @@
 
 html {
   min-width: 320px;
-  background: var(--paper);
+  background: var(--space);
   text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + var(--s-4));
 }
 
+/*
+ * The ground: deep space with a faint zenith glow and a warm off-axis haze.
+ * Static and fixed; it never competes with the evidence.
+ */
 body {
   min-width: 320px;
   min-height: 100dvh;
   margin: 0;
   overflow-x: hidden;
-  background: var(--paper);
+  background: radial-gradient(120% 70% at 50% -10%, rgb(64 86 150 / 16%), transparent 60%),
+    radial-gradient(60% 40% at 92% 8%, rgb(244 207 138 / 4.5%), transparent 70%), var(--space);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: var(--t-base);
@@ -138,8 +139,9 @@ h3,
 h4 {
   margin: 0;
   color: var(--ink);
-  font-family: var(--font-serif);
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   line-height: var(--lh-snug);
   text-wrap: balance;
 }
@@ -149,18 +151,20 @@ p {
 }
 
 a {
-  color: inherit;
+  color: var(--accent);
   text-decoration-line: underline;
+  text-decoration-color: rgb(138 180 255 / 40%);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+  transition: text-decoration-color var(--dur) var(--ease);
 }
 
 a:hover {
-  text-decoration-thickness: 2px;
+  text-decoration-color: currentcolor;
 }
 
 ::selection {
-  background: var(--pencil-wash);
+  background: rgb(138 180 255 / 30%);
   color: var(--ink);
 }
 
@@ -175,7 +179,6 @@ a:hover {
 
 #app {
   min-height: 100dvh;
-  background: var(--paper);
   color: var(--ink);
 }
 
@@ -189,8 +192,9 @@ a:hover {
   left: var(--s-2);
   z-index: 100;
   padding: var(--s-2) var(--s-4);
-  background: var(--ink);
-  color: var(--on-ink);
+  border-radius: var(--r-control);
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
   text-decoration: none;
   transform: translateY(-200%);
@@ -228,7 +232,7 @@ code {
   margin: 0;
   color: var(--ink-2);
   font-size: var(--t-sm);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .row {
@@ -254,16 +258,17 @@ code {
   gap: var(--s-2) var(--s-4);
 }
 
-/* Small-caps kicker used for section labels; set in the serif, not tracked caps. */
+/* Instrument label: small tracked mono capitals, used sparingly for section kickers. */
 .eyebrow,
 .kicker {
   margin: 0;
-  color: var(--ink-2);
-  font-family: var(--font-serif);
-  font-size: var(--t-md);
-  font-style: italic;
-  font-weight: 400;
-  line-height: var(--lh-snug);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  line-height: 1.4;
+  text-transform: uppercase;
 }
 
 [data-tooltip] {
@@ -272,14 +277,16 @@ code {
 
 [data-tooltip]::after {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   left: 0;
   z-index: 10;
   width: max-content;
   max-width: min(300px, calc(100vw - 32px));
   padding: var(--s-2) var(--s-3);
-  border: var(--hair-strong);
-  background: var(--paper-raised);
+  border: var(--hair-2);
+  border-radius: var(--r-control);
+  background: var(--surface-3);
+  box-shadow: var(--lift);
   color: var(--ink);
   content: attr(data-tooltip);
   font-size: var(--t-xs);

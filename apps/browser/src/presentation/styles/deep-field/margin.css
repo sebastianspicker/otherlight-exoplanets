@@ -1,0 +1,218 @@
+/*
+ * Deep Field — the instrument column: controlled inputs, the equation and results.
+ */
+
+.panel {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.radius-comparison h2,
+.radius-relationship h2 {
+  margin-bottom: var(--s-4);
+  font-size: var(--t-lg);
+  line-height: 1.2;
+}
+
+#radiusComparisonForm {
+  display: grid;
+  gap: var(--s-3);
+}
+
+/* Trace keys repeat the figure's line styles so A and B never rely on color. */
+.trace-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--t-md);
+  font-weight: 700;
+}
+
+.trace-key__line {
+  width: 22px;
+  border-top: 2px dashed var(--trace-a);
+}
+
+.trace-b {
+  color: var(--trace-b);
+}
+
+.trace-b .trace-key__line {
+  border-top: 2.5px solid var(--trace-b);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.radius-input-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 2.2em;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.radius-input-row input {
+  width: 100%;
+  min-height: 50px;
+  font-family: var(--font-mono);
+  font-size: var(--t-lg);
+  text-align: right;
+}
+
+#observatoryRadiusB {
+  border-color: rgb(138 180 255 / 55%);
+}
+
+.unit {
+  color: var(--ink-3);
+  font-family: var(--font-serif);
+  font-size: var(--t-md);
+  font-style: italic;
+}
+
+#radiusBaselineHelp {
+  padding-left: calc(56px + var(--s-3));
+}
+
+.radius-conditions {
+  display: grid;
+  margin: var(--s-2) 0;
+  border-top: var(--hair);
+}
+
+.radius-conditions > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: var(--hair);
+}
+
+.radius-conditions dt {
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}
+
+.radius-conditions dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+#observatoryCompareBtn {
+  width: 100%;
+  min-height: 48px;
+  font-size: var(--t-base);
+}
+
+.comparison-status {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+
+.comparison-status:empty {
+  display: none;
+}
+
+#radiusComparisonForm:has([aria-invalid="true"]) .comparison-status {
+  color: var(--fault);
+  font-weight: 600;
+}
+
+#observatoryClearComparisonBtn {
+  justify-self: start;
+  font-size: var(--t-sm);
+}
+
+.radius-assumptions {
+  margin-top: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: var(--hair);
+}
+
+.radius-assumptions > .help {
+  margin-top: var(--s-2);
+}
+
+/* The relationship: the equation set as a displayed formula, results as a table. */
+.radius-equation {
+  margin: 0 0 var(--s-5);
+  padding: var(--s-4) var(--s-3);
+  border: var(--hair);
+  border-radius: var(--r-control);
+  background: radial-gradient(120% 140% at 50% 0%, rgb(138 180 255 / 7%), transparent 60%), rgb(3 5 10 / 45%);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 1.3rem + 0.9vw, 38px);
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.radius-equation sub,
+.radius-equation sup {
+  font-size: 0.55em;
+  font-style: normal;
+}
+
+.radius-results {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.radius-results caption {
+  padding-bottom: var(--s-2);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--track-label);
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.radius-results tr {
+  border-top: var(--hair);
+}
+
+.radius-results tr:last-child {
+  border-bottom: var(--hair);
+}
+
+.radius-results th,
+.radius-results td {
+  padding: var(--s-2) 0;
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.radius-results td {
+  font-family: var(--font-mono);
+  font-size: var(--t-xl);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.radius-results tr:has(.trace-b) td {
+  color: var(--accent-strong);
+}
+
+.radius-ratio {
+  margin: var(--s-3) 0 var(--s-2);
+  font-size: var(--t-base);
+}
+
+.radius-ratio ~ .help {
+  margin-top: var(--s-2);
+}
+
+#observatoryInterpretBtn {
+  margin-top: var(--s-4);
+  color: var(--accent);
+  font-size: var(--t-base);
+  text-decoration-color: rgb(138 180 255 / 40%);
+}

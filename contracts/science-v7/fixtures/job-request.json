@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "science-v7",
+  "kind": "forward",
+  "scenarioHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "observationHashes": ["0000000000000000000000000000000000000000000000000000000000000000"],
+  "calibrationHashes": ["0000000000000000000000000000000000000000000000000000000000000000"],
+  "provenanceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "tolerances": {
+    "relativeFlux": 1e-7,
+    "radialVelocityMps": 0.01,
+    "eventTimeSeconds": 0.001,
+    "astrometryRad": 4e-12,
+    "maxUncertaintyFraction": 0.1,
+    "allocation": {
+      "trajectory": 0.1,
+      "propagation": 0.1,
+      "spatial": 0.3,
+      "spectral": 0.2,
+      "exposure": 0.2
+    }
+  },
+  "budget": {
+    "maxWallSeconds": 10,
+    "maxEvaluations": 10000
+  }
+}

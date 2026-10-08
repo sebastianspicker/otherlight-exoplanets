@@ -1,7 +1,7 @@
 /*
- * Plate & Figure — Scientific workspace.
- * Set like a methods-and-provenance section: the same paper and ink, denser,
- * with the backend state and the replay boundary stated in words.
+ * Deep Field — Scientific workspace.
+ * Set like a methods-and-provenance section: the same panels, denser, with the
+ * backend state and the replay boundary stated in words, marked in starlight.
  */
 
 .scientific-workspace {
@@ -9,7 +9,7 @@
   gap: var(--s-6);
   width: min(100% - 2 * var(--gutter), var(--page-max) - 2 * var(--gutter));
   margin: 0 auto var(--s-7);
-  padding-top: var(--s-7);
+  padding-top: var(--s-8);
 }
 
 .scientific-workspace__header {
@@ -19,10 +19,16 @@
   gap: var(--s-5) var(--col-gap);
 }
 
+.scientific-workspace__header .eyebrow {
+  color: var(--star);
+}
+
 .scientific-workspace__header h2 {
-  margin: var(--s-1) 0 var(--s-3);
+  margin: var(--s-3) 0 var(--s-3);
+  font-family: var(--font-serif);
   font-size: var(--t-display);
-  letter-spacing: -0.015em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   line-height: var(--lh-tight);
 }
 
@@ -37,7 +43,10 @@
   display: grid;
   gap: var(--s-1);
   padding: var(--s-4) var(--s-5);
-  border: 1px solid var(--ink);
+  border: 1px solid rgb(244 207 138 / 22%);
+  border-radius: var(--r-panel);
+  background: radial-gradient(120% 120% at 100% 0%, rgb(244 207 138 / 7%), transparent 60%), var(--surface);
+  box-shadow: var(--lift);
 }
 
 .scientific-workspace__status .readout-label {
@@ -45,8 +54,7 @@
 }
 
 #scienceCapabilityStatus {
-  font-family: var(--font-serif);
-  font-size: var(--t-xl);
+  font-size: var(--t-lg);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -65,15 +73,18 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: var(--s-6) var(--col-gap);
+  gap: var(--col-gap);
 }
 
 .scientific-panel {
   display: grid;
   gap: var(--s-3);
   min-width: 0;
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--ink);
+  padding: var(--s-5);
+  border: var(--hair);
+  border-radius: var(--r-panel);
+  background: linear-gradient(180deg, rgb(255 255 255 / 1.6%), transparent 120px), var(--surface);
+  box-shadow: var(--lift);
 }
 
 .scientific-panel__heading {
@@ -85,12 +96,8 @@
 }
 
 .scientific-panel__heading h3 {
-  font-size: var(--t-xl);
-  line-height: 1.15;
-}
-
-.scientific-panel__heading .eyebrow {
-  font-size: var(--t-base);
+  font-size: var(--t-lg);
+  line-height: 1.2;
 }
 
 .science-run-fields {
@@ -120,7 +127,7 @@
 }
 
 .science-unit {
-  color: var(--ink-2);
+  color: var(--ink-3);
   font-family: var(--font-serif);
   font-size: var(--t-md);
   font-style: italic;
@@ -133,8 +140,10 @@
 
 .science-run-status {
   padding: var(--s-2) var(--s-3);
+  border: var(--hair);
   border-left: 3px solid var(--rule-strong);
-  background: var(--paper-sunk);
+  border-radius: var(--r-control);
+  background: rgb(3 5 10 / 45%);
   color: var(--ink);
 }
 
@@ -175,10 +184,12 @@
 .science-dataset-import > label,
 .science-dataset-listing h4,
 .science-dataset-metadata h4 {
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
 }
 
 .science-dataset-list {
@@ -229,8 +240,9 @@
   padding: var(--s-3) var(--s-4);
   overflow: auto;
   border: var(--hair);
-  background: var(--paper-sunk);
-  color: var(--ink);
+  border-radius: var(--r-control);
+  background: rgb(3 5 10 / 55%);
+  color: var(--ink-2);
   font-size: var(--t-sm);
   line-height: 1.55;
   white-space: pre-wrap;
@@ -257,14 +269,12 @@
   display: grid;
   gap: var(--s-2);
   padding: var(--s-4);
+  border: 1px solid rgb(232 194 110 / 22%);
   border-left: 3px solid var(--caution);
+  border-radius: var(--r-control);
   background: var(--caution-wash);
 }
 
 .science-contract-replay h4 {
-  font-size: var(--t-lg);
-}
-
-.science-contract-replay .science-result {
-  background: var(--paper-raised);
+  font-size: var(--t-md);
 }

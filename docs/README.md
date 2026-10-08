@@ -36,6 +36,13 @@ are not part of this set.
 | [V6 contract boundary](../contracts/science-v6/README.md)   | Dataset imports plus strict pending timing and result shapes              |
 | [Alpha release procedure](alpha-release.md)                 | How to qualify a specific revision and what evidence to record            |
 
+The [V7 research architecture decision](adr/2026-10-08-v7-research-platform.md)
+records the accepted replacement direction and qualification requirements; it
+is not an announcement of an available V7 release.
+The [V7 input contract](../contracts/science-v7/README.md) and
+[Workspace V2 migration guide](../contracts/workspace-v2/README.md) describe
+the implemented persistence and import foundation.
+
 Component setup and interfaces are documented beside the component:
 
 - [Browser](../apps/browser/README.md)

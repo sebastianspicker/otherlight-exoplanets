@@ -1,5 +1,6 @@
 /** Linear drift of an orbit's orientation angles (node, inclination, periapsis) from a reference epoch. */
 import type { OrbitElements } from "../model/types";
+import { vCross, type Vec3 } from "./vec3";
 
 export type OrbitOrientationDrift = {
   /** dΩ/dt [rad/s] (longitude of ascending node). */
@@ -62,4 +63,29 @@ export function driftedOrbitElements(
     finiteOr(drift.omega0, orbit.omega) + finiteOr(drift.omegaSmallDot, 0) * dt,
   );
   return { ...orbit, Omega, inc, omega };
+}
+
+/**
+ * Velocity from the changing orientation, Ω_frame × r, in the inertial frame.
+ * Use the raw angles so inclination folding cannot reverse a rate or introduce a discontinuity.
+ */
+export function orbitOrientationVelocity(
+  orbit: OrbitElements,
+  drift: OrbitOrientationDrift,
+  tSec: number,
+  position: Vec3,
+): Vec3 {
+  const dt = tSec - finiteOr(drift.tRefSec, 0);
+  const node = finiteOr(drift.Omega0, orbit.Omega) + finiteOr(drift.omegaDot, 0) * dt;
+  const inc = finiteOr(drift.inc0, orbit.inc) + finiteOr(drift.incDot, 0) * dt;
+  const incRate = finiteOr(drift.incDot, 0);
+  const periRate = finiteOr(drift.omegaSmallDot, 0);
+  return vCross(
+    {
+      x: incRate * Math.cos(node) + periRate * Math.sin(node) * Math.sin(inc),
+      y: incRate * Math.sin(node) - periRate * Math.cos(node) * Math.sin(inc),
+      z: finiteOr(drift.omegaDot, 0) + periRate * Math.cos(inc),
+    },
+    position,
+  );
 }

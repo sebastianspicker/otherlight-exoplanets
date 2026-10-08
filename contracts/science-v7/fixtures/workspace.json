@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "workspace-v2",
+  "title": "Synthetic archive",
+  "sourceHashes": ["0000000000000000000000000000000000000000000000000000000000000000"],
+  "provenanceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "educationArchiveHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "scenarioHashes": [],
+  "observationHashes": [],
+  "calibrationHashes": [],
+  "resultHashes": []
+}

@@ -84,12 +84,14 @@ const collectPlanetStarWarnings = (
 
   const out: UiValidationMessage[] = [];
   const qP = pOrbit.a * (1 - pOrbit.e);
+  const collisionDistance = starR + (positiveNumber(planet.r) ? planet.r : 0);
 
-  if (Number.isFinite(qP) && qP <= starR) {
+  if (Number.isFinite(qP) && qP <= collisionDistance) {
     out.push({
       severity: "warn",
       code: "PLANET_PERIA_INSIDE_STAR",
-      message: "Planet periapsis is inside the stellar radius (collision/non-physical).",
+      message:
+        "Planet periapsis intersects the stellar surface when body radii are combined (collision/non-physical).",
     });
   }
 
@@ -126,11 +128,13 @@ const collectMoonPlanetWarnings = (
 
   if (positiveNumber(planet.r)) {
     const qM = mOrbit.a * (1 - mOrbit.e);
-    if (Number.isFinite(qM) && qM <= planet.r) {
+    const collisionDistance = planet.r + (positiveNumber(moon.r) ? moon.r : 0);
+    if (Number.isFinite(qM) && qM <= collisionDistance) {
       out.push({
         severity: "warn",
         code: "MOON_PERIA_INSIDE_PLANET",
-        message: "Moon pericenter is inside the planet radius (collision/non-physical).",
+        message:
+          "Moon pericenter intersects the planet surface when body radii are combined (collision/non-physical).",
       });
     }
   }

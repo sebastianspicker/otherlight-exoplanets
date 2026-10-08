@@ -1,5 +1,9 @@
 # Science V6 contracts
 
+V6 is a legacy artifact and live dataset-import contract. New research follows
+[V7](../science-v7/README.md); the unimplemented V6 job shapes below are retained
+for readers and migration, not a parallel future execution roadmap.
+
 This directory owns the additive scientific dataset and result shapes used by the
 `/v2` service family. It does not revise `science-v5`, and it does not make a V6
 physical model available.

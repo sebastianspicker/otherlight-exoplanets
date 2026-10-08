@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "science-v7",
+  "kind": "scenario",
+  "provenanceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "epoch": {
+    "jd1": 2451545,
+    "jd2": 0
+  },
+  "timeScale": "TDB",
+  "frame": "icrs-barycentric",
+  "durationSeconds": 86400,
+  "stateLayout": "body-major-cartesian-si-v1",
+  "gravity": "newtonian-point-mass-v1",
+  "collisionPolicy": "stop-at-first-contact",
+  "bodies": [
+    {
+      "id": "star-a",
+      "massKg": 1e30,
+      "radiusM": 100000000.0,
+      "positionM": [-10000000000.0, 0, 0],
+      "velocityMps": [0, -100, 0]
+    },
+    {
+      "id": "star-b",
+      "massKg": 1e30,
+      "radiusM": 100000000.0,
+      "positionM": [10000000000.0, 0, 0],
+      "velocityMps": [0, 100, 0]
+    }
+  ]
+}

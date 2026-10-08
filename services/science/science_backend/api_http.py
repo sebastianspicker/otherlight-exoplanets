@@ -6,6 +6,7 @@ import json
 import logging
 from collections.abc import Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from .__about__ import __version__
@@ -17,6 +18,7 @@ from .api_v2_http import (
     read_bounded_body,
     register_v2_routes,
 )
+from .api_v3_http import register_v3_routes
 from .artifact_store import open_verified_artifact
 from .errors import (
     CapabilityUnavailableError,
@@ -27,6 +29,7 @@ from .errors import (
     JobCapacityError,
     JobStateError,
 )
+from .research_store import ResearchStore
 
 LOGGER = logging.getLogger(__name__)
 BROWSER_CORS_ORIGINS = (
@@ -237,6 +240,7 @@ def create_app(
     service_factory: Callable[[], V5ApiService] = V5ApiService,
     dataset_registry: V6DatasetRegistry | None = None,
     dataset_registry_factory: Callable[[], V6DatasetRegistry] = V6DatasetRegistry,
+    research_store: ResearchStore | None = None,
 ):
     fastapi, validation_error, cors_middleware, streaming_response, request_type = (
         fastapi_dependencies()
@@ -262,6 +266,13 @@ def create_app(
     register_base_routes(app, jobs, streaming_response, request_type)
     register_job_routes(app, jobs)
     register_v2_routes(app, datasets, request_type)
+    register_v3_routes(
+        app,
+        research_store
+        if research_store is not None
+        else ResearchStore(Path(".science-cache/research")),
+        request_type,
+    )
 
     @app.middleware("http")
     async def loopback_security_boundary(request: Any, call_next: Any):

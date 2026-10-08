@@ -1,18 +1,16 @@
 :root {
-  /* Plate & Figure tokens, mirrored from the Browser's plate-figure/tokens.css. */
-  --ink: #17191b;
-  --deep-ocean: #17191b;
-  --lab-paper: #f3efe6;
-  --surface: #fbf9f4;
-  --signal-teal: #1f55b3;
-  --signal-teal-dark: #17191b;
-  --signal-teal-soft: #e8e3d7;
-  --starlight-gold: #72500a;
-  --text: #17191b;
-  --text-secondary: #45484b;
-  --muted: #5d6063;
-  --stroke: #8f887b;
-  --stroke-soft: #d6cfc0;
+  /* Deep Field roles, mirrored from the Browser's deep-field/tokens.css. */
+  --ink: #03050a;
+  --lab-paper: #07090d;
+  --surface: #0d1017;
+  --signal-teal: #8ab4ff;
+  --signal-teal-dark: #b1ccff;
+  --signal-teal-soft: rgb(138 180 255 / 8%);
+  --text: #e9ecf2;
+  --text-secondary: #b4bccb;
+  --muted: #8e97aa;
+  --stroke: rgb(160 176 214 / 30%);
+  --stroke-soft: rgb(160 176 214 / 12%);
   --font: system-ui, -apple-system, blinkmacsystemfont, "Segoe UI", sans-serif;
   --serif: "STIX Two Text", "STIX Two", georgia, serif;
 }
@@ -24,7 +22,7 @@
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
   scroll-behavior: smooth;
 }
 
@@ -63,7 +61,7 @@ a:focus-visible {
   padding: 10px 14px;
   translate: 0 -160%;
   border-radius: 4px;
-  background: var(--surface);
+  background: var(--signal-teal);
   color: var(--ink);
   font-weight: 700;
 }
@@ -164,7 +162,7 @@ h1 {
   gap: 8px;
   padding: 22px 24px;
   border: 0;
-  border-left: 3px solid var(--ink);
+  border-left: 3px solid var(--signal-teal);
   border-radius: 0;
   background: var(--signal-teal-soft);
   color: var(--signal-teal-dark);

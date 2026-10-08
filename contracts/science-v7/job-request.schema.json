@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/science-v7/job-request.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "science-v7"
+    },
+    "kind": {
+      "const": "forward"
+    },
+    "scenarioHash": {
+      "$ref": "common.schema.json#/$defs/hash"
+    },
+    "observationHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/hash"
+      },
+      "minItems": 1,
+      "maxItems": 64
+    },
+    "calibrationHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/hash"
+      },
+      "minItems": 0,
+      "maxItems": 64
+    },
+    "provenanceHash": {
+      "$ref": "common.schema.json#/$defs/hash"
+    },
+    "tolerances": {
+      "type": "object",
+      "properties": {
+        "relativeFlux": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1e-7
+        },
+        "radialVelocityMps": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.01
+        },
+        "eventTimeSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.001
+        },
+        "astrometryRad": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 4.84813681109536e-12
+        },
+        "maxUncertaintyFraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.1
+        },
+        "allocation": {
+          "$ref": "common.schema.json#/$defs/numericalBudget"
+        }
+      },
+      "required": [
+        "relativeFlux",
+        "radialVelocityMps",
+        "eventTimeSeconds",
+        "astrometryRad",
+        "maxUncertaintyFraction",
+        "allocation"
+      ],
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "maxWallSeconds": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 3600
+        },
+        "maxEvaluations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000
+        }
+      },
+      "required": ["maxWallSeconds", "maxEvaluations"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "scenarioHash",
+    "observationHashes",
+    "calibrationHashes",
+    "provenanceHash",
+    "tolerances",
+    "budget"
+  ],
+  "additionalProperties": false
+}

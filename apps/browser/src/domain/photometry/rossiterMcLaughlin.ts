@@ -13,18 +13,18 @@
 //     v_los(x, y) = v_eq sin i_* (x cos lambda - y sin lambda) / R
 //
 // Anomaly:
-// - The unocculted flux-weighted mean of v_los is 0 by symmetry, so the flux-weighted velocity
-//   of the visible disk is
-//     dRV = - ∫_blocked I v_los dA / (∫_disk I dA - ∫_blocked I dA)
-//   with I the limb-darkened intensity (uniform without a law) times the brightness-patch factor
-//   ("multiply" combination). Blocking receding light makes the star look approaching (dRV < 0).
+// - Relative to the SAME unocculted brightness map at the same time:
+//     dRV = (M_disk - M_blocked) / (F_disk - F_blocked) - M_disk / F_disk
+//   where M = ∫ I v_los dA and F = ∫ I dA. A spotted disk need not have M_disk = 0.
+//   I is the limb-darkened intensity (uniform without a law) times the brightness-patch factor
+//   ("multiply" combination). For a symmetric disk, blocking receding light gives dRV < 0.
 // - Blocked = union of opaque circular occulters. Rings, oblate silhouettes and atmospheric
 //   transmission are ignored (approximation).
 //
 // Numerics:
 // - Midpoint integration on the shared disk grid (integrateDiskMidpoint, early exit disabled).
 //   The integrator drops negative intensities, so the moment is integrated with the shifted,
-//   non-negative weight I (v_los + V0), V0 = v_eq sin i_* >= |v_los|, and V0 ∫ I is subtracted.
+//   non-negative weight I (v_los + V0), V0 = |v_eq sin i_*|, and V0 ∫ I is subtracted.
 // - Returns 0 when nothing overlaps or the visible flux vanishes; never NaN.
 
 import type { BrightnessPatch } from "../model/typesPhotometrySurface";
@@ -47,7 +47,7 @@ export type RossiterMcLaughlinArgs = {
   axisPositionAngleRad: number;
 };
 
-/** Flux-weighted RV anomaly [m/s] of the visible stellar disk; 0 without overlap. */
+/** Transit-minus-unocculted RV [m/s] of the same stellar brightness map; 0 without overlap. */
 export function rossiterMcLaughlinVelocity(args: RossiterMcLaughlinArgs): number {
   const { rStar, vEqSinI, axisPositionAngleRad } = args;
   if (!(Number.isFinite(rStar) && rStar > 0)) return 0;
@@ -78,6 +78,7 @@ export function rossiterMcLaughlinVelocity(args: RossiterMcLaughlinArgs): number
   const visible = plain.total - plain.blocked;
   if (!(visible > 1e-12 * plain.total)) return 0;
   const blockedMoment = shifted.blocked - v0 * plain.blocked;
-  const dRv = -blockedMoment / visible;
+  const baselineVelocity = shifted.total / plain.total - v0;
+  const dRv = (baselineVelocity * plain.blocked - blockedMoment) / visible;
   return Number.isFinite(dRv) ? dRv : 0;
 }

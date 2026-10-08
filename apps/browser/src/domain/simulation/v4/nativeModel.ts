@@ -47,7 +47,7 @@ export function computeFluxBundle(
   const nonStars = activeNonStarOcculters(snap);
   const visibility = computeVisibilityBundle(config, snap, luminousStars, nonStars, tObsSec);
   const stellar = computeStellarComponents(config, snap, luminousStars, visibility, tObsSec);
-  const visibleFractions = computeVisibleFractions(snap);
+  const visibleFractions = computeVisibleFractions(snap, config.photometry?.gridRes);
   const additivePlanetary = computeAdditivePlanetary(config, snap, visibleFractions.byBody);
   const additiveLunar = computeAdditiveLunar(config, snap, visibleFractions.byBody);
   const scattering = computeScatteringComponents(config, snap);

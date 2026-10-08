@@ -10,6 +10,7 @@ import { validateScienceV6Semantics } from "./lib/v6-semantics.mjs";
 import { runV4ContractCases } from "./lib/v4-contract-cases.mjs";
 import { runV5ContractCases } from "./lib/v5-contract-cases.mjs";
 import { runV6ContractCases } from "./lib/v6-contract-cases.mjs";
+import { runV7ContractCases, validateScienceV7Semantics } from "./lib/v7-contract-cases.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contractRoot = path.join(root, "contracts");
@@ -50,6 +51,7 @@ export async function loadContractCorpus() {
       validator.errors = [];
       const valid = validator.validate(schema, document, schema.$id);
       validateScienceV6Semantics(schemaPath, document, validator.errors);
+      if (valid) validateScienceV7Semantics(schemaPath, document, validator.errors);
       return { valid: valid && validator.errors.length === 0, errors: [...validator.errors] };
     },
   };
@@ -60,6 +62,7 @@ async function main() {
   runV4ContractCases(corpus);
   runV5ContractCases(corpus);
   runV6ContractCases(corpus);
+  runV7ContractCases(corpus);
   process.stdout.write(
     `Validated ${corpus.schemaCount} Draft 2020-12 schemas and ${corpus.documentCount} contract JSON files.\n`,
   );

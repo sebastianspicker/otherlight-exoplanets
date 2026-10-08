@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/science-v7/scenario.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "science-v7"
+    },
+    "kind": {
+      "const": "scenario"
+    },
+    "provenanceHash": {
+      "$ref": "common.schema.json#/$defs/hash"
+    },
+    "epoch": {
+      "$ref": "common.schema.json#/$defs/time"
+    },
+    "timeScale": {
+      "const": "TDB"
+    },
+    "frame": {
+      "const": "icrs-barycentric"
+    },
+    "durationSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 946728000.0
+    },
+    "stateLayout": {
+      "const": "body-major-cartesian-si-v1"
+    },
+    "gravity": {
+      "const": "newtonian-point-mass-v1"
+    },
+    "collisionPolicy": {
+      "const": "stop-at-first-contact"
+    },
+    "bodies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "massKg": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1e34
+          },
+          "radiusM": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000000000000.0
+          },
+          "positionM": {
+            "$ref": "common.schema.json#/$defs/vector3"
+          },
+          "velocityMps": {
+            "$ref": "common.schema.json#/$defs/vector3"
+          }
+        },
+        "required": ["id", "massKg", "radiusM", "positionM", "velocityMps"],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 8
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "provenanceHash",
+    "epoch",
+    "timeScale",
+    "frame",
+    "durationSeconds",
+    "stateLayout",
+    "gravity",
+    "collisionPolicy",
+    "bodies"
+  ],
+  "additionalProperties": false
+}

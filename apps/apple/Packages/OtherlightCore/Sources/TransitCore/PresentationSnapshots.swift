@@ -14,15 +14,116 @@ public struct SkyPoint: Codable, Sendable, Hashable {
 
 /// Stores calculated and observed-minus-calculated timing information for one transit index.
 public struct TransitTimingSignal: Codable, Sendable, Hashable {
-  public var transitNumber: Int
-  public var calculatedSeconds: Double
-  public var observedMinusCalculatedSeconds: Double
-  /// Creates one transit timing signal from calculated and residual times.
-  public init(transitNumber: Int, calculatedSeconds: Double, observedMinusCalculatedSeconds: Double)
-  {
+  public var transitNumber: Int?
+  public var ephemerisEpochSeconds: Double?
+  public var ephemerisPeriodSeconds: Double?
+  public var calculatedSeconds: Double?
+  public var observedMinusCalculatedSeconds: Double?
+  public var durationVariationSeconds: Double?
+  public var isValid: Bool
+  /// Creates a timing sample with its explicit reference ephemeris and solved residuals.
+  public init(
+    transitNumber: Int?, ephemerisEpochSeconds: Double?, ephemerisPeriodSeconds: Double?,
+    calculatedSeconds: Double?, observedMinusCalculatedSeconds: Double?,
+    durationVariationSeconds: Double?, isValid: Bool
+  ) {
     self.transitNumber = transitNumber
+    self.ephemerisEpochSeconds = ephemerisEpochSeconds
+    self.ephemerisPeriodSeconds = ephemerisPeriodSeconds
     self.calculatedSeconds = calculatedSeconds
     self.observedMinusCalculatedSeconds = observedMinusCalculatedSeconds
+    self.durationVariationSeconds = durationVariationSeconds
+    self.isValid =
+      isValid && ephemerisEpochSeconds?.isFinite == true
+      && ephemerisPeriodSeconds?.isFinite == true && (ephemerisPeriodSeconds ?? 0) > 0
+      && transitNumber != nil && calculatedSeconds?.isFinite == true
+      && observedMinusCalculatedSeconds?.isFinite == true
+      && (durationVariationSeconds == nil || durationVariationSeconds?.isFinite == true)
+  }
+
+  /// An unavailable signal carries no fabricated timing values.
+  public static let unavailable = TransitTimingSignal(
+    transitNumber: nil, ephemerisEpochSeconds: nil, ephemerisPeriodSeconds: nil,
+    calculatedSeconds: nil, observedMinusCalculatedSeconds: nil, durationVariationSeconds: nil,
+    isValid: false)
+
+  /// An unavailable event can still expose the reference ephemeris used for the attempted solve.
+  public static func unavailable(referenceEpochSeconds: Double, referencePeriodSeconds: Double)
+    -> TransitTimingSignal
+  {
+    TransitTimingSignal(
+      transitNumber: nil, ephemerisEpochSeconds: referenceEpochSeconds,
+      ephemerisPeriodSeconds: referencePeriodSeconds, calculatedSeconds: nil,
+      observedMinusCalculatedSeconds: nil, durationVariationSeconds: nil, isValid: false)
+  }
+
+  /// Creates a timing signal for one solved event against a reference linear ephemeris.
+  public static func solved(
+    transitNumber: Int, ephemerisEpochSeconds: Double, ephemerisPeriodSeconds: Double,
+    calculatedSeconds: Double, observedSeconds: Double, durationVariationSeconds: Double
+  ) -> TransitTimingSignal {
+    TransitTimingSignal(
+      transitNumber: transitNumber, ephemerisEpochSeconds: ephemerisEpochSeconds,
+      ephemerisPeriodSeconds: ephemerisPeriodSeconds, calculatedSeconds: calculatedSeconds,
+      observedMinusCalculatedSeconds: observedSeconds - calculatedSeconds,
+      durationVariationSeconds: durationVariationSeconds, isValid: true)
+  }
+
+  /// Names the serialized solved-event fields.
+  private enum CodingKeys: String, CodingKey {
+    case transitNumber, ephemerisEpochSeconds, ephemerisPeriodSeconds, calculatedSeconds
+    case observedMinusCalculatedSeconds, durationVariationSeconds, isValid
+  }
+
+  /// Reads legacy timing as unavailable and requires an explicit finite ephemeris for solved data.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    ephemerisEpochSeconds = try container.decodeIfPresent(
+      Double.self, forKey: .ephemerisEpochSeconds)
+    ephemerisPeriodSeconds = try container.decodeIfPresent(
+      Double.self, forKey: .ephemerisPeriodSeconds)
+    isValid = try container.decodeIfPresent(Bool.self, forKey: .isValid) ?? false
+    if isValid {
+      transitNumber = try container.decodeIfPresent(Int.self, forKey: .transitNumber)
+      calculatedSeconds = try container.decodeIfPresent(Double.self, forKey: .calculatedSeconds)
+      observedMinusCalculatedSeconds = try container.decodeIfPresent(
+        Double.self, forKey: .observedMinusCalculatedSeconds)
+      durationVariationSeconds = try container.decodeIfPresent(
+        Double.self, forKey: .durationVariationSeconds)
+      let hasReference =
+        ephemerisEpochSeconds?.isFinite == true
+        && ephemerisPeriodSeconds?.isFinite == true
+        && (ephemerisPeriodSeconds ?? 0) > 0
+      let hasEvent =
+        transitNumber != nil && calculatedSeconds?.isFinite == true
+        && observedMinusCalculatedSeconds?.isFinite == true
+        && (durationVariationSeconds == nil || durationVariationSeconds?.isFinite == true)
+      if !hasReference || !hasEvent {
+        isValid = false
+        transitNumber = nil
+        calculatedSeconds = nil
+        observedMinusCalculatedSeconds = nil
+        durationVariationSeconds = nil
+      }
+    } else {
+      transitNumber = nil
+      calculatedSeconds = nil
+      observedMinusCalculatedSeconds = nil
+      durationVariationSeconds = nil
+    }
+  }
+
+  /// Encodes optional values without fabricating residuals for unavailable events.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(transitNumber, forKey: .transitNumber)
+    try container.encodeIfPresent(ephemerisEpochSeconds, forKey: .ephemerisEpochSeconds)
+    try container.encodeIfPresent(ephemerisPeriodSeconds, forKey: .ephemerisPeriodSeconds)
+    try container.encodeIfPresent(calculatedSeconds, forKey: .calculatedSeconds)
+    try container.encodeIfPresent(
+      observedMinusCalculatedSeconds, forKey: .observedMinusCalculatedSeconds)
+    try container.encodeIfPresent(durationVariationSeconds, forKey: .durationVariationSeconds)
+    try container.encode(isValid, forKey: .isValid)
   }
 }
 
@@ -32,6 +133,7 @@ public struct TransitTimingDiagnostics: Codable, Sendable, Hashable {
   public var planetTransitDurationSec: Double?
   public var planetIngressSec: Double?
   public var planetEgressSec: Double?
+  public var planetDurationVariationSec: Double?
   public var moonTransitCenterSec: Double?
   public var moonTransitDurationSec: Double?
   public var moonIngressSec: Double?

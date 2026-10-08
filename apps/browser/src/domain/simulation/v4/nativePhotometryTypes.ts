@@ -25,6 +25,11 @@ export type VisibilityOcculter = {
   sky: { x: number; y: number; z: number };
   opacity?: number;
   transmissionAtRadius?: (rho: number) => number;
+  transmissionByBand?: Array<{
+    lambdaNm: number;
+    weight: number;
+    transmissionAtRadius: (rho: number) => number;
+  }>;
   ring?: VisibilityRing;
   /** Oblate opaque silhouette centred on `sky`; semi-axes in the sky-plane length unit. */
   ellipse?: { rx: number; ry: number; angle: number };

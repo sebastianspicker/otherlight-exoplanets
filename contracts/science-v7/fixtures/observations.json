@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "science-v7",
+  "kind": "observations",
+  "observable": "relative-flux",
+  "components": ["flux"],
+  "units": ["1"],
+  "instrumentId": "synthetic",
+  "timeConvention": {
+    "scale": "TDB",
+    "reference": "barycentric-arrival",
+    "exposureTimestamp": "midpoint",
+    "referenceDataHashes": []
+  },
+  "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "provenanceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "calibrationHashes": ["0000000000000000000000000000000000000000000000000000000000000000"],
+  "correctionHistory": [],
+  "uncertaintyModel": "independent-gaussian",
+  "rows": [
+    {
+      "time": {
+        "jd1": 2451545,
+        "jd2": 0
+      },
+      "exposureSeconds": 30,
+      "value": [1],
+      "sigma": [0.0001],
+      "masked": false
+    }
+  ]
+}

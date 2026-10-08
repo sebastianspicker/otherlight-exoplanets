@@ -28,9 +28,13 @@ extension SimulationEngine {
       planetVelocity: Vector3.zero + relativePlanetVelocity)
     var relativeMoon: (position: Vector3, velocity: Vector3)?
     if let moon = scenario.moon {
-      // As the Browser `effectiveMoonOrbit`, drift is evaluated at the absolute observer time.
-      let orbit = moon.effectiveOrbit(atAbsoluteSeconds: scenario.epochSeconds + elapsed)
-      let rel = (orbit.position(at: elapsed), orbit.velocity(at: elapsed))
+      let absoluteTime = scenario.epochSeconds + elapsed
+      let orbit = moon.effectiveOrbit(atAbsoluteSeconds: absoluteTime)
+      let position = orbit.position(at: elapsed)
+      let driftVelocity =
+        moon.orientationDrift?.orientationVelocity(
+          of: moon.orbit, atAbsoluteSeconds: absoluteTime, position: position) ?? .zero
+      let rel = (position, orbit.velocity(at: elapsed) + driftVelocity)
       relativeMoon = rel
       state.moon = state.planet + rel.0
       state.moonVelocity = state.planetVelocity + rel.1
@@ -77,7 +81,7 @@ extension SimulationEngine {
     var secondaryEclipseFraction: Double
   }
 
-  /// Multiplies, per body, the unocculted fraction left by each foreground disk, star included.
+  /// Integrates the union of foreground disk masks for each body, star included.
   ///
   /// `mutualFraction` is the planet-moon overlap relative to the smaller disk regardless of depth;
   /// `secondaryEclipseFraction` is the largest disk fraction hidden by the star alone.
@@ -94,8 +98,8 @@ extension SimulationEngine {
     var mutual = 0.0
     if let moon {
       moonStar = Self.visibleFraction(of: moon, behind: star)
-      moonVisible = (moonStar ?? 1) * (Self.visibleFraction(of: moon, behind: planet) ?? 1)
-      planetVisible *= Self.visibleFraction(of: planet, behind: moon) ?? 1
+      moonVisible = visibleFraction(of: moon, behind: [star, planet])
+      planetVisible = visibleFraction(of: planet, behind: [star, moon])
       let smaller = min(planet.radius, moon.radius)
       let overlap = CircularOccultation.overlapArea(
         radius: planet.radius, moon.radius,
@@ -105,6 +109,33 @@ extension SimulationEngine {
     return VisibilityFractions(
       planet: planetVisible, moon: moonVisible, mutualFraction: mutual,
       secondaryEclipseFraction: max(1 - (planetStar ?? 1), 1 - (moonStar ?? 1)))
+  }
+
+  /// Uses exact pair overlap for one shadow and a shared uniform-disk grid for multiple shadows.
+  func visibleFraction(
+    of body: (position: Vector3, radius: Double),
+    behind occulters: [(position: Vector3, radius: Double)]
+  ) -> Double {
+    guard body.radius > 0 else { return 1 }
+    let foreground = occulters.filter {
+      $0.radius > 0 && $0.position.z > body.position.z
+        && hypot($0.position.x - body.position.x, $0.position.y - body.position.y)
+          < body.radius + $0.radius
+    }
+    guard !foreground.isEmpty else { return 1 }
+    if foreground.contains(where: {
+      $0.radius >= body.radius
+        && hypot($0.position.x - body.position.x, $0.position.y - body.position.y)
+          <= $0.radius - body.radius
+    }) {
+      return 0
+    }
+    if foreground.count == 1 { return Self.visibleFraction(of: body, behind: foreground[0]) ?? 1 }
+    return DiskIntegration.uniformDiskHardOcculterFlux(
+      starRadius: body.radius,
+      occulters: foreground.map {
+        (x: $0.position.x - body.position.x, y: $0.position.y - body.position.y, radius: $0.radius)
+      }, patches: [], gridResolution: scenario.gridResolution)
   }
 
   /// Returns the visible disk fraction behind one foreground occulter, or nil when it is not in front.
@@ -126,18 +157,22 @@ extension SimulationEngine {
 extension SimulationEngine {
   /// Reports whether the planet is at inferior or superior conjunction with the star.
   ///
-  /// Mirrors the Browser `conjunctionActiveForSnapshot`: with `ô = (0, 0, 1)` the signed phase is
-  /// `ψ = atan2(-(v_rel·ô) / |v_rel|, (r_rel·ô) / |r_rel|)` (`signedConjunctionPhase` without a
-  /// velocity scale), and the marker is active when the along-orbit displacement `|sin ψ| |r_rel|`
-  /// is within the combined star and planet radius.
+  /// Projects the observer into the instantaneous orbit plane. This phase marker also applies
+  /// to non-eclipsing inclined orbits; a face-on orbit has no unique conjunction. Removing the
+  /// radial velocity component keeps eccentric radial motion from shifting the marker.
   func conjunctionActive(_ state: SystemKinematics) -> Bool {
     let relative = state.planet - state.star
-    guard
-      let psi = Self.signedConjunctionPhase(
-        relativePosition: relative, relativeVelocity: state.planetVelocity - state.starVelocity,
-        observerDirection: Vector3(x: 0, y: 0, z: 1))
-    else { return false }
-    return abs(sin(psi)) * relative.length
-      <= scenario.star.radiusMetres + scenario.planet.radiusMetres
+    let radius = relative.length
+    guard radius > 0 else { return false }
+    let radial = relative * (1 / radius)
+    let velocity = state.planetVelocity - state.starVelocity
+    let radialSpeed = velocity.x * radial.x + velocity.y * radial.y + velocity.z * radial.z
+    let transverse = velocity - radial * radialSpeed
+    guard transverse.length > 0 else { return false }
+    let sinPhase = transverse.z / transverse.length
+    let projection = hypot(radial.z, sinPhase)
+    return projection > 1e-12
+      && abs(sinPhase) / projection * radius
+        <= scenario.star.radiusMetres + scenario.planet.radiusMetres
   }
 }

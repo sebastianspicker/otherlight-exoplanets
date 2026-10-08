@@ -1,4 +1,4 @@
-/** Semantic experiment surfaces for the Plate & Figure observatory workspace. */
+/** Semantic experiment surfaces for the Deep Field observatory workspace. */
 export function renderObservatoryHeading(): string {
   return `
     <section class="observatory-heading" aria-labelledby="observatoryTitle">

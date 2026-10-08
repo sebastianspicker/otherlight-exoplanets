@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/transit-light-curve-lab/science-v7/provenance.schema.json",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "science-v7"
+    },
+    "kind": {
+      "const": "provenance"
+    },
+    "operation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "softwareVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "inputHashes": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/hash"
+      },
+      "minItems": 1,
+      "maxItems": 64
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "minItems": 1,
+      "maxItems": 64
+    },
+    "licences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "minItems": 1,
+      "maxItems": 64
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "operation",
+    "softwareVersion",
+    "inputHashes",
+    "citations",
+    "licences"
+  ],
+  "additionalProperties": false
+}
