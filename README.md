@@ -69,8 +69,9 @@ a labelled fixture replay — it never contacts a service. The
 [screenshot tour](https://sebastianspicker.github.io/otherlight-exoplanets/demo/) is the
 same three frames above, as a standalone page.
 
-**Run it locally.** Requires Node 22.13 or later and pnpm 11.4. From the
-repository root:
+**Run it locally.** Requires Node 22.13 or later and pnpm 11.4. Node 25 and
+later no longer bundle Corepack; on those versions run `npm install -g corepack`
+first. From the repository root:
 
 ```bash
 corepack enable

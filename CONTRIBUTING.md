@@ -11,8 +11,9 @@ rather than incidental.
 
 ## Setup
 
-The Browser requires Node 22.13 or later and pnpm 11.4. From the repository
-root:
+The Browser requires Node 22.13 or later and pnpm 11.4. Node 25 and later no
+longer bundle Corepack; on those versions run `npm install -g corepack` first.
+From the repository root:
 
 ```bash
 corepack enable

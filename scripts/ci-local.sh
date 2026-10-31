@@ -4,7 +4,7 @@
 set -euo pipefail
 
 if ! command -v pnpm >/dev/null 2>&1; then
-  echo "pnpm not found. Run: corepack enable && corepack install" >&2
+  echo "pnpm not found. Run: corepack enable && corepack install (on Node 25+, first: npm install -g corepack)" >&2
   exit 1
 fi
 

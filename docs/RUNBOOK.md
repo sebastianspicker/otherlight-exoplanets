@@ -4,7 +4,8 @@ Run every command from the repository root unless a section says otherwise.
 
 ## Browser
 
-Requires Node 22.13 or later and pnpm 11.4.
+Requires Node 22.13 or later and pnpm 11.4. Node 25 and later no longer bundle
+Corepack; on those versions run `npm install -g corepack` first.
 
 ```bash
 corepack enable

@@ -305,6 +305,9 @@ def create_app(
         allow_origins=list(BROWSER_CORS_ORIGINS),
         allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["accept", "content-type"],
+        # Not CORS-safelisted, so cross-origin fetch hides it unless exposed; the
+        # Browser client rejects responses whose nosniff header it cannot read.
+        expose_headers=["X-Content-Type-Options"],
     )
     register_error_handlers(app, validation_error)
     register_base_routes(app, jobs, streaming_response, request_type)
