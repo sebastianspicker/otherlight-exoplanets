@@ -210,7 +210,6 @@ export function computeDidacticSignals(
 export function advanceLearningState(
   state: LearningState,
   didacticSignals: DidacticSignals | undefined,
-  _autoAdvance: boolean,
   tSec: number,
 ): LearningState {
   if (!didacticSignals) return state;

@@ -26,7 +26,7 @@ from .api_service import (
 from .api_service import (
     ApiJob as _ApiJob,
 )
-from .api_v2_datasets import (
+from .api_v2_dataset_registry import (
     DATASET_MEDIA_TYPE,
     MAX_AGGREGATE_SAMPLES,
     MAX_DATASET_BYTES,

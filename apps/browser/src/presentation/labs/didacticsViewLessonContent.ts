@@ -9,6 +9,7 @@ import {
   LESSON_FOCUS_CONTROL_LABELS,
 } from "../../domain/education";
 import type { UiRefs } from "../shell/refs";
+import { rebuildIfChanged, setTextIfChanged } from "./didacticsViewRebuild";
 import type { DidacticsViewRuntimeState } from "./didacticsViewNavigation";
 
 type HintLevel = "L1" | "L2" | "L3";
@@ -80,52 +81,59 @@ const lessonSummaryText = (signals: DidacticSignals | undefined): string => {
 };
 
 const renderLessonVocabulary = (container: HTMLElement, signals: DidacticSignals | undefined): void => {
-  container.replaceChildren();
   const vocabulary = signals?.learnerVocabulary ?? [];
   container.hidden = vocabulary.length === 0;
-  for (const term of vocabulary) {
-    const tag = document.createElement("span");
-    tag.className = "lab-vocab-tag";
-    tag.textContent = term;
-    container.append(tag);
-  }
+  rebuildIfChanged(container, vocabulary, () => {
+    for (const term of vocabulary) {
+      const tag = document.createElement("span");
+      tag.className = "lab-vocab-tag";
+      tag.textContent = term;
+      container.append(tag);
+    }
+  });
 };
 
 const renderPhaseText = (refs: UiRefs, signals: DidacticSignals | undefined): void => {
-  if (refs.didPhaseTitle) refs.didPhaseTitle.textContent = signals?.phaseTitle ?? "No active lesson phase.";
+  if (refs.didPhaseTitle)
+    setTextIfChanged(refs.didPhaseTitle, signals?.phaseTitle ?? "No active lesson phase.");
   if (refs.didPhasePrompt) {
-    refs.didPhasePrompt.textContent = signals?.phasePrompt ?? signals?.prompt ?? "No active lesson prompt.";
+    setTextIfChanged(
+      refs.didPhasePrompt,
+      signals?.phasePrompt ?? signals?.prompt ?? "No active lesson prompt.",
+    );
   }
 };
 
 const renderInterpretation = (refs: UiRefs, signals: DidacticSignals | undefined): void => {
   if (!refs.didInterpretation) return;
   if (!signals?.interpretation) {
-    refs.didInterpretation.textContent = "";
+    setTextIfChanged(refs.didInterpretation, "");
     refs.didInterpretation.hidden = true;
     return;
   }
   refs.didInterpretation.hidden = false;
-  refs.didInterpretation.textContent = `What happened: ${signals.interpretation.headline} What it means: ${signals.interpretation.observation} Next action: ${signals.interpretation.nextAction}`;
+  setTextIfChanged(
+    refs.didInterpretation,
+    `What happened: ${signals.interpretation.headline} What it means: ${signals.interpretation.observation} Next action: ${signals.interpretation.nextAction}`,
+  );
 };
 
 const renderWorkedExample = (refs: UiRefs, signals: DidacticSignals | undefined): void => {
   const container = refs.didWorkedExample;
   if (!container) return;
-  container.replaceChildren();
-  if (!signals?.workedExample) {
-    container.hidden = true;
-    return;
-  }
-  const title = document.createElement("strong");
-  title.textContent = signals.workedExample.title;
-  const body = document.createElement("div");
-  body.textContent = signals.workedExample.body;
-  const takeaway = document.createElement("div");
-  takeaway.className = "help";
-  takeaway.textContent = `Takeaway: ${signals.workedExample.takeaway}`;
-  container.append(title, body, takeaway);
-  container.hidden = false;
+  const example = signals?.workedExample;
+  container.hidden = !example;
+  rebuildIfChanged(container, example ?? null, () => {
+    if (!example) return;
+    const title = document.createElement("strong");
+    title.textContent = example.title;
+    const body = document.createElement("div");
+    body.textContent = example.body;
+    const takeaway = document.createElement("div");
+    takeaway.className = "help";
+    takeaway.textContent = `Takeaway: ${example.takeaway}`;
+    container.append(title, body, takeaway);
+  });
 };
 
 const renderObservationList = (refs: UiRefs, signals: DidacticSignals | undefined): void => {
@@ -180,21 +188,23 @@ const renderMisconceptionList = (refs: UiRefs, signals: DidacticSignals | undefi
 };
 
 const renderPlainRows = (container: HTMLElement, rows: string[]): void => {
-  container.replaceChildren();
-  for (const text of rows) {
-    const row = document.createElement("div");
-    row.textContent = text;
-    container.appendChild(row);
-  }
+  rebuildIfChanged(container, rows, () => {
+    for (const text of rows) {
+      const row = document.createElement("div");
+      row.textContent = text;
+      container.appendChild(row);
+    }
+  });
 };
 
 const renderCheckList = (refs: UiRefs, signals: DidacticSignals | undefined): void => {
   const container = refs.didCheckList;
   if (!container) return;
-  container.replaceChildren();
   const checks = signals?.checks ?? [];
   container.hidden = checks.length === 0;
-  for (const check of checks) appendCheckRows(container, check);
+  rebuildIfChanged(container, checks, () => {
+    for (const check of checks) appendCheckRows(container, check);
+  });
 };
 
 const appendCheckRows = (
@@ -214,13 +224,14 @@ const appendCheckRows = (
 const renderFormulaList = (refs: UiRefs, signals: DidacticSignals | undefined): void => {
   const container = refs.didFormulaList;
   if (!container) return;
-  container.replaceChildren();
   const formulas = (signals?.formulas ?? []).filter((formula) => Number.isFinite(formula.value));
   container.hidden = formulas.length === 0;
-  for (const formula of formulas) {
-    const row = document.createElement("div");
-    const unitText = formula.unit ? ` ${formula.unit}` : "";
-    row.textContent = `${formula.title}: ${formula.latex} = ${formula.value}${unitText}`;
-    container.appendChild(row);
-  }
+  rebuildIfChanged(container, formulas, () => {
+    for (const formula of formulas) {
+      const row = document.createElement("div");
+      const unitText = formula.unit ? ` ${formula.unit}` : "";
+      row.textContent = `${formula.title}: ${formula.latex} = ${formula.value}${unitText}`;
+      container.appendChild(row);
+    }
+  });
 };

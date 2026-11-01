@@ -5,5 +5,6 @@ export * from "./datasetClient";
 export * from "./datasetTypes";
 export * from "./datasetValidation";
 export * from "./educationScenarioCompiler";
+export * from "./resultMatchesRequest";
 export * from "./types";
 export * from "./validation";

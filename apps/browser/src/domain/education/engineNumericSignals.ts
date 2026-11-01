@@ -28,7 +28,7 @@ export type NumericSignals = {
   radiusRatio: number;
   /** 1 + k: the body overlaps the stellar disk for b below this. */
   transitContactLimit: number;
-  /** 1 - k: the occultation is total (or annular) for b below this. */
+  /** |1 - k|: the occultation is total (or annular) for b below this. */
   totalEclipseLimit: number;
   /** 1 + R_m / R*: the moon overlaps the stellar disk for b_moon below this. */
   moonContactLimit: number;
@@ -130,7 +130,7 @@ function geometrySignals(system: BrowserScenarioDraft, step: StepResult, bPlanet
   return {
     radiusRatio: k,
     transitContactLimit: 1 + k,
-    totalEclipseLimit: 1 - k,
+    totalEclipseLimit: Math.abs(1 - k),
     moonContactLimit: 1 + radiusRatio(system, system.moon?.r),
     limbDarkeningStrength: 1 - limbIntensity(law, 1),
     transitCurvatureRatio: transitCurvatureRatio(law, bPlanet, k),

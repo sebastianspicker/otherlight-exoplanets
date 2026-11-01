@@ -39,11 +39,7 @@ import {
 import { wireBootstrapProfile } from "../presentation/shell/profileSwitch";
 import { createProductHistoryWriter } from "../presentation/workspace/productHistory";
 import { createBootstrapStatusWriter } from "../presentation/shell/status";
-import {
-  readBootstrapRuntimeMode,
-  runtimeArgsFromBootstrapState,
-  syncBootstrapDisplayFlux,
-} from "../application/runtime/runtimeArgs";
+import { readBootstrapRuntimeMode, syncBootstrapDisplayFlux } from "../application/runtime/runtimeArgs";
 import { wireBootstrapPersistence } from "../presentation/workspace/persistence";
 import { createBootstrapAppState } from "./appState";
 import { createBootstrapApplyParams } from "../presentation/scenario/applyParams";
@@ -125,13 +121,11 @@ export async function initApp(): Promise<void> {
     isBinaryModeActive(refs) ? "binary-lab" : "preset-lab";
 
   const runtimeArgsFromCurrentParams = () => ({
-    ...runtimeArgsFromBootstrapState(
-      appState.params,
-      isBinaryModeActive(refs),
-      readBootstrapRuntimeMode(runtimeModeSelect?.value),
-      DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab,
-      { computeDidacticSignals },
-    ),
+    system: appState.params,
+    binaryMode: isBinaryModeActive(refs),
+    runtimeMode: readBootstrapRuntimeMode(runtimeModeSelect?.value),
+    binaryLabDefaults: DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab,
+    dependencies: { computeDidacticSignals },
     // Settings restored from a workspace document that the authoring form cannot edit.
     executionMode: appState.workspaceScenarioSettings.executionMode,
     referenceSubsteps: appState.workspaceScenarioSettings.referenceSubsteps,
@@ -208,6 +202,8 @@ export async function initApp(): Promise<void> {
     },
     renderOcPanel,
   });
+  renderer.onResize = frame.invalidate;
+  plot.onResize = frame.invalidate;
 
   let restoringHistory = false;
 
@@ -234,6 +230,7 @@ export async function initApp(): Promise<void> {
 
   const dirtyGuard = createBootstrapDirtyGuard({
     form: paramForm,
+    sliderRoot: refs.sliderRootEl,
     uiModeSelect,
     dirtyState: paramDirtyState,
     dialog: dirtyDialog,

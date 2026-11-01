@@ -8,12 +8,16 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const DEFAULT_LIMIT = 20;
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 const MAX_NASA_RESPONSE_BYTES = 10 * 1024 * 1024;
 const SNAPSHOT_OUTPUT_PATH = "apps/browser/src/application/catalog/real-systems.snapshot.json";
+const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// Browser constants (domain/model/units.ts), so the Browser maps a derived Jupiter radius back exactly; Swift uses another Jupiter radius (ledger O-12).
+const EARTH_RADIUS_M = 6.371e6;
+const JUPITER_RADIUS_M = 6.9911e7;
 
 export const NASA_TAP_QUERY = [
   "select",
@@ -91,8 +95,8 @@ export function normalizeNasaRow(row) {
     starMassSolar: toPositive(row.st_mass),
     planetMassJupiter: toPositive(row.pl_bmassj),
     planetMassEarth: toPositive(row.pl_bmasse),
-    eccentricity: toFinite(row.pl_orbeccen),
-    inclinationDeg: toFinite(row.pl_orbincl),
+    eccentricity: inRange(toFinite(row.pl_orbeccen), 0, 1, { maxExclusive: true }),
+    inclinationDeg: inRange(toFinite(row.pl_orbincl), 0, 180),
   };
   if (!entry.id) return null;
   return entry;
@@ -136,10 +140,17 @@ function requiredOrbitFields(row) {
 }
 
 function requiredPlanetRadiusFields(row) {
-  const planetRadiusJupiter = toPositive(row.pl_radj);
   const planetRadiusEarth = toPositive(row.pl_rade);
-  if (!planetRadiusJupiter && !planetRadiusEarth) return null;
+  // The Swift reader requires planetRadiusJupiter, so derive it for Earth-radius-only rows.
+  const planetRadiusJupiter =
+    toPositive(row.pl_radj) ?? (planetRadiusEarth && (planetRadiusEarth * EARTH_RADIUS_M) / JUPITER_RADIUS_M);
+  if (!planetRadiusJupiter) return null;
   return { planetRadiusJupiter, planetRadiusEarth };
+}
+
+function inRange(value, min, max, { maxExclusive = false } = {}) {
+  if (typeof value !== "number" || value < min) return undefined;
+  return value < max || (!maxExclusive && value === max) ? value : undefined;
 }
 
 /** Rank completeness deterministically; label length only breaks otherwise equal scores. */
@@ -290,7 +301,7 @@ export async function fetchNasaTransitRows(fetchImpl = fetch, opts = {}) {
 }
 
 function defaultSnapshotOutputPath() {
-  return path.resolve(process.cwd(), SNAPSHOT_OUTPUT_PATH);
+  return path.resolve(REPOSITORY_ROOT, SNAPSHOT_OUTPUT_PATH);
 }
 
 export function snapshotOutputPath() {
@@ -299,7 +310,11 @@ export function snapshotOutputPath() {
 
 export async function writeSnapshotFile(snapshot) {
   const text = `${JSON.stringify(snapshot, null, 2)}\n`;
-  await fs.writeFile(SNAPSHOT_OUTPUT_PATH, text, "utf8");
+  const outPath = defaultSnapshotOutputPath();
+  // Write beside the target and rename, so an interrupted run never leaves a truncated snapshot.
+  const temporary = `${outPath}.${process.pid}.tmp`;
+  await fs.writeFile(temporary, text, "utf8");
+  await fs.rename(temporary, outPath);
 }
 
 async function main() {

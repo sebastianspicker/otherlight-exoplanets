@@ -11,6 +11,7 @@ from math import ceil, floor, isfinite
 from typing import Any
 
 from .__about__ import __version__
+from .api_v2_dataset_validation import contains_surrogate
 from .contracts import (
     MAX_FORWARD_BODIES,
     MAX_FORWARD_SAMPLES,
@@ -152,6 +153,8 @@ def exact_keys(
 def string(value: Any, path: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ContractError(f"{path} must be a non-empty string")
+    if contains_surrogate(value):
+        raise ContractError(f"{path} must contain valid Unicode scalars")
     return value
 
 

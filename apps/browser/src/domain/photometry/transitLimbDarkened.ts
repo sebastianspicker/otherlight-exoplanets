@@ -28,7 +28,12 @@ import type { PatchCombineMode } from "./patches";
 import { patchFactorAt, sanitizeBrightnessPatches } from "./patches";
 import { integrateDiskMidpoint } from "./diskMidpoint";
 import type { CircleOcculter } from "./occulterCircle";
-import { anyCircleOcculterFullyCoversStar, clampGridRes, sanitizeCircleOcculters } from "./occulterCircle";
+import {
+  anyCircleOcculterFullyCoversStar,
+  clampGridRes,
+  DEFAULT_TRANSIT_GRID_RES,
+  sanitizeCircleOcculters,
+} from "./occulterCircle";
 
 export type FluxLimbDarkenedDiskMeta = {
   earlyExit: boolean;
@@ -105,7 +110,7 @@ export function fluxLimbDarkenedDiskDetailed(params: {
 
   const patches = sanitizeBrightnessPatches(params.brightnessPatches);
   const patchCombineMode: PatchCombineMode = params.patchCombineMode ?? "multiply";
-  const gridRes = clampGridRes(params.gridRes, 60);
+  const gridRes = clampGridRes(params.gridRes, DEFAULT_TRANSIT_GRID_RES);
 
   const {
     total: totalIntensity,

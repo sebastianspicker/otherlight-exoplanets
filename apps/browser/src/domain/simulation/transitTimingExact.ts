@@ -20,7 +20,7 @@ export function solveTransitEventExact(args: ExactTransitSolveArgs): TransitEven
     sampleAt,
     seedSec,
     contactRadius,
-    contactSpanSec: contactSearchSpan(linear, tObsSec, periodSec),
+    contactSpanSec: contactSearchSpan(linear, periodSec),
   });
   if (
     contacts.ingressSec === undefined ||
@@ -49,20 +49,12 @@ export function solveTransitEventExact(args: ExactTransitSolveArgs): TransitEven
   });
 }
 
-function contactSearchSpan(
-  linear: ExactTransitSolveArgs["linear"],
-  tObsSec: number,
-  periodSec?: number,
-): number {
+function contactSearchSpan(linear: ExactTransitSolveArgs["linear"], periodSec?: number): number {
   const maxSpanSec =
     Number.isFinite(periodSec) && (periodSec as number) > 0
       ? (periodSec as number) / 4
       : linear.durationSec * 8;
-  const baseSpanSec = Math.min(
-    Math.max(linear.durationSec, Math.abs(linear.centerSec - tObsSec) * 2, 1e-3),
-    Math.max(maxSpanSec, 1e-3),
-  );
-  return Math.max(baseSpanSec, maxSpanSec);
+  return Math.max(maxSpanSec, 1e-3);
 }
 
 function finishSolvedEvent(args: {

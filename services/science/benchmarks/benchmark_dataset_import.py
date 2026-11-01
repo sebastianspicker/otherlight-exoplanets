@@ -15,7 +15,10 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
-from science_backend.api_v2_datasets import MAX_DATASET_SAMPLES, V6DatasetRegistry
+from science_backend.api_v2_dataset_registry import (
+    MAX_DATASET_SAMPLES,
+    V6DatasetRegistry,
+)
 
 
 def dataset_source(sample_count: int) -> bytes:

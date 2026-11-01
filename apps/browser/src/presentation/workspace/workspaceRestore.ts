@@ -6,6 +6,7 @@ import {
 } from "../../domain/simulation/v4";
 import type { BrowserScenarioDraft } from "../../domain/model/types";
 import { createBinaryLabState } from "../../domain/education/binaryLab";
+import { normalizeLearningState } from "../../domain/education/learningState";
 import { SCENARIO_DEFAULTS } from "../../application/catalog/defaults";
 import { DEFAULT_BINARY_LAB_CONFIG_V4 } from "../../application/catalog/binaryLab";
 import { readUiMode, syncUiModeVisibility } from "../shell/mode";
@@ -18,6 +19,7 @@ import {
 import { syncDidacticsControlsFromParams } from "../labs/didactics";
 import { applyProductLessonSelection, applyProductViewControlState } from "../shell/productNavigation";
 import type { BootstrapProfileController } from "../shell/profileSwitch";
+import { syncScenarioSource } from "../scenario/scenarioSource";
 import {
   applyScenarioParams,
   withScenarioApplyGuard,
@@ -93,7 +95,11 @@ function restoreGuidedLabState(
   corrections: string[],
 ): void {
   if (!guided) return;
-  const learning = { ...guided.learning, passedStepIds: [...guided.learning.passedStepIds] };
+  // A hand-edited file may carry a step or phase index beyond its lesson.
+  const learning = normalizeLearningState({
+    ...guided.learning,
+    passedStepIds: [...guided.learning.passedStepIds],
+  });
   args.state.params.didactics = {
     ...(args.state.params.didactics ?? {}),
     activeLessonId: learning.lessonId,
@@ -123,6 +129,29 @@ function restoreScientificControls(workspace: WorkspaceDocumentV1): void {
   duration.valueAsNumber = workspace.scientific.request.endOffsetSec / 3_600;
   cadence.valueAsNumber = workspace.scientific.request.sampleCadenceSec;
   seed.valueAsNumber = workspace.scientific.request.seed;
+}
+
+/** Captures the controls a restore rewrites before the scenario apply, so a failed apply can undo them. */
+function snapshotRestoredControls(args: RestoreWorkspaceArgs): () => void {
+  type ValueControl = { value: string };
+  const controls: (ValueControl | null | undefined)[] = [
+    ...Object.values(workspaceProductControls(args.refs)).filter(
+      (control): control is HTMLSelectElement =>
+        control !== null && control !== undefined && "value" in control,
+    ),
+    ...["scienceDurationHours", "scienceCadenceSec", "scienceSeed"].map(
+      (id) => document.getElementById(id) as HTMLInputElement | null,
+    ),
+  ];
+  const values = controls.map((control) => [control, control?.value ?? ""] as const);
+  return () => {
+    for (const [control, value] of values) if (control) control.value = value;
+    args.profileController.syncFromControl();
+    syncProductModeVisibility(readProductMode(args.refs.productModeSelect.value));
+    syncUiModeVisibility(readUiMode(args.refs.uiModeSelect.value));
+    syncScenarioSource();
+    args.syncModeNavigation();
+  };
 }
 
 async function applyRestoredScenario(
@@ -167,13 +196,19 @@ export async function restoreWorkspace(args: RestoreWorkspaceArgs, text: string)
     const parsed = { state: workspace.productContext, corrections: [] as string[] };
     args.setRestoringHistory(true);
     try {
-      applyProductViewControlState(workspaceProductControls(args.refs), parsed);
-      args.profileController.syncFromControl();
-      restoreScientificControls(workspace);
-      syncProductModeVisibility(readProductMode(args.refs.productModeSelect.value));
-      syncUiModeVisibility(readUiMode(args.refs.uiModeSelect.value));
-      args.syncModeNavigation();
-      await applyRestoredScenario(args, workspace, draft);
+      const undoControls = snapshotRestoredControls(args);
+      try {
+        applyProductViewControlState(workspaceProductControls(args.refs), parsed);
+        args.profileController.syncFromControl();
+        restoreScientificControls(workspace);
+        syncProductModeVisibility(readProductMode(args.refs.productModeSelect.value));
+        syncUiModeVisibility(readUiMode(args.refs.uiModeSelect.value));
+        args.syncModeNavigation();
+        await applyRestoredScenario(args, workspace, draft);
+      } catch (error) {
+        undoControls();
+        throw error;
+      }
       // After the scenario apply, so the restored request is pinned to the restored scenario.
       args.profileController.restoreScientificRequest(workspace.scientific?.request);
       restoreGuidedLabState(args, workspace.education.guidedLab, parsed.corrections);

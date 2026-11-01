@@ -3,6 +3,8 @@
  */
 type BootstrapDirtyGuardDeps = {
   form: HTMLFormElement | null;
+  /** Expert sliders live outside the form and mirror into it with untrusted events. */
+  sliderRoot?: HTMLElement | null;
   uiModeSelect: HTMLSelectElement;
   dirtyState: HTMLElement | null;
   dialog: HTMLDialogElement | null;
@@ -54,17 +56,15 @@ export function createBootstrapDirtyGuard(deps: BootstrapDirtyGuardDeps): Bootst
     action();
   };
 
-  deps.form?.addEventListener(
-    "input",
-    (event) => {
-      if (deps.uiModeSelect.value !== "expert") return;
-      if (!event.isTrusted) return;
-      if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)) return;
-      setDirty(true);
-      deps.clearValidation();
-    },
-    options,
-  );
+  const onUserInput = (event: Event): void => {
+    if (deps.uiModeSelect.value !== "expert") return;
+    if (!event.isTrusted) return;
+    if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)) return;
+    setDirty(true);
+    deps.clearValidation();
+  };
+  deps.form?.addEventListener("input", onUserInput, options);
+  deps.sliderRoot?.addEventListener("input", onUserInput, options);
   deps.keepEditingButton?.addEventListener(
     "click",
     () => {

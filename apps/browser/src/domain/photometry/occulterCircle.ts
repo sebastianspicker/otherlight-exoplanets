@@ -24,9 +24,13 @@
 // - Prefer conservative "fail open" behavior for invalid inputs (e.g. return empty list / false).
 
 import { isFiniteNumber, isFinitePositive } from "../model/units";
-import { MAX_TRANSIT_GRID_RES, MIN_TRANSIT_GRID_RES } from "../model/transitComputeBudget";
+import {
+  DEFAULT_TRANSIT_GRID_RES,
+  MAX_TRANSIT_GRID_RES,
+  MIN_TRANSIT_GRID_RES,
+} from "../model/transitComputeBudget";
 
-export { MAX_TRANSIT_GRID_RES };
+export { DEFAULT_TRANSIT_GRID_RES, MAX_TRANSIT_GRID_RES };
 
 /** A circular opaque occulter in the sky plane (legacy planet/moon disk). */
 export type CircleOcculter = {

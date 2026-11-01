@@ -1,5 +1,6 @@
 // Loads bundled real-system catalog data and adapts entries to native education scenarios.
 import Foundation
+import OSLog
 import TransitCore
 
 /// Loads the optional bundled catalog without making session startup depend on it.
@@ -24,7 +25,14 @@ enum BundledRealSystems {
       let url = Bundle.main.url(forResource: "real-systems.snapshot", withExtension: "json"),
       let data = try? Data(contentsOf: url)
     else { return nil }
-    return try? JSONDecoder().decode(RealSystemSnapshotDTO.self, from: data)
+    do {
+      return try JSONDecoder().decode(RealSystemSnapshotDTO.self, from: data)
+    } catch {
+      // A present but undecodable snapshot must not look like an empty catalog.
+      Logger(subsystem: "Otherlight", category: "BundledRealSystems")
+        .error("Bundled real-system snapshot failed to decode: \(String(describing: error))")
+      return nil
+    }
   }()
 }
 

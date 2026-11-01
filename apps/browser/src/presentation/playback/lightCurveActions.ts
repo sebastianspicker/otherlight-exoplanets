@@ -1,6 +1,7 @@
 /**
  * Wires the light-curve toolbar actions.
  */
+import { downloadBlob } from "../shell/download";
 import {
   invalidateFixedPreview,
   type FixedPreviewKey,
@@ -165,12 +166,5 @@ function takeOverlayHistories(state: OverlayHistories): OverlayHistories {
 
 function downloadCsv(csv: string): void {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "transit-light-curve.csv";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  downloadBlob(blob, "transit-light-curve.csv");
 }

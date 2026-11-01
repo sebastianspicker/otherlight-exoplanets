@@ -371,6 +371,33 @@ final class OtherlightTests: XCTestCase {
     }
   }
 
+  /// Ensures Browser step ids restore lesson completion, legacy lesson ids still do, and labs are checked.
+  func testGuidedProgressIDsAndLabIDsFollowBrowserContract() throws {
+    let session = EducationSession()
+    session.preservedPassedStepIDs = ["kepler-step-1", "kepler-step-2"]
+    let browserStyle = try OtherlightWorkspaceDocument(
+      workspace: session.workspace(section: .guidedLabs))
+    let restored = EducationSession()
+    try restored.restore(workspace: browserStyle.workspace)
+    XCTAssertEqual(restored.completedLessonIDs, ["kepler-geometry"])
+
+    session.preservedPassedStepIDs = ["curve-reading-lab"]
+    let legacy = try OtherlightWorkspaceDocument(
+      workspace: session.workspace(section: .guidedLabs))
+    try restored.restore(workspace: legacy.workspace)
+    XCTAssertEqual(restored.completedLessonIDs, ["curve-reading-lab"])
+
+    let data = try browserStyle.encodedData()
+    let text = String(decoding: data, as: UTF8.self)
+    let alias = Data(
+      text.replacingOccurrences(of: "\"transit-exomoon\"", with: "\"binary-lab\"").utf8)
+    XCTAssertEqual(
+      try OtherlightWorkspaceDocument(data: alias).workspace.productContext.lab, "binary-stars")
+    let unknown = Data(
+      text.replacingOccurrences(of: "\"transit-exomoon\"", with: "\"mystery-lab\"").utf8)
+    XCTAssertThrowsError(try OtherlightWorkspaceDocument(data: unknown))
+  }
+
   /// Ensures new exports advertise Otherlight while legacy workspace files remain importable.
   func testWorkspaceDocumentRetainsLegacyImportTypes() {
     XCTAssertEqual(

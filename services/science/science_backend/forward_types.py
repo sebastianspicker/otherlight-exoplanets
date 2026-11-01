@@ -31,12 +31,6 @@ class OdeSolution(Protocol):
     t_events: Sequence[Sequence[float]]
 
 
-class OptimizerResult(Protocol):
-    success: bool
-    fun: float
-    x: float
-
-
 class SciPyEvent(Protocol):
     def __call__(self, time: float, state: Sequence[float]) -> float: ...
 

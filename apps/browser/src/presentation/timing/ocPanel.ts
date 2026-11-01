@@ -70,6 +70,7 @@ export function createBootstrapOcPanelController(deps: BootstrapOcPanelDeps): {
   let ocUnit: OcUnit = "s";
   let ocTrendMode: OcTrendMode = "raw";
   let clearedHistory: TransitHistoryState | null = null;
+  let postClearHistory: TransitHistoryState | null = null;
   const undoClearBtn = document.getElementById("ocUndoClearBtn") as HTMLButtonElement | null;
 
   const cloneHistory = (history: TransitHistoryState): TransitHistoryState => ({
@@ -84,7 +85,21 @@ export function createBootstrapOcPanelController(deps: BootstrapOcPanelDeps): {
     periodSec: ocEpochPeriodSec(state.params),
   });
 
+  // A timeline reset replaces the history object and new transits append to it; either makes the snapshot stale.
+  const discardStaleUndo = (): void => {
+    if (!clearedHistory || !postClearHistory) return;
+    const stale =
+      state.transitHistory !== postClearHistory ||
+      postClearHistory.planet.events.length > 0 ||
+      postClearHistory.moon.events.length > 0;
+    if (!stale) return;
+    clearedHistory = null;
+    postClearHistory = null;
+    if (undoClearBtn) undoClearBtn.hidden = true;
+  };
+
   const renderOcPanel = (): void => {
+    discardStaleUndo();
     const options = ocOptions();
     renderOcHistoryCanvas(ocCanvas, state.transitHistory, ocBody, options);
     if (ocStatsVal) ocStatsVal.textContent = formatOcPanelStats(state.transitHistory, ocBody, options);
@@ -153,6 +168,7 @@ export function createBootstrapOcPanelController(deps: BootstrapOcPanelDeps): {
       () => {
         clearedHistory = cloneHistory(state.transitHistory);
         state.transitHistory = resetTransitHistoryState(state.transitHistory);
+        postClearHistory = state.transitHistory;
         if (timingHistoryVal) {
           timingHistoryVal.textContent = formatTransitHistorySummary(state.transitHistory);
         }
@@ -168,9 +184,11 @@ export function createBootstrapOcPanelController(deps: BootstrapOcPanelDeps): {
     undoClearBtn?.addEventListener(
       "click",
       () => {
+        discardStaleUndo();
         if (!clearedHistory) return;
         state.transitHistory = clearedHistory;
         clearedHistory = null;
+        postClearHistory = null;
         undoClearBtn.hidden = true;
         if (timingHistoryVal)
           timingHistoryVal.textContent = formatTransitHistorySummary(state.transitHistory);

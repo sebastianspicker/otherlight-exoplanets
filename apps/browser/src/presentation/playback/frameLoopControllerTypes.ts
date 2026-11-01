@@ -31,6 +31,8 @@ export type FrameLoopState = {
   lastPlotTrackingMode: string | null;
   lastFluxForPlot: number;
   lastValidFrame: SimulationFrame | null;
+  /** Last automatic warning text written to the status line, so frames write only on change. */
+  lastUiWarning?: string;
   displayFluxScale: number;
   displayFluxTitle: string;
   fixedPreviewKey?: FixedPreviewKey;

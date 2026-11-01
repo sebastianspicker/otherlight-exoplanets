@@ -150,6 +150,8 @@ export class Canvas2DRenderer {
   private hasSceneScale = false;
   private didacticOverlay?: SceneDidacticOverlayState;
   private detachResizeObserver: () => void = () => {};
+  /** Set by the composition root so a paused scene repaints after a container resize. */
+  onResize?: () => void;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -159,7 +161,7 @@ export class Canvas2DRenderer {
     this.opts = resolveCanvas2DRendererOptions(opts);
     this.autoFitScene = this.opts.autoFitScene;
 
-    this.detachResizeObserver = attachCanvasResizeObserver(this.canvas);
+    this.detachResizeObserver = attachCanvasResizeObserver(this.canvas, () => this.onResize?.());
     this.size = ensureHiDPICanvas(this.canvas, this.ctx, this.size);
     this.updateViewportCenter();
   }

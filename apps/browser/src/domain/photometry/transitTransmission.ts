@@ -26,7 +26,7 @@
 
 import type { BrightnessPatch, LimbDarkeningLaw } from "../model/types";
 import { clamp01, isFiniteNonNegative, isFiniteNumber, isFinitePositive } from "../model/units";
-import { clampGridRes, MAX_TRANSIT_GRID_RES } from "./occulterCircle";
+import { clampGridRes, DEFAULT_TRANSIT_GRID_RES, MAX_TRANSIT_GRID_RES } from "./occulterCircle";
 import { intensityNonNegative } from "./limbDarkening";
 import { patchFactorAt, sanitizeBrightnessPatches, type PatchCombineMode, type PatchPre } from "./patches";
 
@@ -146,10 +146,14 @@ type TransmissionFluxContext = {
 };
 
 function transmissionGrid(params: FluxStarWithTransmissionParams): TransmissionGrid {
-  const N = clampGridRes(isFiniteNumber(params.gridRes) ? Math.floor(params.gridRes) : params.gridRes, 256, {
-    minRes: 32,
-    maxRes: MAX_TRANSIT_GRID_RES,
-  });
+  const N = clampGridRes(
+    isFiniteNumber(params.gridRes) ? Math.floor(params.gridRes) : params.gridRes,
+    DEFAULT_TRANSIT_GRID_RES,
+    {
+      minRes: 32,
+      maxRes: MAX_TRANSIT_GRID_RES,
+    },
+  );
   const step = (2 * params.rStar) / N;
   return {
     N,

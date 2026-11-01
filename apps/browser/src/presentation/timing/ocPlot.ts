@@ -1,6 +1,7 @@
 /**
  * Formats, exports, and renders the O-C history.
  */
+import { downloadBlob } from "../shell/download";
 import { figureInk } from "../render/canvas/figureInk";
 import { drawOcPlotFrame, type OcPlotPoint } from "./ocPlotCanvas";
 import type { TransitHistorySeries, TransitHistoryState } from "../../application/runtime/transitHistory";
@@ -254,15 +255,7 @@ function csvValue(value: number | undefined): number | "" {
 export function exportOcCsv(state: TransitHistoryState, body: OcBody, opts: OcCsvOptions = {}): void {
   const csv = buildOcCsv(state, body, opts);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `oc-history-${body}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Delay revocation so the browser has time to initiate the download.
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  downloadBlob(blob, `oc-history-${body}.csv`);
 }
 
 export function renderOcHistoryCanvas(

@@ -10,10 +10,6 @@ from .forward_analytic import (
     circular_two_body_test_propagate,
     circular_two_body_test_propagate_compact,
 )
-from .forward_dynamics import (
-    assert_dense_solution_avoids_contact as _assert_dense_solution_avoids_contact,
-)
-from .forward_dynamics import minimum_separation_squared as _minimum_separation_squared
 from .forward_dynamics import scipy_propagate, scipy_propagate_compact
 from .forward_manifest import run_manifest
 from .forward_types import (
@@ -23,9 +19,7 @@ from .forward_types import (
     ForwardRunResult,
     ForwardSample,
     OdeSolution,
-    OptimizerResult,
     RunManifest,
-    WorkBudget,
 )
 
 ForwardPropagator = Callable[
@@ -78,20 +72,13 @@ def run_forward_compact(
     return CompactForwardRunResult(samples, run_manifest(request, engine, scientific))
 
 
-# Compatibility aliases for callers which used the former internal test hooks.
-_WorkBudget = WorkBudget
-
 __all__ = [
     "CancellationCheck",
     "DenseSolution",
     "ForwardRunResult",
     "ForwardSample",
     "OdeSolution",
-    "OptimizerResult",
     "RunManifest",
-    "_WorkBudget",
-    "_assert_dense_solution_avoids_contact",
-    "_minimum_separation_squared",
     "run_forward",
     "run_forward_compact",
     "run_forward_with",

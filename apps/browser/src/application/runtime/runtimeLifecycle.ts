@@ -34,7 +34,3 @@ export async function replaceRuntime(
   current.dispose();
   return next;
 }
-
-export function takeRuntimeStatus(runtime: AppSimulationRuntime): string | undefined {
-  return runtime.takeStatusMessage();
-}

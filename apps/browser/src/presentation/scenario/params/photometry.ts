@@ -15,7 +15,14 @@ import {
   MAX_TRANSIT_GRID_RES,
   MIN_TRANSIT_GRID_RES,
 } from "../../../domain/model/transitComputeBudget";
-import { readCheckbox, readNumberInput, readSelect, sanitizeFinite, sanitizePositive } from "../inputs";
+import {
+  HARD_INPUT_LIMITS,
+  readCheckbox,
+  readNumberInput,
+  readSelect,
+  sanitizeFinite,
+  sanitizePositive,
+} from "../inputs";
 import type { UiRefs } from "../../shell/refs";
 import {
   defaultPatchInputs,
@@ -33,8 +40,8 @@ function readCirclePatchFromUI(r: UiRefs, defaults: DefaultPatchInputs): Brightn
     shape: "circle",
     x: sanitizeFinite(readNumberInput(r.p1x, defaults.p1x), defaults.p1x),
     y: sanitizeFinite(readNumberInput(r.p1y, defaults.p1y), defaults.p1y),
-    r: sanitizePositive(readNumberInput(r.p1r, defaults.p1r), 0, 1e12),
-    factor: sanitizePositive(readNumberInput(r.p1f, defaults.p1f), 0, 1e6),
+    r: sanitizePositive(readNumberInput(r.p1r, defaults.p1r), ...HARD_INPUT_LIMITS.p1r),
+    factor: sanitizePositive(readNumberInput(r.p1f, defaults.p1f), ...HARD_INPUT_LIMITS.p1f),
   };
 }
 
@@ -43,10 +50,10 @@ function readEllipsePatchFromUI(r: UiRefs, defaults: DefaultPatchInputs): Bright
     shape: "ellipse",
     x: sanitizeFinite(readNumberInput(r.p2x, defaults.p2x), defaults.p2x),
     y: sanitizeFinite(readNumberInput(r.p2y, defaults.p2y), defaults.p2y),
-    rx: sanitizePositive(readNumberInput(r.p2rx, defaults.p2rx), 0, 1e12),
-    ry: sanitizePositive(readNumberInput(r.p2ry, defaults.p2ry), 0, 1e12),
+    rx: sanitizePositive(readNumberInput(r.p2rx, defaults.p2rx), ...HARD_INPUT_LIMITS.p2rx),
+    ry: sanitizePositive(readNumberInput(r.p2ry, defaults.p2ry), ...HARD_INPUT_LIMITS.p2ry),
     angle: sanitizeFinite(readNumberInput(r.p2angle, defaults.p2angle), defaults.p2angle),
-    factor: sanitizePositive(readNumberInput(r.p2f, defaults.p2f), 0, 1e6),
+    factor: sanitizePositive(readNumberInput(r.p2f, defaults.p2f), ...HARD_INPUT_LIMITS.p2f),
   };
 }
 
@@ -140,7 +147,10 @@ export function readPhotometryFromUI(next: BrowserScenarioDraft, r: UiRefs): voi
 }
 
 function readPhotometryBasics(ph: PhotometryParams, r: UiRefs): void {
-  ph.baselineFlux = sanitizePositive(readNumberInput(r.baselineFlux, valueOr(ph.baselineFlux, 1)), 0, 1e9);
+  ph.baselineFlux = sanitizePositive(
+    readNumberInput(r.baselineFlux, valueOr(ph.baselineFlux, 1)),
+    ...HARD_INPUT_LIMITS.baselineFlux,
+  );
   ph.gridRes = Math.floor(
     sanitizePositive(
       readNumberInput(r.gridRes, valueOr(ph.gridRes, 220)),
@@ -177,11 +187,13 @@ function readSpotEvolutionFromUI(ph: PhotometryParams, r: UiRefs): void {
     enabled: true,
     rotationPeriodSec: sanitizePositive(
       readNumberInput(r.spotRotationPeriod, valueOr(prev.rotationPeriodSec, 20000)),
-      1,
-      1e12,
+      ...HARD_INPUT_LIMITS.spotRotationPeriod,
     ),
     coverage: clamp(sanitizeFinite(readNumberInput(r.spotCoverage, valueOr(prev.coverage, 1)), 1), 0, 1),
-    lifetimeSec: sanitizePositive(readNumberInput(r.spotLifetime, valueOr(prev.lifetimeSec, 0)), 0, 1e12),
+    lifetimeSec: sanitizePositive(
+      readNumberInput(r.spotLifetime, valueOr(prev.lifetimeSec, 0)),
+      ...HARD_INPUT_LIMITS.spotLifetime,
+    ),
     driftRateRadPerSec: sanitizeFinite(
       readNumberInput(r.spotDriftRate, valueOr(prev.driftRateRadPerSec, 0)),
       0,
@@ -200,12 +212,21 @@ function readPlanetPhaseFromUI(ph: PhotometryParams, r: UiRefs): void {
   const prev = valueOr(ph.phaseCurve, EMPTY_PHASE_CURVE);
   ph.phaseCurve = {
     enabled: true,
-    reflAmp: sanitizePositive(readNumberInput(r.planetReflAmp, valueOr(prev.reflAmp, 0)), 0, 10),
-    thermAmp: sanitizePositive(readNumberInput(r.planetThermAmp, valueOr(prev.thermAmp, 0)), 0, 10),
+    reflAmp: sanitizePositive(
+      readNumberInput(r.planetReflAmp, valueOr(prev.reflAmp, 0)),
+      ...HARD_INPUT_LIMITS.planetReflAmp,
+    ),
+    thermAmp: sanitizePositive(
+      readNumberInput(r.planetThermAmp, valueOr(prev.thermAmp, 0)),
+      ...HARD_INPUT_LIMITS.planetThermAmp,
+    ),
     reflOffset: sanitizeFinite(readNumberInput(r.planetReflOffset, valueOr(prev.reflOffset, 0)), 0),
     thermOffset: sanitizeFinite(readNumberInput(r.planetThermOffset, valueOr(prev.thermOffset, 0)), 0),
     lambertian: readCheckbox(r.planetLambertian),
-    constant: sanitizePositive(readNumberInput(r.planetConstant, valueOr(prev.constant, 0)), 0, 10),
+    constant: sanitizePositive(
+      readNumberInput(r.planetConstant, valueOr(prev.constant, 0)),
+      ...HARD_INPUT_LIMITS.planetConstant,
+    ),
     physicalScaling: prev.physicalScaling,
     thermalInertia: readPlanetThermalInertiaFromUI(prev, r),
   };
@@ -246,8 +267,7 @@ function readThermalInertiaFromUI(
     emissivity: clamp(sanitizeFinite(readNumberInput(refs.emissivity, valueOr(prev.emissivity, 1)), 1), 0, 1),
     thermalTimescaleSec: sanitizePositive(
       readNumberInput(refs.timescale, valueOr(prev.thermalTimescaleSec, 0)),
-      0,
-      1e12,
+      ...HARD_INPUT_LIMITS.planetThermalTimescale, // moon shares the same bound
     ),
     redistribution: clamp(
       sanitizeFinite(readNumberInput(refs.redistribution, valueOr(prev.redistribution, 0)), 0),
@@ -266,9 +286,12 @@ function readForwardScatteringFromUI(ph: PhotometryParams, r: UiRefs): void {
   const prev = valueOr(ph.forwardScattering, {});
   ph.forwardScattering = {
     enabled: true,
-    amp: sanitizePositive(readNumberInput(r.fsAmp, valueOr(prev.amp, 0)), 0, 10),
+    amp: sanitizePositive(readNumberInput(r.fsAmp, valueOr(prev.amp, 0)), ...HARD_INPUT_LIMITS.fsAmp),
     g: clamp(sanitizeFinite(readNumberInput(r.fsG, valueOr(prev.g, 0.8)), 0.8), -0.999, 0.999),
-    sigmaPhase: sanitizePositive(readNumberInput(r.fsSigma, valueOr(prev.sigmaPhase, 0.12)), 1e-6, 10),
+    sigmaPhase: sanitizePositive(
+      readNumberInput(r.fsSigma, valueOr(prev.sigmaPhase, 0.12)),
+      ...HARD_INPUT_LIMITS.fsSigma,
+    ),
     phaseOffset: sanitizeFinite(readNumberInput(r.fsOffset, valueOr(prev.phaseOffset, 0)), 0),
     gateWhenBehindStar: readCheckbox(r.fsGateBehind),
     clampNonNegative: true,
@@ -287,9 +310,9 @@ function readAtmosphereTransmissionFromUI(ph: PhotometryParams, r: UiRefs): void
     enabled: true,
     target: "planet",
     kind: readSelect(r.atmKind, "hard") as AtmosphereTransmissionParams["kind"],
-    r0: sanitizePositive(readNumberInput(r.atmR0, valueOr(prev.r0, 0)), 0, 1e9),
-    H: sanitizePositive(readNumberInput(r.atmH, valueOr(prev.H, 0)), 0, 1e9),
-    tau0: sanitizePositive(readNumberInput(r.atmTau0, valueOr(prev.tau0, 0)), 0, 1e12),
+    r0: sanitizePositive(readNumberInput(r.atmR0, valueOr(prev.r0, 0)), ...HARD_INPUT_LIMITS.atmR0),
+    H: sanitizePositive(readNumberInput(r.atmH, valueOr(prev.H, 0)), ...HARD_INPUT_LIMITS.atmH),
+    tau0: sanitizePositive(readNumberInput(r.atmTau0, valueOr(prev.tau0, 0)), ...HARD_INPUT_LIMITS.atmTau0),
     lambdaNm,
     tauScale,
   };
@@ -304,8 +327,14 @@ function readMoonPhaseFromUI(next: BrowserScenarioDraft, ph: PhotometryParams, r
   const prev = valueOr(ph.moonPhaseCurve, EMPTY_PHASE_CURVE);
   ph.moonPhaseCurve = {
     enabled: true,
-    reflAmp: sanitizePositive(readNumberInput(r.moonReflAmp, valueOr(prev.reflAmp, 0)), 0, 10),
-    thermAmp: sanitizePositive(readNumberInput(r.moonThermAmp, valueOr(prev.thermAmp, 0)), 0, 10),
+    reflAmp: sanitizePositive(
+      readNumberInput(r.moonReflAmp, valueOr(prev.reflAmp, 0)),
+      ...HARD_INPUT_LIMITS.moonReflAmp,
+    ),
+    thermAmp: sanitizePositive(
+      readNumberInput(r.moonThermAmp, valueOr(prev.thermAmp, 0)),
+      ...HARD_INPUT_LIMITS.moonThermAmp,
+    ),
     reflOffset: valueOr(prev.reflOffset, 0),
     thermOffset: valueOr(prev.thermOffset, 0),
     lambertian: readCheckbox(r.moonLambertian),
@@ -320,7 +349,10 @@ function readSmearingFromUI(ph: PhotometryParams, r: UiRefs): void {
     ph.nSubsamples = 1;
     return;
   }
-  ph.cadenceSec = sanitizePositive(readNumberInput(r.cadenceSec, valueOr(ph.cadenceSec, 60)), 0, 1e9);
+  ph.cadenceSec = sanitizePositive(
+    readNumberInput(r.cadenceSec, valueOr(ph.cadenceSec, 60)),
+    ...HARD_INPUT_LIMITS.cadenceSec,
+  );
   ph.nSubsamples = Math.floor(
     sanitizePositive(readNumberInput(r.nSubsamples, valueOr(ph.nSubsamples, 9)), 1, MAX_SMEARING_SUBSAMPLES),
   );
@@ -343,7 +375,10 @@ function readStellarVariabilityFromUI(ph: PhotometryParams, r: UiRefs): void {
       readNumberInput(r.ellipsoidalOffset, valueOr(prev.ellipsoidalOffset, 0)),
       0,
     ),
-    constant: sanitizePositive(readNumberInput(r.varConstant, valueOr(prev.constant, 0)), 0, 10),
+    constant: sanitizePositive(
+      readNumberInput(r.varConstant, valueOr(prev.constant, 0)),
+      ...HARD_INPUT_LIMITS.varConstant,
+    ),
   };
 }
 

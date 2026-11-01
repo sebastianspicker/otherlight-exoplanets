@@ -6,9 +6,7 @@ from .__about__ import __version__
 from .contracts import (
     Body,
     ForwardRunRequest,
-    InferenceRequest,
     Observer,
-    ReducedObservation,
 )
 
 if TYPE_CHECKING:
@@ -18,9 +16,7 @@ __all__ = [
     "Body",
     "ForwardRunRequest",
     "ForwardRunResult",
-    "InferenceRequest",
     "Observer",
-    "ReducedObservation",
     "__version__",
     "run_forward",
 ]

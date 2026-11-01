@@ -59,6 +59,7 @@ export function createFrameLoopController(deps: FrameLoopDeps): FrameLoopControl
       applyDynamicVisualizationState(args);
       return undefined;
     } catch (error) {
+      state.lastUiWarning = undefined;
       return reportDynamicVisualizationError(refs, error);
     }
   }
@@ -73,20 +74,12 @@ export function createFrameLoopController(deps: FrameLoopDeps): FrameLoopControl
     requestFrame();
   }
 
-  function invalidate(): void {
-    requestFrame();
-  }
-
   function dispose(): void {
     disposed = true;
     state.chromaticOverlay?.dispose();
     overlayWarning?.remove();
     if (rafId !== null) cancelAnimationFrame(rafId);
     rafId = null;
-  }
-
-  function start(): void {
-    invalidate();
   }
 
   function setRunning(next: boolean): void {
@@ -136,7 +129,7 @@ export function createFrameLoopController(deps: FrameLoopDeps): FrameLoopControl
       return;
     }
     state.last = performance.now();
-    invalidate();
+    requestFrame();
   };
   if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
 
@@ -148,11 +141,18 @@ export function createFrameLoopController(deps: FrameLoopDeps): FrameLoopControl
     setRunning,
   };
 
-  const disposeWithVisibility = dispose;
   function disposeController(): void {
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
-    disposeWithVisibility();
+    dispose();
   }
 
-  return { frame, start, dispose: disposeController, setRunning, resetSimTimeAndLC, seekToTime, invalidate };
+  return {
+    frame,
+    start: requestFrame,
+    dispose: disposeController,
+    setRunning,
+    resetSimTimeAndLC,
+    seekToTime,
+    invalidate: requestFrame,
+  };
 }

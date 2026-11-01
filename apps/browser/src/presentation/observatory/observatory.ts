@@ -111,9 +111,14 @@ export function wireObservatory(deps: ObservatoryDeps) {
     form.setAttribute("aria-busy", "true");
     text("radiusComparisonStatus", "Computing the two Education scenarios…");
     const accepted = deps.state.params;
+    let stale = false;
     await new Promise((resolve) => setTimeout(resolve, 0));
     try {
-      if (deps.signal.aborted || accepted !== deps.state.params) return;
+      if (deps.signal.aborted) return;
+      if (accepted !== deps.state.params) {
+        stale = true;
+        return;
+      }
       const transitTime = findObservatoryTransit(accepted, deps.state.t);
       const time = transitTime ?? deps.state.t;
       const result = prepareRadiusComparison(accepted, radiusKm, time);
@@ -136,6 +141,10 @@ export function wireObservatory(deps: ObservatoryDeps) {
       busy = false;
       form.setAttribute("aria-busy", "false");
       if (!deps.signal.aborted) sync();
+      // After sync(): re-sourcing the form to the new model would otherwise clear this message.
+      if (stale && !deps.signal.aborted) {
+        text("radiusComparisonStatus", "The model changed while comparing; press Compare again.");
+      }
     }
   }
 

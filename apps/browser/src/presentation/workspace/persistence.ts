@@ -1,5 +1,6 @@
 /** Owns portable workspace documents and URL-history restoration for one bootstrap instance. */
 
+import { downloadBlob } from "../shell/download";
 import { toEducationScenarioV4 } from "../../application/browserScenarioAdapter";
 import type { BinaryLabConfigV4 } from "../../domain/simulation/v4/types";
 import { readBootstrapRuntimeMode } from "../../application/runtime/runtimeArgs";
@@ -30,6 +31,8 @@ import {
 
 /** The extension changed with the product name; the workspace-v1 document remains byte-compatible. */
 export const WORKSPACE_DOWNLOAD_FILENAME = "otherlight-workspace.otherlight";
+/** Matches the dataset import cap; a larger file would freeze the tab in `JSON.parse`. */
+const MAX_WORKSPACE_FILE_BYTES = 8 * 1024 * 1024;
 
 type PersistenceState = Pick<ScenarioFlowState, "params" | "didacticsRuntime" | "binaryLabState"> &
   WorkspaceSettingsState;
@@ -125,12 +128,7 @@ function saveWorkspace(args: BootstrapPersistenceArgs): void {
     ...(scientific ? { scientific } : {}),
   };
   const blob = new Blob([encodeWorkspaceDocument(workspaceDocument)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = WORKSPACE_DOWNLOAD_FILENAME;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  downloadBlob(blob, WORKSPACE_DOWNLOAD_FILENAME);
   args.setAppStatus(
     omitted === undefined
       ? "Workspace saved as a portable .otherlight document."
@@ -178,8 +176,17 @@ export function wireBootstrapPersistence(args: BootstrapPersistenceArgs): void {
   const showWorkspaceStatus = (message: string): void => {
     if (workspaceStatus) workspaceStatus.textContent = isScientificProfile(args) ? message : "";
   };
-  const reportingArgs: BootstrapPersistenceArgs = {
+  // Overlapping restores (quick Back clicks) must keep the flag set until the last one finishes.
+  let restoringDepth = 0;
+  const countedArgs: BootstrapPersistenceArgs = {
     ...args,
+    setRestoringHistory: (restoring) => {
+      restoringDepth = Math.max(0, restoringDepth + (restoring ? 1 : -1));
+      args.setRestoringHistory(restoringDepth > 0);
+    },
+  };
+  const reportingArgs: BootstrapPersistenceArgs = {
+    ...countedArgs,
     setAppStatus: (message) => {
       args.setAppStatus(message);
       showWorkspaceStatus(message);
@@ -216,6 +223,9 @@ export function wireBootstrapPersistence(args: BootstrapPersistenceArgs): void {
       if (!file) return;
       runWithErrorHandling(
         async () => {
+          if (file.size > MAX_WORKSPACE_FILE_BYTES) {
+            throw new Error("Workspace files larger than 8 MiB are not supported.");
+          }
           if (await restoreWorkspace(reportingArgs, await file.text())) unloadGuard.markSaved();
         },
         {
@@ -226,5 +236,5 @@ export function wireBootstrapPersistence(args: BootstrapPersistenceArgs): void {
     },
     listenerOptions,
   );
-  window.addEventListener("popstate", () => restoreBrowserHistory(args), listenerOptions);
+  window.addEventListener("popstate", () => restoreBrowserHistory(countedArgs), listenerOptions);
 }

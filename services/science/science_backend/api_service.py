@@ -97,6 +97,11 @@ class V5ApiService:
             raise ValueError("max_outstanding_jobs must be at least max_workers")
         if max_terminal_jobs < 1:
             raise ValueError("max_terminal_jobs must be positive")
+        # The forward engine's WorkBudget enforces this cap itself; a larger value would be ignored.
+        if not 0 <= wall_time_seconds <= MAX_FORWARD_WALL_TIME_SECONDS:
+            raise ValueError(
+                f"wall_time_seconds must be in [0, {MAX_FORWARD_WALL_TIME_SECONDS}]"
+            )
         if (
             type(max_artifact_writer_temp_bytes) is not int
             or not 1 <= max_artifact_writer_temp_bytes <= MAX_ARTIFACT_WRITER_TEMP_BYTES

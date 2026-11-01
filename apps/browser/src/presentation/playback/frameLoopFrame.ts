@@ -44,7 +44,7 @@ const frameStep = (
 ): SimulationFrame | undefined => {
   const attempt = trySimulationStep(ctx, simulation, ctx.state.t);
   if (attempt.ok) {
-    setRuntimeStatusWarning(ctx, simulation, params, true);
+    setRuntimeStatusWarning(ctx, simulation, params, true, true);
     return attempt.step;
   }
 

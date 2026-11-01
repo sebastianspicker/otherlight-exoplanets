@@ -47,6 +47,8 @@ const _sizeCache = new WeakMap<HTMLCanvasElement, CanvasSizeCacheEntry>();
  * Call once during setup and hold the returned cleanup function. Invoke the cleanup
  * function when the canvas is unmounted to disconnect the observer.
  *
+ * `onResize` runs after the cache is marked dirty so a paused view can repaint.
+ *
  * If ResizeObserver is unavailable (SSR, legacy browsers), returns a no-op and
  * ensureHiDPICanvas falls back to the existing DOM-read path.
  *
@@ -55,7 +57,7 @@ const _sizeCache = new WeakMap<HTMLCanvasElement, CanvasSizeCacheEntry>();
  * // … on teardown:
  * detach();
  */
-export function attachCanvasResizeObserver(canvas: HTMLCanvasElement): () => void {
+export function attachCanvasResizeObserver(canvas: HTMLCanvasElement, onResize?: () => void): () => void {
   if (typeof ResizeObserver === "undefined") return () => {};
   if (_sizeCache.has(canvas)) return () => {}; // already attached
 
@@ -67,6 +69,7 @@ export function attachCanvasResizeObserver(canvas: HTMLCanvasElement): () => voi
   const ro = new ResizeObserver(() => {
     const entry = _sizeCache.get(canvas);
     if (entry) entry.dirty = true;
+    onResize?.();
   });
   ro.observe(canvas);
 

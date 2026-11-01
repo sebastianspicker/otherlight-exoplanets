@@ -12,7 +12,7 @@ from typing import Any
 
 from .__about__ import __version__
 from .api_service import V5ApiService
-from .api_v2_datasets import V6DatasetRegistry
+from .api_v2_dataset_registry import V6DatasetRegistry
 from .api_v2_http import (
     UnsupportedDatasetMediaType,
     declared_content_length,

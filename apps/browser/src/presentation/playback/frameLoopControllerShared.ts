@@ -30,6 +30,8 @@ export function warnNoisePipelineOnce(noiseErr: unknown): void {
 
 export const setWarningText = (ctx: FrameLoopContext, message: string): void => {
   if (ctx.refs.warnVal) ctx.refs.warnVal.textContent = message;
+  // Frame-loop messages are transient: the next successful frame may replace them.
+  ctx.state.lastUiWarning = undefined;
 };
 
 export const readCurrentPlotModes = (ctx: FrameLoopContext): PlotModes => {
@@ -59,11 +61,16 @@ export const setRuntimeStatusWarning = (
   simulation: AppSimulationRuntime,
   params: BrowserScenarioDraft,
   requireStatusMessage = false,
+  onlyOnChange = false,
 ): void => {
   const runtimeStatus = requireStatusMessage
     ? simulation.takeStatusMessage()
     : simulation.takeStatusMessage?.();
-  setWarningText(ctx, runtimeStatus ?? ctx.uiWarningText(params) ?? "");
+  const uiWarning = ctx.uiWarningText(params) ?? "";
+  // Per-frame callers must not rewrite the live region or clobber messages from other writers.
+  if (onlyOnChange && runtimeStatus === undefined && uiWarning === ctx.state.lastUiWarning) return;
+  setWarningText(ctx, runtimeStatus ?? uiWarning);
+  ctx.state.lastUiWarning = uiWarning;
 };
 
 export const recordDynamicPlotSample = (

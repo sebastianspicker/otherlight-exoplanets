@@ -10,20 +10,12 @@ type PlotTrackingMode = "fixed" | "dynamic" | "live";
 
 export function readPlotMode(el: HTMLSelectElement | HTMLInputElement | null): PlotMode {
   if (!el) return "physical";
-  if (el instanceof HTMLSelectElement) return el.value === "measured" ? "measured" : "physical";
-  if (el instanceof HTMLInputElement) return el.value === "measured" ? "measured" : "physical";
-  return "physical";
+  return el.value === "measured" ? "measured" : "physical";
 }
 
 export function readPlotTrackingMode(el: HTMLSelectElement | HTMLInputElement | null): PlotTrackingMode {
   if (!el) return "fixed";
-  if (el instanceof HTMLSelectElement) {
-    return el.value === "live" ? "live" : el.value === "dynamic" ? "dynamic" : "fixed";
-  }
-  if (el instanceof HTMLInputElement) {
-    return el.value === "live" ? "live" : el.value === "dynamic" ? "dynamic" : "fixed";
-  }
-  return "fixed";
+  return el.value === "live" ? "live" : el.value === "dynamic" ? "dynamic" : "fixed";
 }
 
 export function readClampSmearedFlux(el: HTMLInputElement | null): boolean {
@@ -52,8 +44,68 @@ export function readSelect(el: HTMLSelectElement, fallback: string): string {
   return typeof v === "string" && v.length > 0 ? v : fallback;
 }
 
+type Limits = readonly [min: number, max: number];
+export const ORBIT_A_LIMITS: Limits = [0.001, 1e12];
+export const ORBIT_PERIOD_LIMITS: Limits = [0.001, 1e18];
+const INC_DEG_LIMITS: Limits = [0, 180];
+export const RING_INC_DEG_LIMITS: Limits = [0, 90];
+export const RADIUS_LIMITS: Limits = [1e3, 1e12];
+export const MASS_LIMITS: Limits = [0, 1e30];
+export const RING_RADIUS_LIMITS: Limits = [0, 1e12];
+
+export const HARD_INPUT_LIMITS = {
+  planetA: ORBIT_A_LIMITS,
+  moonA: ORBIT_A_LIMITS,
+  planetPeriod: ORBIT_PERIOD_LIMITS,
+  moonPeriod: ORBIT_PERIOD_LIMITS,
+  planetInc: INC_DEG_LIMITS,
+  moonInc: INC_DEG_LIMITS,
+  starR: RADIUS_LIMITS,
+  planetR: RADIUS_LIMITS,
+  moonR: RADIUS_LIMITS,
+  planetMass: MASS_LIMITS,
+  moonMass: MASS_LIMITS,
+  planetRingInner: RING_RADIUS_LIMITS,
+  planetRingOuter: RING_RADIUS_LIMITS,
+  moonRingInner: RING_RADIUS_LIMITS,
+  moonRingOuter: RING_RADIUS_LIMITS,
+  planetRingInc: RING_INC_DEG_LIMITS,
+  moonRingInc: RING_INC_DEG_LIMITS,
+  p1r: [0, 1e12],
+  p1f: [0, 1e6],
+  p2rx: [0, 1e12],
+  p2ry: [0, 1e12],
+  p2f: [0, 1e6],
+  baselineFlux: [0, 1e9],
+  spotLifetime: [0, 1e12],
+  spotRotationPeriod: [1, 1e12],
+  planetReflAmp: [0, 10],
+  planetThermAmp: [0, 10],
+  planetConstant: [0, 10],
+  moonReflAmp: [0, 10],
+  moonThermAmp: [0, 10],
+  varConstant: [0, 10],
+  fsAmp: [0, 10],
+  fsSigma: [1e-6, 10],
+  atmR0: [0, 1e9],
+  atmH: [0, 1e9],
+  atmTau0: [0, 1e12],
+  planetThermalTimescale: [0, 1e12],
+  moonThermalTimescale: [0, 1e12],
+  cadenceSec: [0, 1e9],
+  exoVelDt: [1e-6, 1e9],
+} as const satisfies Record<string, Limits>;
+
+/**
+ * Hard model limits per input element id. Readers clamp to these; override mode
+ * validation reports them instead of letting the reader clamp silently.
+ */
+export function hardInputLimits(id: string): Limits | undefined {
+  return (HARD_INPUT_LIMITS as Record<string, Limits>)[id];
+}
+
 export function sanitizeIncDeg(vDeg: number): number {
-  return clamp(vDeg, 0, 180);
+  return clamp(vDeg, ...INC_DEG_LIMITS);
 }
 
 // Numerical stability policy (elliptic only)

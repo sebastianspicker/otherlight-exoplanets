@@ -10,9 +10,7 @@
 //
 // Determinism / seed handling:
 // - createMulberry32(seed) maps any JS value to a uint32 internal state via toSeed32(...).
-// - State 0 is avoided (mapped to 1) to prevent a degenerate fixed point in some PRNG patterns.
-// - setState(...) resets both the uniform stream state and the cached Box–Muller spare,
-//   so replayed sequences are identical given the same state.
+// - Mulberry32 adds a constant each step, so state 0 is valid and seeds 0 and 1 stay distinct.
 //
 // Distribution notes:
 // - u01() returns U in [0,1) with 2^-32 granularity (u32 / 2^32).
@@ -28,12 +26,6 @@ export type PRNG = {
 
   /** Unsigned 32-bit integer. */
   u32(): number;
-
-  /** Set internal state (useful for deterministic replays). */
-  setState(state: number): void;
-
-  /** Get internal state (useful for checkpointing). */
-  getState(): number;
 };
 
 function isFiniteNumber(x: unknown): x is number {
@@ -43,10 +35,7 @@ function isFiniteNumber(x: unknown): x is number {
 function toSeed32(seed: unknown, fallback = 1): number {
   const n = isFiniteNumber(seed) ? seed : Number(seed);
   const s = Number.isFinite(n) ? Math.floor(n) : fallback;
-
-  // Force into uint32; avoid 0-state degeneracy by mapping 0 -> 1.
-  const u = s >>> 0 || 1;
-  return u;
+  return s >>> 0;
 }
 
 /**
@@ -105,13 +94,6 @@ export function createMulberry32(seed: unknown = 1): PRNG {
     u01,
     n01,
     u32,
-    setState(state: number) {
-      a = toSeed32(state, 1);
-      spare = null; // reset cache for deterministic replay
-    },
-    getState() {
-      return a >>> 0;
-    },
   };
 }
 

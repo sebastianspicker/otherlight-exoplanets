@@ -1,6 +1,10 @@
 /** Fuses circular occultation integration across a shared spectral grid. */
 import { clamp01, isFiniteNumber, isFinitePositive } from "../../model/units";
-import { clampGridRes, MAX_TRANSIT_GRID_RES } from "../../photometry/occulterCircle";
+import {
+  clampGridRes,
+  DEFAULT_TRANSIT_GRID_RES,
+  MAX_TRANSIT_GRID_RES,
+} from "../../photometry/occulterCircle";
 import { intensityNonNegative, type LimbDarkeningLaw } from "../../photometry/limbDarkening";
 import { patchFactorAt, sanitizeBrightnessPatches } from "../../photometry/patches";
 import type { VisibilityOcculter, VisibilityStar, VisibilityStarSurface } from "./nativePhotometryTypes";
@@ -31,10 +35,14 @@ export function integrateCircularSpectralVisibility(args: {
     throw new Error("fluxStarWithTransmissiveOcculters: rStar must be > 0 and finite.");
   }
 
-  const gridSize = clampGridRes(isFiniteNumber(args.gridRes) ? Math.floor(args.gridRes) : args.gridRes, 256, {
-    minRes: 32,
-    maxRes: MAX_TRANSIT_GRID_RES,
-  });
+  const gridSize = clampGridRes(
+    isFiniteNumber(args.gridRes) ? Math.floor(args.gridRes) : args.gridRes,
+    DEFAULT_TRANSIT_GRID_RES,
+    {
+      minRes: 32,
+      maxRes: MAX_TRANSIT_GRID_RES,
+    },
+  );
   const step = (2 * star.r) / gridSize;
   const halfStep = 0.5 * step;
   const starRadiusSquared = star.r * star.r;

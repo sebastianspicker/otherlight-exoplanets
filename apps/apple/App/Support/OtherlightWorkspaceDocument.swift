@@ -215,14 +215,39 @@ struct ProductContext: Codable, Equatable, Sendable {
 
   /// Verifies all persisted routing identifiers use the constrained stable format.
   fileprivate var hasValidStableIdentifiers: Bool {
-    Self.isStableIdentifier(scenario) && Self.isStableIdentifier(lab)
+    Self.isStableIdentifier(scenario) && Self.knownLabIDs.contains(lab)
       && Self.isStableIdentifier(lesson)
   }
+
+  /// Lab ids the Browser accepts (apps/browser/src/domain/model/labs.ts).
+  static let knownLabIDs: Set<String> = ["transit-exomoon", "binary-stars"]
+
+  /// Legacy lab ids accepted on read only and mapped to the Browser catalog id.
+  static let legacyLabAliases: [String: String] = [
+    "binary-eclipse": "binary-stars", "binary-lab": "binary-stars",
+  ]
 
   /// Restricts persisted identifiers to bounded lowercase kebab-case values.
   fileprivate static func isStableIdentifier(_ value: String) -> Bool {
     guard !value.isEmpty, value.count <= 128 else { return false }
     return value.range(of: "^[a-z0-9]+(?:-[a-z0-9]+)*$", options: .regularExpression) != nil
+  }
+}
+
+/// Keeps the memberwise initializer while decoding legacy lab aliases.
+extension ProductContext {
+  /// Decodes the context and maps legacy lab aliases to canonical Browser ids.
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    profile = try container.decode(Profile.self, forKey: .profile)
+    mode = try container.decode(Mode.self, forKey: .mode)
+    ui = try container.decode(Interface.self, forKey: .ui)
+    source = try container.decode(Source.self, forKey: .source)
+    scenario = try container.decode(String.self, forKey: .scenario)
+    let rawLab = try container.decode(String.self, forKey: .lab)
+    lab = Self.legacyLabAliases[rawLab] ?? rawLab
+    lesson = try container.decode(String.self, forKey: .lesson)
+    runtime = try container.decode(Runtime.self, forKey: .runtime)
   }
 }
 

@@ -231,8 +231,9 @@ export function assertScientificBrowserSnapshotInputs(config: EducationScenarioV
   throwNativeInputIssues(config, issues);
 }
 
-export function safeBodyRadius(body: StarBodyV4 | PlanetBodyV4 | MoonBodyV4): number {
-  const r0 = finitePositiveOrDefault(body.r, 1);
+/** Invalid radii give `invalidFallback`; 0 makes the `r > 0` filters skip the body. */
+export function safeBodyRadius(body: StarBodyV4 | PlanetBodyV4 | MoonBodyV4, invalidFallback = 0): number {
+  const r0 = finitePositiveOrDefault(body.r, invalidFallback);
   const obl = finiteOrDefault(body.shape?.oblateness, 0);
   if (!(obl > 0)) return r0;
   const f = Math.max(0.1, 1 - 0.5 * Math.min(0.9, obl));

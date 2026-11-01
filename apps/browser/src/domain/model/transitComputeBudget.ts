@@ -6,6 +6,9 @@ import type { BrowserScenarioDraft } from "./types";
 /** Hard ceiling shared by every synchronous stellar-disk integrator. */
 export const MAX_TRANSIT_GRID_RES = 1024;
 
+/** Grid resolution used when a scenario does not set one (matches scenario.default.json). */
+export const DEFAULT_TRANSIT_GRID_RES = 220;
+
 /** Minimum grid resolution accepted by the browser parameter controls. */
 export const MIN_TRANSIT_GRID_RES = 60;
 
@@ -30,7 +33,7 @@ function normalizeTransitGridResolution(gridRes: unknown, fallback: number): num
   return Math.max(MIN_TRANSIT_GRID_RES, Math.min(MAX_TRANSIT_GRID_RES, Math.floor(finite)));
 }
 
-function maxSpectralSamplesForGrid(gridRes: unknown, fallback = 220): number {
+function maxSpectralSamplesForGrid(gridRes: unknown, fallback = DEFAULT_TRANSIT_GRID_RES): number {
   const grid = normalizeTransitGridResolution(gridRes, fallback);
   return Math.max(
     1,
@@ -70,8 +73,7 @@ function activeSpectralSampleCount(params: BrowserScenarioDraft, gridRes: number
 }
 
 function estimateTransitPointEvaluations(params: BrowserScenarioDraft): number {
-  const fallbackGridRes = hasTransmissionConfigured(params) ? 256 : 220;
-  const gridRes = normalizeTransitGridResolution(params.star.photometry?.gridRes, fallbackGridRes);
+  const gridRes = normalizeTransitGridResolution(params.star.photometry?.gridRes, DEFAULT_TRANSIT_GRID_RES);
   return gridRes * gridRes * activeSpectralSampleCount(params, gridRes);
 }
 
@@ -81,7 +83,7 @@ function maxSmearingSubsamplesForWork(workPerStep: number): number {
 }
 
 export function maxSmearingSubsamplesForGrid(gridRes: unknown): number {
-  const grid = normalizeTransitGridResolution(gridRes, 220);
+  const grid = normalizeTransitGridResolution(gridRes, DEFAULT_TRANSIT_GRID_RES);
   return maxSmearingSubsamplesForWork(grid * grid);
 }
 

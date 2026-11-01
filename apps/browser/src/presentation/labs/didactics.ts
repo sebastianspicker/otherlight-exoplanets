@@ -165,8 +165,7 @@ export function onDidacticSignals(
   tSec: number,
 ): DidacticsRuntimeState {
   if (!system.didactics?.enabled) return runtime;
-  const auto = Boolean(system.didactics.autoAssess ?? true);
-  const nextLearning = advanceLearningState(runtime.learning, signals, auto, tSec);
+  const nextLearning = advanceLearningState(runtime.learning, signals, tSec);
   system.didactics.learningState = nextLearning;
   return {
     ...runtime,

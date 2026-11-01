@@ -7,7 +7,7 @@ import {
 import { readUiMode } from "../shell/mode";
 import type { UiRefs } from "../shell/refs";
 import { runWithErrorHandling } from "../shell/runWithErrorHandling";
-import { replaceRuntime, takeRuntimeStatus } from "../../application/runtime/runtimeLifecycle";
+import { replaceRuntime } from "../../application/runtime/runtimeLifecycle";
 import {
   applyActiveScenarioForMode,
   applyScenarioParams,
@@ -98,7 +98,7 @@ export function createBootstrapApplyParams(deps: BootstrapApplyParamsDeps): Boot
     }
     setSimulation(nextSimulation);
     syncDisplayFluxState();
-    const status = takeRuntimeStatus(getSimulation());
+    const status = getSimulation().takeStatusMessage();
     if (status && warnEl) warnEl.textContent = status;
   }
 

@@ -72,12 +72,6 @@
     "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
   },
   {
-    "file": "apps/browser/src/infrastructure/workspace/workspaceDocument.ts",
-    "symbol": "restoreWorkspaceScenario",
-    "kind": "export",
-    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
-  },
-  {
     "file": "apps/browser/src/domain/simulation/v4/nativePhotometryAtmosphere.ts",
     "symbol": "atmosphereOpacityForOcculter",
     "kind": "export",
@@ -86,12 +80,6 @@
   {
     "file": "apps/browser/src/presentation/labs/didacticsViewNavigation.ts",
     "symbol": "resolveLessonEventSec",
-    "kind": "export",
-    "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
-  },
-  {
-    "file": "apps/browser/src/infrastructure/science/canonicalJson.ts",
-    "symbol": "canonicalScientificJson",
     "kind": "export",
     "reason": "Public model or helper API that is exercised only by the unpublished validation suite; no runtime caller reaches it."
   },

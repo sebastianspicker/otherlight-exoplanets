@@ -34,7 +34,7 @@ import { clamp, clamp01, isFinitePositive } from "../model/units";
 import type { BrightnessPatch, SpotEvolutionParams } from "../model/typesPhotometrySurface";
 import { integrateDiskMidpoint } from "./diskMidpoint";
 import { intensityNonNegative, type LimbDarkeningLaw } from "./limbDarkening";
-import { clampGridRes } from "./occulterCircle";
+import { clampGridRes, DEFAULT_TRANSIT_GRID_RES } from "./occulterCircle";
 import { patchFactorAt, sanitizeBrightnessPatches } from "./patches";
 
 const MU0_FLOOR = 1e-3;
@@ -122,7 +122,7 @@ export function spottedDiskFluxFactor(args: {
   if (patches.length === 0 || !isFinitePositive(args.rStar)) return 1;
   const law = args.limbDarkeningLaw;
   const intensity = (mu: number): number => (law ? intensityNonNegative(mu, law) : 1);
-  const gridRes = clampGridRes(args.gridRes, 60);
+  const gridRes = clampGridRes(args.gridRes, DEFAULT_TRANSIT_GRID_RES);
   const unpatched = integrateDiskMidpoint({
     rStar: args.rStar,
     occulters: [],

@@ -3,6 +3,7 @@
  */
 import type { OrbitElements, BrowserScenarioDraft } from "../../model/types";
 import { validateSystemParamsPhysics } from "../../orbits/hill";
+import { MAX_TRANSIT_GRID_RES, MIN_TRANSIT_GRID_RES } from "../../model/transitComputeBudget";
 import type { UiValidationMessage } from "./types";
 
 type PlanetParams = BrowserScenarioDraft["planet"];
@@ -189,16 +190,13 @@ const collectPhotometryDisplayWarnings = (params: BrowserScenarioDraft): UiValid
   return [...lowGridResWarnings(params, phot?.gridRes), ...spotEvolutionWarnings(phot)];
 };
 
-const MIN_GRID_RES = 60;
-const MIN_WARNING_GRID_RES = 60;
-const MAX_WARNING_GRID_RES = 1024;
 const MIN_CELLS_ACROSS_OCCULTER = 12;
 
 const lowGridResWarnings = (params: BrowserScenarioDraft, gridRes: unknown): UiValidationMessage[] => {
   if (!positiveNumber(gridRes)) return [];
 
   const out: UiValidationMessage[] = [];
-  if (gridRes < MIN_GRID_RES) {
+  if (gridRes < MIN_TRANSIT_GRID_RES) {
     out.push({
       severity: "info",
       code: "LOW_GRID_RES",
@@ -227,15 +225,15 @@ const occulterGridMessage = (
 
   const ratio = rBody / rStar;
   // The integrators clamp the grid to [60, 1024]; warn about the resolution they will actually use.
-  const effectiveGridRes = Math.min(MAX_WARNING_GRID_RES, Math.max(MIN_WARNING_GRID_RES, gridRes));
+  const effectiveGridRes = Math.min(MAX_TRANSIT_GRID_RES, Math.max(MIN_TRANSIT_GRID_RES, gridRes));
   const cells = ratio * effectiveGridRes;
   if (cells >= MIN_CELLS_ACROSS_OCCULTER) return undefined;
 
   const suggested = Math.ceil(MIN_CELLS_ACROSS_OCCULTER / ratio);
   const advice =
-    suggested <= MAX_WARNING_GRID_RES
+    suggested <= MAX_TRANSIT_GRID_RES
       ? `increase gridRes (\u2265 ${suggested} for ${MIN_CELLS_ACROSS_OCCULTER} cells) or expect quantized depths.`
-      : `even the maximum gridRes ${MAX_WARNING_GRID_RES} gives fewer than ${MIN_CELLS_ACROSS_OCCULTER} cells, so expect quantized depths.`;
+      : `even the maximum gridRes ${MAX_TRANSIT_GRID_RES} gives fewer than ${MIN_CELLS_ACROSS_OCCULTER} cells, so expect quantized depths.`;
   return `gridRes ${effectiveGridRes} gives about ${cells.toFixed(1)} cells across the ${name}; ${advice}`;
 };
 

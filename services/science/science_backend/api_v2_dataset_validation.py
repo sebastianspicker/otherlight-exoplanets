@@ -81,20 +81,20 @@ def _validate_json_shape(value: Any) -> None:
                 f"dataset JSON nesting exceeds the {MAX_JSON_DEPTH}-level limit"
             )
         if isinstance(current, dict):
-            if any(_contains_surrogate(key) for key in current):
+            if any(contains_surrogate(key) for key in current):
                 raise ContractError(
                     "dataset JSON strings must contain valid Unicode scalars"
                 )
             stack.extend((nested, depth + 1) for nested in current.values())
         elif isinstance(current, list):
             stack.extend((nested, depth + 1) for nested in current)
-        elif isinstance(current, str) and _contains_surrogate(current):
+        elif isinstance(current, str) and contains_surrogate(current):
             raise ContractError(
                 "dataset JSON strings must contain valid Unicode scalars"
             )
 
 
-def _contains_surrogate(value: str) -> bool:
+def contains_surrogate(value: str) -> bool:
     return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
 
 
@@ -321,8 +321,11 @@ def _validate_variability_psd(payload: dict[str, Any]) -> int:
     )
 
 
-def _freeze_and_measure(value: Any, *, reuse_mappings: bool) -> tuple[Any, int]:
-    """Freeze and exactly size retained containers plus shared leaf objects."""
+def freeze_and_measure_owned(value: Any) -> tuple[Any, int]:
+    """Freeze a private parsed tree in place and exactly size its retained graph.
+
+    Shared containers and leaf objects are counted once.
+    """
 
     memo: dict[int, Any] = {}
     measured: set[int] = set()
@@ -340,13 +343,12 @@ def _freeze_and_measure(value: Any, *, reuse_mappings: bool) -> tuple[Any, int]:
         if identity in memo:
             return memo[identity]
         if isinstance(current, dict):
-            backing: dict[str, Any] = current if reuse_mappings else {}
-            proxy = MappingProxyType(backing)
+            proxy = MappingProxyType(current)
             memo[identity] = proxy
             for key, nested in current.items():
                 account(key)
-                backing[key] = freeze(nested)
-            account(backing)
+                current[key] = freeze(nested)
+            account(current)
             account(proxy)
             return proxy
         if isinstance(current, list):
@@ -359,21 +361,3 @@ def _freeze_and_measure(value: Any, *, reuse_mappings: bool) -> tuple[Any, int]:
 
     frozen = freeze(value)
     return frozen, total
-
-
-def freeze_and_measure_owned(value: Any) -> tuple[Any, int]:
-    """Freeze a private parsed tree in place and measure its retained graph once."""
-
-    return _freeze_and_measure(value, reuse_mappings=True)
-
-
-def freeze_and_measure(value: Any) -> tuple[Any, int]:
-    """Freeze a caller-owned graph by copying mappings and measure it once."""
-
-    return _freeze_and_measure(value, reuse_mappings=False)
-
-
-def freeze_json(value: Any) -> Any:
-    """Compatibility helper for callers that only need an immutable graph."""
-
-    return freeze_and_measure(value)[0]

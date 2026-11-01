@@ -259,64 +259,7 @@ def _assert_no_initial_overlaps(bodies: Sequence[Body]) -> None:
                 )
 
 
-@dataclass(frozen=True, slots=True)
-class ReducedObservation:
-    value: float
-    model_value: float
-    sigma: float | None = None
-
-    def __post_init__(self) -> None:
-        if not (isfinite(self.value) and isfinite(self.model_value)):
-            raise ContractError("observation and model values must be finite")
-        if self.sigma is not None and (not isfinite(self.sigma) or self.sigma <= 0):
-            raise ContractError("sigma must be finite and positive when supplied")
-
-
-@dataclass(frozen=True, slots=True)
-class InferenceRequest:
-    """Reduced-data Gaussian likelihood request, diagonal or full covariance."""
-
-    observations: Sequence[ReducedObservation]
-    covariance: Sequence[Sequence[float]] | None = None
-    sampler: str | None = None
-    seed: int = 0
-
-    def __post_init__(self) -> None:
-        observations = tuple(self.observations)
-        covariance = _canonical_covariance(self.covariance)
-        object.__setattr__(self, "observations", observations)
-        object.__setattr__(self, "covariance", covariance)
-        _validate_inference_request(observations, covariance)
-
-
-def _canonical_covariance(
-    covariance: Sequence[Sequence[float]] | None,
-) -> tuple[tuple[float, ...], ...] | None:
-    if covariance is None:
-        return None
-    return tuple(tuple(float(value) for value in row) for row in covariance)
-
-
-def _validate_inference_request(
-    observations: tuple[ReducedObservation, ...],
-    covariance: tuple[tuple[float, ...], ...] | None,
-) -> None:
-    if not observations:
-        raise ContractError("at least one reduced observation is required")
-    if covariance is None:
-        if any(observation.sigma is None for observation in observations):
-            raise ContractError(
-                "diagonal likelihood requires sigma for every observation"
-            )
-        return
-    size = len(observations)
-    if len(covariance) != size or any(len(row) != size for row in covariance):
-        raise ContractError("covariance must be square and match observations")
-    if any(not isfinite(value) for row in covariance for value in row):
-        raise ContractError("covariance must contain finite values")
-
-
-def request_fingerprint(request: ForwardRunRequest | InferenceRequest) -> str:
+def request_fingerprint(request: ForwardRunRequest) -> str:
     """Stable SHA-256 provenance hash for an immutable request."""
 
     encoded = canonical_json(asdict(request))

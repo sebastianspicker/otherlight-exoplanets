@@ -22,6 +22,8 @@ export const SCIENCE_RUNNING_BUDGET_MS = SCIENCE_JOB_WALL_TIME_MS + SCIENCE_JOB_
 const SCIENCE_QUEUE_BUDGET_MS = SCIENCE_QUEUE_CAPACITY * SCIENCE_RUNNING_BUDGET_MS;
 export const SCIENCE_TOTAL_BUDGET_MS = SCIENCE_QUEUE_BUDGET_MS + SCIENCE_RUNNING_BUDGET_MS;
 
+/** A hung local service must not stall the budget loop, which only runs between answers. */
+const POLL_REQUEST_TIMEOUT_MS = 10_000;
 const FAST_POLL_INTERVAL_MS = 250;
 const SLOW_POLL_INTERVAL_MS = 1_000;
 const FAST_POLL_WINDOW_MS = 5_000;
@@ -72,6 +74,37 @@ function exhaustedBudget(
     : undefined;
 }
 
+async function getJobWithTimeout(
+  client: SciencePollClient,
+  jobId: string,
+  signal: AbortSignal,
+): Promise<ScienceJobStatus> {
+  // A plain controller instead of AbortSignal.any/timeout, which older Safari and Firefox lack.
+  const request = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    request.abort();
+  }, POLL_REQUEST_TIMEOUT_MS);
+  const forwardAbort = (): void => request.abort();
+  signal.addEventListener("abort", forwardAbort, { once: true });
+  if (signal.aborted) request.abort();
+  try {
+    return await client.getJob(jobId, request.signal);
+  } catch (error) {
+    if (timedOut && !signal.aborted) {
+      throw new Error(
+        `The local service did not answer within ${POLL_REQUEST_TIMEOUT_MS / 1_000} s while checking job ${jobId}.`,
+        { cause: error },
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", forwardAbort);
+  }
+}
+
 export async function pollScienceJobWithinBudget(
   client: SciencePollClient,
   jobId: string,
@@ -81,7 +114,7 @@ export async function pollScienceJobWithinBudget(
   let runningSince: number | undefined;
   for (;;) {
     if (signal.aborted) throw abortError();
-    const status = await client.getJob(jobId, signal);
+    const status = await getJobWithTimeout(client, jobId, signal);
     if (isTerminal(status)) return { kind: "terminal", status };
     const now = Date.now();
     if (status.state === "running") runningSince ??= now;

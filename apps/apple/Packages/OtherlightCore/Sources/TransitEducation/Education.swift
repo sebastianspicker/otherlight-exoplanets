@@ -101,6 +101,14 @@ public enum LessonCatalog {
       id: "limb-darkening-lab", title: "Limb darkening",
       objective: "Compare centre and limb transit depth."),
   ]
+
+  /// Maps each lesson id to its Browser step ids (source: apps/browser/src/domain/education/lessonsPresetCatalog.ts).
+  public static let browserStepIDs: [String: [String]] = [
+    "kepler-geometry": ["kepler-step-1", "kepler-step-2"],
+    "curve-reading-lab": ["curve-reading-step-1"],
+    "exomoon-transit-lab": ["exomoon-step-1", "exomoon-step-2"],
+    "limb-darkening-lab": ["ld-step-1", "ld-step-2"],
+  ]
 }
 /// Tracks the completed steps for one learner without coupling progress to presentation state.
 public struct LessonSession: Codable, Sendable, Hashable {

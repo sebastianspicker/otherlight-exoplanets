@@ -358,8 +358,8 @@ function resolveRubricPassScore(rubric: AssessmentRubricV2 | undefined): number 
 function rubricMetricScore(metric: RubricCriterionV2["metric"], args: RubricMetricArgs): number {
   if (metric === "check-pass-rate") return Math.min(1, Math.max(0, args.checksScore));
   if (metric === "depth-consistency") return depthConsistencyScore(args.depthApprox, args.depthObserved);
-  const tdvDelta = Number.isFinite(args.tdvRatio) ? Math.abs(args.tdvRatio - 1) : 0;
-  return Math.min(1, tdvDelta * 10);
+  if (!Number.isFinite(args.tdvRatio)) return Number.NaN;
+  return Math.min(1, Math.abs(args.tdvRatio - 1) * 10);
 }
 
 // Unscorable criteria (e.g. depth while no transit is observed) are left out of the weighting.

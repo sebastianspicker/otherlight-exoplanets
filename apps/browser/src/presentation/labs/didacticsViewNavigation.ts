@@ -13,6 +13,7 @@ import {
   LESSON_EVENT_TARGET_LABELS,
 } from "../../domain/education";
 import type { DidacticComparison } from "../../domain/education/compare";
+import { rebuildIfChanged } from "./didacticsViewRebuild";
 import type { UiRefs } from "../shell/refs";
 
 export type DidacticsViewRuntimeState = {
@@ -84,11 +85,15 @@ const renderEventTargetSelect = (
   const select = refs.didEventTargetSelect;
   if (!select) return;
   const previousSelection = select.value;
-  select.replaceChildren();
   const targets = eventTargetsFor(signals, lesson);
-  if (targets.length === 0) appendNoEventTargetOption(select);
-  for (const target of targets) appendEventTargetOption(select, runtime.latestTiming, target);
-  restoreEventTargetSelection(select, previousSelection);
+  const key = targets.map((target) =>
+    eventTargetLabel(target, resolveLessonEventSec(runtime.latestTiming, target)),
+  );
+  rebuildIfChanged(select, key, () => {
+    if (targets.length === 0) appendNoEventTargetOption(select);
+    for (const target of targets) appendEventTargetOption(select, runtime.latestTiming, target);
+    restoreEventTargetSelection(select, previousSelection);
+  });
 };
 
 const eventTargetsFor = (

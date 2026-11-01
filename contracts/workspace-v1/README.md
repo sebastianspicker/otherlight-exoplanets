@@ -26,4 +26,9 @@ then compiles a new request from the active scenario.
 before the IDs were aligned, readers map the legacy aliases `binary-eclipse`
 (earlier Apple writer) and `binary-lab` (earlier fixture) to `binary-stars`.
 
+`education.guidedLab.learning.passedStepIds` holds Browser lesson step IDs such
+as `kepler-step-1`. Phase-completion IDs and legacy lesson IDs (earlier Apple
+writer) may also appear; readers preserve them, and the Apple app treats a legacy
+lesson ID as that lesson completed.
+
 Text limits such as `maxLength` count Unicode code points on every platform.

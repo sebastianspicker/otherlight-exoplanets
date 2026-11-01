@@ -30,7 +30,12 @@
 import type { BrightnessPatch } from "../model/typesPhotometrySurface";
 import { integrateDiskMidpoint } from "./diskMidpoint";
 import { intensityNonNegative, type LimbDarkeningLaw } from "./limbDarkening";
-import { clampGridRes, sanitizeCircleOcculters, type CircleOcculter } from "./occulterCircle";
+import {
+  clampGridRes,
+  DEFAULT_TRANSIT_GRID_RES,
+  sanitizeCircleOcculters,
+  type CircleOcculter,
+} from "./occulterCircle";
 import { patchFactorAt, sanitizeBrightnessPatches } from "./patches";
 
 export type RossiterMcLaughlinArgs = {
@@ -56,7 +61,7 @@ export function rossiterMcLaughlinVelocity(args: RossiterMcLaughlinArgs): number
   if (occulters.length === 0) return 0;
   const patches = sanitizeBrightnessPatches(args.brightnessPatches);
   const law = args.limbDarkeningLaw;
-  const gridRes = clampGridRes(args.gridRes, 60);
+  const gridRes = clampGridRes(args.gridRes, DEFAULT_TRANSIT_GRID_RES);
   const cosL = Math.cos(axisPositionAngleRad);
   const sinL = Math.sin(axisPositionAngleRad);
   const v0 = Math.abs(vEqSinI);

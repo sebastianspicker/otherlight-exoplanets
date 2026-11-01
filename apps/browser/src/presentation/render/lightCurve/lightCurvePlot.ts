@@ -77,6 +77,8 @@ export class LightCurvePlot {
   private badges: LightCurveBadge[] = [];
   private comparisonInset?: LightCurveComparisonInset;
   private detachResizeObserver: () => void;
+  /** Set by the composition root so a paused plot repaints after a container resize. */
+  onResize?: () => void;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -86,7 +88,7 @@ export class LightCurvePlot {
     this.ctx = getLightCurveContext(canvas);
     this.opts = resolveLightCurvePlotOptions(opts);
     this.state = createLightCurveHistoryState(capacity);
-    this.detachResizeObserver = attachCanvasResizeObserver(canvas);
+    this.detachResizeObserver = attachCanvasResizeObserver(canvas, () => this.onResize?.());
   }
 
   /** Disconnect the ResizeObserver. Call when the plot is permanently discarded. */

@@ -16,6 +16,10 @@ import {
   sanitizeEcc,
   sanitizeFinite,
   sanitizeIncDeg,
+  ORBIT_A_LIMITS,
+  ORBIT_PERIOD_LIMITS,
+  RING_INC_DEG_LIMITS,
+  RING_RADIUS_LIMITS,
   sanitizePositive,
   writeNumberInput,
 } from "../inputs";
@@ -42,17 +46,10 @@ export type RingInputRefs = {
   angleDeg: HTMLInputElement;
 };
 
-const ORBIT_A_MIN = 0.001;
-const ORBIT_A_MAX = 1e12;
-const ORBIT_PERIOD_MIN = 0.001;
-const ORBIT_PERIOD_MAX = 1e18;
 const MAX_FREEFORM_INPUT_CHARS = 8192;
 const MAX_NUMBER_LIST_ENTRIES = 256;
 const MAX_QUADRATIC_BAND_ENTRIES = 128;
 const OBLA_MAX = 0.95;
-const RING_INC_MAX_DEG = 90;
-export const RADIUS_MIN = 1e3;
-export const RADIUS_MAX = 1e12;
 
 export type DefaultPatchInputs = {
   p1x: number;
@@ -210,22 +207,18 @@ export function writeOrbitInputs(
 }
 
 export function readOrbitInputs(r: OrbitInputRefs, orbit: Record<string, number>): void {
-  const aFallback = Number.isFinite(orbit.a) ? orbit.a : ORBIT_A_MIN;
+  const aFallback = Number.isFinite(orbit.a) ? orbit.a : ORBIT_A_LIMITS[0];
   const eFallback = Number.isFinite(orbit.e) ? orbit.e : 0;
   const incFallbackDeg = Number.isFinite(orbit.inc) ? orbit.inc * RAD2DEG : 0;
-  const periodFallback = Number.isFinite(orbit.period) ? orbit.period : ORBIT_PERIOD_MIN;
+  const periodFallback = Number.isFinite(orbit.period) ? orbit.period : ORBIT_PERIOD_LIMITS[0];
 
-  orbit.a = sanitizePositive(readNumberInput(r.a, aFallback), ORBIT_A_MIN, ORBIT_A_MAX);
+  orbit.a = sanitizePositive(readNumberInput(r.a, aFallback), ...ORBIT_A_LIMITS);
   orbit.e = sanitizeEcc(readNumberInput(r.e, eFallback));
 
   const incDeg = sanitizeIncDeg(readNumberInput(r.inc, incFallbackDeg));
   orbit.inc = incDeg * DEG2RAD;
 
-  orbit.period = sanitizePositive(
-    readNumberInput(r.period, periodFallback),
-    ORBIT_PERIOD_MIN,
-    ORBIT_PERIOD_MAX,
-  );
+  orbit.period = sanitizePositive(readNumberInput(r.period, periodFallback), ...ORBIT_PERIOD_LIMITS);
 
   orbit.Omega = Number.isFinite(orbit.Omega) ? orbit.Omega : 0;
   orbit.omega = Number.isFinite(orbit.omega) ? orbit.omega : 0;
@@ -252,14 +245,13 @@ export function readRingInputs(
   | undefined {
   if (!readCheckbox(refs.enabled)) return undefined;
 
-  const inner = sanitizePositive(readNumberInput(refs.inner, defaults.inner), 0, 1e12);
-  const outerRaw = sanitizePositive(readNumberInput(refs.outer, defaults.outer), 0, 1e12);
+  const inner = sanitizePositive(readNumberInput(refs.inner, defaults.inner), ...RING_RADIUS_LIMITS);
+  const outerRaw = sanitizePositive(readNumberInput(refs.outer, defaults.outer), ...RING_RADIUS_LIMITS);
   const outer = Math.max(inner + 1e-6, outerRaw);
 
   const incDeg = clamp(
     sanitizeFinite(readNumberInput(refs.incDeg, defaults.incDeg ?? 0), defaults.incDeg ?? 0),
-    0,
-    RING_INC_MAX_DEG,
+    ...RING_INC_DEG_LIMITS,
   );
   const angleDeg = sanitizeFinite(
     readNumberInput(refs.angleDeg, defaults.angleDeg ?? 0),

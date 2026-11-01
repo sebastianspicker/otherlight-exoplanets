@@ -283,10 +283,3 @@ def assert_dense_solution_avoids_contact(
 
     budget = work_budget or WorkBudget.start()
     audit_dop853_dense_solution(bodies, solution.sol, cancel_requested, budget)
-
-
-def minimum_separation_squared(*_: object) -> tuple[float, float]:
-    """Retired private hook retained solely for import compatibility."""
-    raise CapabilityUnavailableError(
-        "optimizer collision safety was removed; DOP853 dense certification is required"
-    )

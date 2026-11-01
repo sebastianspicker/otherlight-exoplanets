@@ -32,7 +32,6 @@
       "apps/browser/src/main.ts",
       "apps/browser/src/composition/chromatic.worker.ts",
       "apps/browser/vite.config.ts",
-      "apps/browser/src/domain/orbits/barycenter.ts",
       "apps/demo/app.js",
       "scripts/**/*.{js,mjs}"
     ],
@@ -54,7 +53,7 @@
     "build:demo": "node scripts/build-pages-demo.mjs",
     "preview": "vite preview --config apps/browser/vite.config.ts",
     "preview:pages": "vite preview --config apps/browser/vite.config.ts --mode github-pages",
-    "clean": "rm -rf dist pages-dist coverage test-results .vite .vitest .vitest-attachments .nyc_output .pytest_cache .ruff_cache .build docs/audit .science-cache services/science/.pytest_cache services/science/.ruff_cache services/science/science_backend/__pycache__ services/science/build services/science/dist services/science/*.egg-info apps/apple/Packages/*/.build apps/apple/Packages/*/.swiftpm && rm -f .DS_Store docs/.DS_Store",
+    "clean": "rm -rf dist pages-dist coverage test-results .vite .vitest .vitest-attachments .nyc_output .pytest_cache .ruff_cache .build docs/audit services/science/.pytest_cache services/science/.ruff_cache services/science/science_backend/__pycache__ services/science/build services/science/dist services/science/*.egg-info apps/apple/Packages/*/.build apps/apple/Packages/*/.swiftpm && rm -f .DS_Store docs/.DS_Store",
     "typecheck": "tsc -p apps/browser/tsconfig.json --noEmit --noUnusedLocals --noUnusedParameters && tsc -p apps/browser/tsconfig.worker.json --noEmit --noUnusedLocals --noUnusedParameters",
     "typecheck:compat": "tsc6 -p apps/browser/tsconfig.json --noEmit --noUnusedLocals --noUnusedParameters && tsc6 -p apps/browser/tsconfig.worker.json --noEmit --noUnusedLocals --noUnusedParameters",
     "deadcode": "knip --include files,dependencies,unlisted,binaries,unresolved && pnpm deadcode:exports",

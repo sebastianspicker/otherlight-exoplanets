@@ -21,7 +21,7 @@ const requiredOwners = [
   "apps/browser/src/domain/model/units.ts",
   "apps/browser/src/domain/orbits/kepler.ts",
   "apps/browser/src/domain/orbits/frames.ts",
-  "apps/browser/src/domain/orbits/barycenter.ts",
+  "apps/browser/src/domain/simulation/v4/nativeSnapshot.ts",
   "apps/browser/src/domain/orbits/hillRadius.ts",
   "apps/browser/src/domain/orbits/exomoonTiming.ts",
   "apps/browser/src/domain/simulation/transitTimingSolve.ts",

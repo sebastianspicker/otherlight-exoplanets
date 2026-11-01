@@ -308,7 +308,10 @@ async function applyBinaryLabScenario(deps: ScenarioFlowDeps): Promise<void> {
   const previousDescription = refs.presetDesc.textContent;
   state.scenarioDefaults = cloneParams(buildBinaryLabParams(DEFAULT_BINARY_LAB_CONFIG_V4));
   state.params = ensureDidacticsConfig(cloneParams(state.scenarioDefaults));
-  state.didacticsRuntime = initDidacticsRuntime(state.params, deps.getTimeSec());
+  state.didacticsRuntime = {
+    ...initDidacticsRuntime(state.params, deps.getTimeSec()),
+    responses: previousDidactics.responses,
+  };
   state.binaryLabState = createBinaryLabState(DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab);
   if (refs.realSystemSelect) refs.realSystemSelect.value = "";
   if (refs.realSystemMeta) refs.realSystemMeta.textContent = "";
@@ -323,6 +326,7 @@ async function applyBinaryLabScenario(deps: ScenarioFlowDeps): Promise<void> {
     state.binaryLabState = previousBinaryState;
     refs.presetDesc.textContent = previousDescription;
     loadParamsIntoUI(state.params, refs);
+    syncDidacticsControlsFromParams(state.params, refs, activeLessonSimMode(refs));
     syncBinaryLabUiState(refs, state.binaryLabState);
     throw error;
   }
@@ -356,7 +360,11 @@ export async function applyScenarioParams(
   state.comparisonGhosts = undefined;
   state.comparisonBadges = undefined;
   applyObserverModeContract(state.params, readUiMode(refs.uiModeSelect.value));
-  state.didacticsRuntime = initDidacticsRuntime(state.params, deps.getTimeSec());
+  // Learner answers outlive any apply; workspace restore overwrites them afterwards.
+  state.didacticsRuntime = {
+    ...initDidacticsRuntime(state.params, deps.getTimeSec()),
+    responses: previous.didacticsRuntime.responses,
+  };
   if (shouldResetBinaryLab(options)) {
     state.binaryLabState = createBinaryLabState(DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab);
     if (!options.keepWorkspaceSettings && state.workspaceScenarioSettings)
@@ -391,6 +399,8 @@ export async function applyScenarioParams(
     syncAllEnableStates(refs);
     syncQuickControlsFromInputs(refs);
     syncSliderMirrorsFromInputs();
+    syncDidacticsControlsFromParams(state.params, refs, activeLessonSimMode(refs));
+    syncBinaryLabUiState(refs, state.binaryLabState);
     throw error;
   }
 }

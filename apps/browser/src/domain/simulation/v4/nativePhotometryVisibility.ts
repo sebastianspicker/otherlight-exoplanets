@@ -1,7 +1,7 @@
 /** Computes native V4 geometric overlap and stellar visibility. */
 import { clamp01, clamp11 } from "../../model/units";
 import { integrateDiskMidpointShapes } from "../../photometry/diskMidpoint";
-import { clampGridRes, type CircleOcculter } from "../../photometry/occulterCircle";
+import { clampGridRes, DEFAULT_TRANSIT_GRID_RES, type CircleOcculter } from "../../photometry/occulterCircle";
 import type { OcculterShape } from "../../photometry/occulterTypes";
 import {
   intensityNonNegative,
@@ -50,13 +50,26 @@ export function starVisibilityFromOpaqueOcculters(
   );
 }
 
+/** Largest sky-plane extent from the occulter centre: disk, ring outer edge or ellipse semi-major axis. */
+const occulterOuterRadius = (occulter: VisibilityOcculter): number =>
+  Math.max(
+    occulter.r,
+    occulter.ring?.rOuter ?? 0,
+    occulter.ellipse ? Math.max(occulter.ellipse.rx, occulter.ellipse.ry) : 0,
+  );
+
 export function starVisibilityFromOcculters(
   config: EducationScenarioV4,
   star: VisibilityStar,
-  occulters: VisibilityOcculter[],
+  allOcculters: VisibilityOcculter[],
   surface?: VisibilityStarSurface,
 ): number {
-  if (!(star.r > 0) || occulters.length === 0) return 1;
+  if (!(star.r > 0)) return 1;
+  // Occulters that cannot touch the stellar disk must not push the exact single-circle path onto the grid.
+  const occulters = allOcculters.filter(
+    (o) => !(Math.hypot(o.sky.x - star.sky.x, o.sky.y - star.sky.y) >= star.r + occulterOuterRadius(o)),
+  );
+  if (occulters.length === 0) return 1;
   const bandedOcculters = occulters.filter((occulter) => occulter.transmissionByBand);
   if (bandedOcculters.length > 0) {
     return spectralVisibility(config, star, occulters, bandedOcculters, surface);
@@ -192,7 +205,7 @@ const starVisibilityWithShapeOcculters = (args: {
       );
     else transmissive.push(...transmissiveOccultersForStar(star, [occulter], [opacities[index]]));
   });
-  const gridRes = clampGridRes(args.gridRes, 60);
+  const gridRes = clampGridRes(args.gridRes, DEFAULT_TRANSIT_GRID_RES);
   const reference = integrateDiskMidpointShapes({
     rStar: star.r,
     occulters: [],

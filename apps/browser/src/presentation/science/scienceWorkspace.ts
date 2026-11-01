@@ -3,6 +3,7 @@
  */
 import type { BrowserScenarioDraft } from "../../domain/model/types";
 import {
+  assertResultMatchesRequest,
   createScienceBackendClient,
   type CapabilityManifest,
   type ForwardRunRequest,
@@ -310,8 +311,11 @@ async function runScienceJob(context: ScienceWorkspaceContext): Promise<void> {
       throw new Error(outcome.status.error?.message ?? `V5 job ended in state '${outcome.status.state}'.`);
     }
     const result = await client.getResult(submitted.id, signal);
+    await assertResultMatchesRequest(result, request);
     renderCompletedRun(elements, client.baseUrl ?? DEFAULT_ARTIFACT_BASE_URL, submitted.id, result);
   } catch (error) {
+    // A failed poll must not leave Run disabled; a user Cancel has already read the id before aborting.
+    state.setCurrentJobId(null);
     elements.runStatus.textContent = `Scientific run failed: ${errorMessage(error)}`;
   } finally {
     state.finishRequest(signal);

@@ -215,7 +215,7 @@ function starStateFromBinary(
   return {
     id: star.id,
     kind: "star",
-    r: active ? safeBodyRadius(star) : 0,
+    r: active ? safeBodyRadius(star, 1) : 0,
     m: Math.max(0, finiteOrDefault(star.m, 0)),
     luminosity,
     active,

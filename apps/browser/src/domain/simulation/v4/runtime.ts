@@ -198,7 +198,7 @@ export function createSimulationV4(
       const centerIndex = Math.floor(substeps / 2);
       let nextConservationBaseline = conservationBaseline;
       for (let i = 0; i < substeps; i++) {
-        const alpha = substeps <= 1 ? 0 : i / (substeps - 1);
+        const alpha = substeps <= 1 ? 0.5 : i / (substeps - 1);
         const t = tObsSec + (alpha - 0.5) * dt;
         const out = stepAtTime({
           config,

@@ -1,4 +1,5 @@
 /** Owns didactics view orchestration and its stable controller exports. */
+import { downloadBlob } from "../shell/download";
 import type { BrowserScenarioDraft } from "../../domain/model/types";
 import { buildLessonReportMarkdown } from "../../domain/education";
 import {
@@ -44,14 +45,7 @@ export function exportDidacticReportView(
     latestComparisonText: runtime.latestComparisonText,
   });
   const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `lesson-report-${system.didactics?.activeLessonId ?? "default"}.md`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  downloadBlob(blob, `lesson-report-${system.didactics?.activeLessonId ?? "default"}.md`);
 }
 
 export function renderDidacticComparisonView(refs: UiRefs, text: string): void {

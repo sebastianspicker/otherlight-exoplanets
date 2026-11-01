@@ -149,7 +149,8 @@ extension EducationSession {
     lastLessonScore = currentGuidedRubric.score
     completedLessonIDs.insert(selectedLessonID)
     var passedStepIDs = preservedPassedStepIDs ?? completedLessonIDs.sorted()
-    if !passedStepIDs.contains(selectedLessonID) { passedStepIDs.append(selectedLessonID) }
+    for id in [selectedLessonID] + (LessonCatalog.browserStepIDs[selectedLessonID] ?? [])
+    where !passedStepIDs.contains(id) { passedStepIDs.append(id) }
     preservedPassedStepIDs = passedStepIDs
   }
 
@@ -178,9 +179,12 @@ extension EducationSession {
     resetHistories()
     if let guidedLab = workspace.education.guidedLab {
       selectedLessonID = guidedLab.learning.lessonID
+      let passed = Set(guidedLab.learning.passedStepIDs)
       completedLessonIDs = Set(
-        guidedLab.learning.passedStepIDs.filter { id in
-          LessonCatalog.lessons.contains { $0.id == id }
+        LessonCatalog.lessons.map(\.id).filter { id in
+          passed.contains(id)
+            || LessonCatalog.browserStepIDs[id].map { !$0.isEmpty && passed.isSuperset(of: $0) }
+              == true
         })
       lastLessonScore = guidedLab.learning.lastScore
       preservedPassedStepIDs = guidedLab.learning.passedStepIDs

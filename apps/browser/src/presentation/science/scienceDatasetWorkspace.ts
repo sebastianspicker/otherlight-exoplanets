@@ -155,6 +155,8 @@ function setBusy(
   elements.file.disabled = busy;
   elements.refreshButton.disabled = busy;
   elements.importButton.disabled = busy || state.selectedFile === null;
+  // Row buttons must not start a second request that aborts the first after the server already acted.
+  for (const button of elements.list.querySelectorAll("button")) button.disabled = busy;
 }
 
 function startRequest(
@@ -224,11 +226,23 @@ export function wireScienceDatasetWorkspace(
     try {
       const removed = await client.deleteDataset(datasetId, signal);
       if (!isCurrentRequest(state, signal)) return;
-      const datasets = await client.listDatasets(signal);
-      if (!isCurrentRequest(state, signal)) return;
-      updateDatasets(elements, state, datasets, inspect, remove);
       elements.metadata.textContent = `Deleted local dataset ${removed.id}.`;
-      elements.status.textContent = `Deleted ${removed.kind}; ${datasets.datasets.length} local dataset(s) remain.`;
+      try {
+        const datasets = await client.listDatasets(signal);
+        if (!isCurrentRequest(state, signal)) return;
+        updateDatasets(elements, state, datasets, inspect, remove);
+        elements.status.textContent = `Deleted ${removed.kind}; ${datasets.datasets.length} local dataset(s) remain.`;
+      } catch (error) {
+        if (!isCurrentRequest(state, signal)) return;
+        updateDatasets(
+          elements,
+          state,
+          { datasets: state.datasets.filter((dataset) => dataset.id !== removed.id) },
+          inspect,
+          remove,
+        );
+        elements.status.textContent = `Deleted ${removed.kind}; refreshing the list failed: ${errorMessage(error)}`;
+      }
     } catch (error) {
       if (!isCurrentRequest(state, signal)) return;
       elements.status.textContent = `Dataset deletion failed; the current list is unchanged: ${errorMessage(error)}`;
@@ -267,13 +281,18 @@ export function wireScienceDatasetWorkspace(
     try {
       const descriptor = await client.importDataset(file, signal);
       if (!isCurrentRequest(state, signal)) return;
-      const datasets = await client.listDatasets(signal);
-      if (!isCurrentRequest(state, signal)) return;
-      updateDatasets(elements, state, datasets, inspect, remove);
-      elements.metadata.textContent = descriptorText(descriptor);
-      elements.status.textContent = `Imported ${descriptor.kind}: ${descriptor.sampleCount.toLocaleString()} samples, content hash ${descriptor.contentSha256}.`;
       state.selectedFile = null;
       elements.file.value = "";
+      elements.metadata.textContent = descriptorText(descriptor);
+      try {
+        const datasets = await client.listDatasets(signal);
+        if (!isCurrentRequest(state, signal)) return;
+        updateDatasets(elements, state, datasets, inspect, remove);
+        elements.status.textContent = `Imported ${descriptor.kind}: ${descriptor.sampleCount.toLocaleString()} samples, content hash ${descriptor.contentSha256}.`;
+      } catch (error) {
+        if (!isCurrentRequest(state, signal)) return;
+        elements.status.textContent = `Imported ${descriptor.kind}; refreshing the list failed: ${errorMessage(error)}`;
+      }
     } catch (error) {
       if (!isCurrentRequest(state, signal)) return;
       elements.status.textContent = `Dataset import failed; the current list is unchanged: ${errorMessage(error)}`;

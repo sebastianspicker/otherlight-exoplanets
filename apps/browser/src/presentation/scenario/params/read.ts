@@ -4,17 +4,18 @@
 import type { SystemDynamicsParams, BrowserScenarioDraft } from "../../../domain/model/types";
 import { RAD2DEG } from "../../../domain/model/units";
 import { cloneParams } from "../../../domain/model/clone";
-import { readCheckbox, readNumberInput, sanitizeFinite, sanitizePositive } from "../inputs";
+import {
+  HARD_INPUT_LIMITS,
+  MASS_LIMITS,
+  RADIUS_LIMITS,
+  readCheckbox,
+  readNumberInput,
+  sanitizeFinite,
+  sanitizePositive,
+} from "../inputs";
 import { readUiMode } from "../../shell/mode";
 import type { UiRefs } from "../../shell/refs";
-import {
-  RADIUS_MAX,
-  RADIUS_MIN,
-  readOblatenessInput,
-  readOrbitInputs,
-  readRingInputs,
-  setObserverDirFromUI,
-} from "./common";
+import { readOblatenessInput, readOrbitInputs, readRingInputs, setObserverDirFromUI } from "./common";
 import { readPhotometryFromUI } from "./photometry";
 
 type MoonParams = NonNullable<BrowserScenarioDraft["moon"]>;
@@ -49,17 +50,17 @@ function readObserverAndStar(
   uiMode: ReturnType<typeof readUiMode>,
 ): void {
   setObserverDirFromUI(next, r, uiMode);
-  next.star.r = sanitizePositive(readNumberInput(r.starR, next.star.r), RADIUS_MIN, RADIUS_MAX);
+  next.star.r = sanitizePositive(readNumberInput(r.starR, next.star.r), ...RADIUS_LIMITS);
 }
 
 function readPlanetFromUI(next: BrowserScenarioDraft, r: UiRefs): void {
-  next.planet.r = sanitizePositive(readNumberInput(r.planetR, next.planet.r), RADIUS_MIN, RADIUS_MAX);
+  next.planet.r = sanitizePositive(readNumberInput(r.planetR, next.planet.r), ...RADIUS_LIMITS);
   const pOrbit = next.planet.orbit;
   if (typeof pOrbit === "function") {
     throw new Error("UI does not support a function-valued planet.orbit (OrbitElementsProvider).");
   }
   readOrbitInputs({ a: r.planetA, e: r.planetE, inc: r.planetInc, period: r.planetPeriod }, pOrbit);
-  next.planet.m = sanitizePositive(readNumberInput(r.planetMass, valueOr(next.planet.m, 0)), 0, 1e30);
+  next.planet.m = sanitizePositive(readNumberInput(r.planetMass, valueOr(next.planet.m, 0)), ...MASS_LIMITS);
   readPlanetShapeFromUI(next, r);
   readPlanetRingsFromUI(next, r);
 }
@@ -131,9 +132,9 @@ function readMoonOrbitAndMassFromUI(moon: MoonParams, r: UiRefs): void {
     throw new Error("UI does not support a function-valued moon.orbitAroundPlanet (OrbitElementsProvider).");
   }
 
-  moon.r = sanitizePositive(readNumberInput(r.moonR, moon.r), RADIUS_MIN, RADIUS_MAX);
+  moon.r = sanitizePositive(readNumberInput(r.moonR, moon.r), ...RADIUS_LIMITS);
   readOrbitInputs({ a: r.moonA, e: r.moonE, inc: r.moonInc, period: r.moonPeriod }, mOrbit);
-  moon.m = sanitizePositive(readNumberInput(r.moonMass, valueOr(moon.m, 0)), 0, 1e30);
+  moon.m = sanitizePositive(readNumberInput(r.moonMass, valueOr(moon.m, 0)), ...MASS_LIMITS);
 }
 
 function readMoonShapeFromUI(moon: MoonParams, r: UiRefs): void {
@@ -222,7 +223,10 @@ function readExomoonTimingShapeFromUI(
   return {
     enabled: true,
     ...(Number.isFinite(tRef) ? { tRef } : {}),
-    velDt: sanitizePositive(readNumberInput(r.exoVelDt, valueOr(prev?.velDt, 2)), 1e-6, 1e9),
+    velDt: sanitizePositive(
+      readNumberInput(r.exoVelDt, valueOr(prev?.velDt, 2)),
+      ...HARD_INPUT_LIMITS.exoVelDt,
+    ),
     moonOmegaDot: sanitizeFinite(readNumberInput(r.exoMoonOmegaDot, valueOr(prev?.moonOmegaDot, 0)), 0),
     moonIncDot: sanitizeFinite(readNumberInput(r.exoMoonIncDot, valueOr(prev?.moonIncDot, 0)), 0),
     moonOmegaSmallDot: sanitizeFinite(

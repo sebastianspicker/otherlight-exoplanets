@@ -1,16 +1,11 @@
 /** Strict, portable browser workspace document contract. */
-import type { DidacticResponseStore, LearningState, BrowserScenarioDraft } from "../../domain/model/types";
+import type { DidacticResponseStore, LearningState } from "../../domain/model/types";
 import { isLabSystemId, type LabSystemId } from "../../domain/model/labs";
 import type { BinaryLabHypothesis, BinaryLabState } from "../../domain/education/binaryLab";
 import { assertScienceJobRequest } from "../science/validation";
 import type { ForwardRunRequest } from "../science/types";
-import {
-  normalizeEducationScenarioV4Input,
-  toBrowserScenarioDraftFromEducationScenarioV4,
-  type EducationScenarioV4,
-} from "../../domain/simulation/v4";
+import { normalizeEducationScenarioV4Input, type EducationScenarioV4 } from "../../domain/simulation/v4";
 import { isStableProductViewId, type ProductViewState } from "../../application/productViewState";
-import { SCENARIO_DEFAULTS } from "../../application/catalog/defaults";
 
 export const WORKSPACE_SCHEMA_VERSION = "workspace-v1" as const;
 
@@ -367,10 +362,4 @@ function canonicalize(value: unknown): unknown {
 /** Deterministic JSON suitable for browser downloads and version-control fixtures. */
 export function encodeWorkspaceDocument(document: WorkspaceDocumentV1): string {
   return `${JSON.stringify(canonicalize(document), null, 2)}\n`;
-}
-
-export function restoreWorkspaceScenario(document: WorkspaceDocumentV1): BrowserScenarioDraft {
-  // This is the explicit V4 workspace-to-draft restore boundary. Callers receive
-  // editable form state only after V4 schema validation has succeeded.
-  return toBrowserScenarioDraftFromEducationScenarioV4(document.education.scenario, SCENARIO_DEFAULTS);
 }

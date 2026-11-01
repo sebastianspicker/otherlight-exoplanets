@@ -117,7 +117,7 @@ function interpretExomoon(
 
 function interpretBinaryGeometry(signals: NumericSignals): DidacticInterpretation {
   const b = signals.bPlanet;
-  const bounds = `1 - k = ${formatFinite(signals.totalEclipseLimit, 2)}, 1 + k = ${formatFinite(signals.transitContactLimit, 2)}`;
+  const bounds = `|1 - k| = ${formatFinite(signals.totalEclipseLimit, 2)}, 1 + k = ${formatFinite(signals.transitContactLimit, 2)}`;
   if (!(b < signals.transitContactLimit)) {
     return {
       headline: "The two stars do not overlap on the sky.",
@@ -134,7 +134,7 @@ function interpretBinaryGeometry(signals: NumericSignals): DidacticInterpretatio
       }
     : {
         headline: "The eclipse is total or annular.",
-        observation: `The closest-approach b = ${b.toFixed(2)} is below 1 - k (${bounds}), so the smaller star lies fully inside the larger disk at mid-eclipse.`,
+        observation: `The closest-approach b = ${b.toFixed(2)} is below |1 - k| (${bounds}), so the smaller star lies fully inside the larger disk at mid-eclipse.`,
         nextAction: "Look for the flat eclipse bottom that a total or annular eclipse produces.",
       };
 }

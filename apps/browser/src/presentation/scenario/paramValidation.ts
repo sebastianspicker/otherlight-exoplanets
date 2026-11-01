@@ -7,6 +7,7 @@ import {
   maxSmearingSubsamplesForParams,
 } from "../../domain/model/transitComputeBudget";
 import type { UiRefs } from "../shell/refs";
+import { hardInputLimits } from "./inputs";
 import { readUIIntoParams } from "./params/read";
 import { scenarioNormalRange, widenRangeForLoadedValue } from "./scenarioControlRanges";
 
@@ -151,6 +152,28 @@ function normalRangeBounds(input: HTMLInputElement): { min?: number; max?: numbe
   return widenRangeForLoadedValue({ min, max }, input);
 }
 
+function overrideRangeError(
+  input: HTMLInputElement,
+  value: number,
+  min: number | undefined,
+  createError: FieldErrorFactory,
+): ParamValidationError | undefined {
+  // Override mode lifts the normal range but keeps non-negative quantities physical
+  // and still reports the hard limits the parameter readers would otherwise clamp to silently.
+  if (min !== undefined && min >= 0 && value < 0) {
+    return createError((label) => `${label} must be at least 0.`);
+  }
+  const hard = hardInputLimits(input.id);
+  if (!hard) return undefined;
+  if (value < hard[0]) {
+    return createError((label) => `${label} must be at least ${hard[0]} (hard model limit).`);
+  }
+  if (value > hard[1]) {
+    return createError((label) => `${label} must be at most ${hard[1]} (hard model limit).`);
+  }
+  return undefined;
+}
+
 function rangeError(
   input: HTMLInputElement,
   value: number,
@@ -158,13 +181,7 @@ function rangeError(
   createError: FieldErrorFactory,
 ): ParamValidationError | undefined {
   const { min, max } = normalRangeBounds(input);
-  if (overrideRanges) {
-    // Override mode lifts the normal range but keeps non-negative quantities physical.
-    if (min !== undefined && min >= 0 && value < 0) {
-      return createError((label) => `${label} must be at least 0.`);
-    }
-    return undefined;
-  }
+  if (overrideRanges) return overrideRangeError(input, value, min, createError);
   if (min !== undefined && value < min) {
     return createError((label) => `${label} must be at least ${min}.`);
   }
@@ -174,6 +191,17 @@ function rangeError(
   return undefined;
 }
 
+function blankInputError(
+  input: HTMLInputElement,
+  createError: FieldErrorFactory,
+): ParamValidationError | undefined {
+  // Browsers report unparsable text (e.g. "1,5") as an empty value.
+  if (input.validity?.badInput) {
+    return createError((label) => `${label} must be a number (use a dot for decimals).`);
+  }
+  return OPTIONAL_BLANK_IDS.has(input.id) ? undefined : createError((label) => `${label} is required.`);
+}
+
 function inputError(input: HTMLInputElement, overrideRanges: boolean): ParamValidationError | undefined {
   const raw = input.value.trim();
   const value = input.valueAsNumber;
@@ -181,9 +209,7 @@ function inputError(input: HTMLInputElement, overrideRanges: boolean): ParamVali
     const label = getParamUiMeta(input).label;
     return { fieldId: input.id, label, message: message(label) };
   };
-  if (!raw) {
-    return OPTIONAL_BLANK_IDS.has(input.id) ? undefined : createError((label) => `${label} is required.`);
-  }
+  if (!raw) return blankInputError(input, createError);
   if (!Number.isFinite(value)) {
     return createError((label) => `${label} must be a finite number.`);
   }

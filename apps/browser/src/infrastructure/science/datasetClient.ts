@@ -1,6 +1,15 @@
 /** Implements the strict loopback-only V6 dataset client; this family deliberately has no job API. */
 import { isGitHubPagesRuntime } from "../../application/deployment";
-import { ScienceBackendError, unreachableBackendMessage, type ScienceFetch } from "./client";
+import {
+  ScienceBackendError,
+  abortError,
+  assertResponseHeaders,
+  isBackendErrorPayload,
+  normalizeLocalBaseUrl,
+  readBoundedJson,
+  unreachableBackendMessage,
+  type ScienceFetch,
+} from "./client";
 import {
   MAX_SCIENCE_DATASET_RESPONSE_BYTES,
   MAX_SCIENCE_DATASET_SOURCE_BYTES,
@@ -15,9 +24,9 @@ import {
   assertScienceDatasetList,
 } from "./datasetValidation";
 import { ScienceValidationError } from "./validation";
-import { readBoundedResponseBody } from "./boundedResponseBody";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
+const LABEL = "V6 dataset backend";
 const JSON_MEDIA_TYPE = "application/json";
 
 export type ScienceDatasetClientOptions = {
@@ -35,7 +44,7 @@ export class ScienceDatasetClient {
     if (isGitHubPagesRuntime()) {
       throw new ScienceBackendError("V6 dataset client is unavailable in GitHub Pages mode.");
     }
-    this.base = normalizeLocalBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
+    this.base = normalizeLocalBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL, LABEL);
     this.baseUrl = this.base.href.replace(/\/$/, "");
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
@@ -90,7 +99,7 @@ export class ScienceDatasetClient {
     validator: (value: unknown) => T,
     expectedStatuses: readonly number[],
   ): Promise<T> {
-    if (init.signal?.aborted) throw abortError();
+    if (init.signal?.aborted) throw abortError(LABEL);
     let response: Response;
     try {
       const fetchImpl = this.fetchImpl;
@@ -101,14 +110,14 @@ export class ScienceDatasetClient {
         redirect: "error",
       });
     } catch (error) {
-      if (init.signal?.aborted) throw abortError();
+      if (init.signal?.aborted) throw abortError(LABEL);
       throw new ScienceBackendError(
         unreachableBackendMessage("The V6 dataset backend", this.baseUrl, error),
         { code: "transport", cause: error },
       );
     }
-    assertResponseHeaders(response);
-    const payload = await readBoundedJson(response);
+    assertResponseHeaders(response, LABEL);
+    const payload = await readBoundedJson(response, LABEL, MAX_SCIENCE_DATASET_RESPONSE_BYTES);
     if (!expectedStatuses.includes(response.status)) {
       const detail = isBackendErrorPayload(payload) ? payload : undefined;
       throw new ScienceBackendError(
@@ -136,22 +145,6 @@ export function createScienceDatasetClient(options?: ScienceDatasetClientOptions
   return new ScienceDatasetClient(options);
 }
 
-function normalizeLocalBaseUrl(value: string): URL {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new ScienceBackendError("V6 dataset backend URL must be a valid local HTTP URL.");
-  }
-  if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname)) {
-    throw new ScienceBackendError("V6 dataset backend URL must use HTTP on a loopback host.");
-  }
-  if (url.username || url.password || url.search || url.hash) {
-    throw new ScienceBackendError("V6 dataset backend URL must not include credentials, query, or fragment.");
-  }
-  return new URL(url.pathname.endsWith("/") ? url.href : `${url.href}/`);
-}
-
 function assertDatasetFile(file: File): void {
   if (!(file instanceof Blob)) {
     throw new ScienceBackendError("V6 dataset import requires a browser File.");
@@ -174,77 +167,6 @@ function encodeDatasetId(value: string): string {
     throw new ScienceBackendError("V6 dataset id must be ds- followed by a lowercase SHA-256 hash.");
   }
   return encodeURIComponent(value);
-}
-
-function assertResponseHeaders(response: Response): void {
-  if (response.headers.get("content-type") !== JSON_MEDIA_TYPE) {
-    throw new ScienceBackendError(
-      "V6 dataset backend response must use exact application/json content type.",
-      {
-        status: response.status,
-      },
-    );
-  }
-  if (response.headers.get("cache-control") !== "no-store") {
-    throw new ScienceBackendError("V6 dataset backend response must be no-store.", {
-      status: response.status,
-    });
-  }
-  if (response.headers.get("x-content-type-options") !== "nosniff") {
-    throw new ScienceBackendError("V6 dataset backend response must set X-Content-Type-Options: nosniff.", {
-      status: response.status,
-    });
-  }
-}
-
-async function readBoundedJson(response: Response): Promise<unknown> {
-  const declaredLength = response.headers.get("content-length");
-  if (declaredLength !== null) {
-    if (!/^[0-9]+$/.test(declaredLength) || Number(declaredLength) > MAX_SCIENCE_DATASET_RESPONSE_BYTES) {
-      throw new ScienceBackendError("V6 dataset backend response exceeds the JSON size limit.", {
-        status: response.status,
-      });
-    }
-  }
-  const bytes = await readBoundedBody(response);
-  let text: string;
-  try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch (error) {
-    throw new ScienceBackendError("V6 dataset backend returned invalid UTF-8 JSON.", {
-      status: response.status,
-      cause: error,
-    });
-  }
-  try {
-    return JSON.parse(text) as unknown;
-  } catch (error) {
-    throw new ScienceBackendError("V6 dataset backend returned invalid JSON.", {
-      status: response.status,
-      cause: error,
-    });
-  }
-}
-
-async function readBoundedBody(response: Response): Promise<Uint8Array> {
-  return readBoundedResponseBody(
-    response,
-    MAX_SCIENCE_DATASET_RESPONSE_BYTES,
-    () =>
-      new ScienceBackendError("V6 dataset backend response exceeds the JSON size limit.", {
-        status: response.status,
-      }),
-  );
-}
-
-function abortError(): DOMException {
-  return new DOMException("The V6 dataset backend request was aborted.", "AbortError");
-}
-
-function isBackendErrorPayload(value: unknown): value is { code?: string; message: string } {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  return typeof record.message === "string" && (record.code === undefined || typeof record.code === "string");
 }
 
 function validateCapabilities(value: unknown): ScienceDatasetCapabilities {

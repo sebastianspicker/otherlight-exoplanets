@@ -34,7 +34,7 @@
 // - Keep dependency-light to avoid circular imports.
 
 import { clamp, isFiniteNonNegative, isFinitePositive } from "../model/units";
-import { clampGridRes, type CircleOcculter } from "./occulterCircle";
+import { clampGridRes, DEFAULT_TRANSIT_GRID_RES, type CircleOcculter } from "./occulterCircle";
 import {
   type OcculterPre as ShapeOcculterPre,
   type OcculterShape,
@@ -177,7 +177,7 @@ const diskMidpointSetup = (params: {
   gridRes: number;
   earlyExitFluxEps?: number;
 }): DiskMidpointSetup => {
-  const ny = clampGridRes(params.gridRes, 60);
+  const ny = clampGridRes(params.gridRes, DEFAULT_TRANSIT_GRID_RES);
   return {
     rStar: params.rStar,
     rStar2: params.rStar * params.rStar,

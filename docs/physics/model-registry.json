@@ -44,7 +44,7 @@
       "equation": "r_p = r_b - m_m r_rel/(m_p+m_m); r_m = r_b + m_p r_rel/(m_p+m_m)",
       "units": "mass [kg], position [m]",
       "validity": "Browser missing/non-positive masses contribute zero in the educational compatibility path; finite positive subsystem totals enable their splits. This is algebraic composed-Kepler kinematics, not interacting N-body evolution. Swift supports only its explicitly accepted topologies.",
-      "owners": ["apps/browser/src/domain/orbits/barycenter.ts"],
+      "owners": ["apps/browser/src/domain/simulation/v4/nativeSnapshot.ts"],
       "references": ["murray-dermott-1999"]
     },
     {

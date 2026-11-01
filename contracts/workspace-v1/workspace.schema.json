@@ -79,6 +79,7 @@
         "stepIndex": { "type": "integer", "minimum": 0 },
         "phaseIndex": { "type": "integer", "minimum": 0 },
         "passedStepIds": {
+          "description": "Browser lesson step ids (for example kepler-step-1). Phase-completion ids and legacy lesson ids may also appear and must be preserved.",
           "type": "array",
           "items": { "$ref": "#/$defs/stableId" },
           "uniqueItems": true
