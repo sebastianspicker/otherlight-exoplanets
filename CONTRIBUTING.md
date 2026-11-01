@@ -123,6 +123,11 @@ are not in the public tree, so `pnpm test` only works in a maintainer checkout a
 not run them (it does run the Apple app tests). Describe how you checked
 behaviour in the pull request.
 
+General and native build checks run automatically only for pull requests authored by
+Dependabot; maintainers can also run them manually. Security scans retain their
+push, pull-request and scheduled triggers. Pages deployment requires a manual
+workflow dispatch from `main`; pull requests never deploy the site.
+
 The GitHub workflows remain the source of truth for CI runner images,
 toolchain versions, and destination matrices. If you skip a lane or cannot run
 it locally, say so in the pull request rather than leaving it implied. Please

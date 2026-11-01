@@ -412,7 +412,12 @@ final class OtherlightTests: XCTestCase {
     let document = try OtherlightWorkspaceDocument(
       data: JSONSerialization.data(withJSONObject: workspace, options: [.sortedKeys]))
 
-    XCTAssertEqual(try document.workspace.educationScenario(), ScenarioCatalog.default)
+    var expected = ScenarioCatalog.default
+    expected.planetPhase?.thermalModel = .cosine
+    expected.moonPhase?.thermalModel = .cosine
+    expected.dayNightVisibility = .init(
+      enabled: true, reflectedModel: .lambert, thermalModel: .constant, clamp: true)
+    XCTAssertEqual(try document.workspace.educationScenario(), expected)
   }
 
   /// Ensures a valid reference workspace restores its execution semantics without history state.
@@ -524,7 +529,7 @@ final class OtherlightTests: XCTestCase {
   func testPlaybackDomainMatchesLightCurveDomain() async throws {
     let runtime = SimulationRuntime()
     let scenario = ScenarioCatalog.default
-    let transit = scenario.epochSeconds + scenario.planet.orbit.periodSeconds / 4
+    let transit = PlaybackClockPolicy.transitFocus(for: scenario)
     let key = SeriesKey(revision: 1, scenario: scenario, samples: 32, centerSeconds: transit)
     let frame = try await deliveredFrame(
       from: runtime, request: .init(generation: 1, seriesKey: key, timeSeconds: transit))

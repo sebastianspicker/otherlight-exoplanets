@@ -10,7 +10,7 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/services/science"
     schedule:
       interval: "weekly"

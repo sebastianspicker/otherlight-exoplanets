@@ -5,6 +5,24 @@
 Change a planet's radius, watch the light curve answer back, then step up to a
 strictly validated radial-velocity model when you want numbers you can inspect.
 
+<details>
+<summary>Status and limitations</summary>
+
+Otherlight is independent research software combining educational astronomy
+previews with scientific execution within explicitly defined model domains.
+Developed independently alongside my main professional work. This
+pre-release project remains a work in progress and a starting point for
+learning and adaptation. Check the capability manifest and model-status
+records before selecting a model or extending its implementation.
+
+**Disclaimer.** Scientific validity applies to the documented capability and
+its stated domain; it does not transfer automatically to other models or
+adapted code. Education previews and fixture replays are not scientific
+execution results. You are responsible for interpretation and validation for
+your intended research or teaching use.
+
+</details>
+
 [Live app](https://sebastianspicker.github.io/otherlight-exoplanets/) ·
 [Screenshot tour](https://sebastianspicker.github.io/otherlight-exoplanets/demo/) ·
 [Documentation](docs/README.md) ·
@@ -25,22 +43,21 @@ upload, and no service required. A separate **loopback Python service** can run
 one strictly validated Newtonian radial-velocity model (the "V5" contract) when
 you explicitly ask for it.
 
-The project is pre-release. Two things stay deliberately separated, and the
-interface labels them differently everywhere:
+The project is pre-release. The interface distinguishes:
 
 - an **Education preview** — a teaching model with stated limits;
-- a **scientific execution result** — output from the validated model, or a
-  clearly labelled replay of a checked-in fixture.
+- a **scientific execution result** — output from the validated model within its stated domain;
+- a **fixture replay** — a labelled, checked-in example rather than a new scientific run.
 
-A green test suite does not turn the first into the second. The authoritative
+A green test suite does not turn a preview or replay into a scientific execution. The authoritative
 status lives in
 [`contracts/capabilities-v1/manifest.json`](contracts/capabilities-v1/manifest.json)
 and [`docs/physics/model-status.md`](docs/physics/model-status.md).
 
 ## Screenshot tour
 
-All three frames are captures of the Pages build that ships from `main`, so they
-match what you can click through yourself.
+These captures illustrate the Pages build's Education, Guided Lab and Scientific
+workspaces. The hosted site may lag unpublished local changes.
 
 **1 · Education — connect geometry to a light curve.** Change the planet radius
 and watch the transit depth follow. Sky view, light curve, and the depth formula

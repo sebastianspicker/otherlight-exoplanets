@@ -1,8 +1,6 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 concurrency:
@@ -15,7 +13,7 @@ permissions:
 jobs:
   build:
     name: Build Pages artifact
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -52,7 +50,7 @@ jobs:
 
   deploy:
     name: Deploy Pages artifact
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 10

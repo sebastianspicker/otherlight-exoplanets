@@ -47,7 +47,8 @@ visible form inputs does not change the fixture.
 `127.0.0.1:4174` by default; `SMOKE_PAGES_HOST` and `SMOKE_PAGES_PORT` override
 that endpoint.
 
-The workflow in `.github/workflows/pages.yml` publishes `dist/` only from `main`.
+Run `.github/workflows/pages.yml` manually from `main` to publish `dist/`.
+Pushes and pull requests do not trigger deployment.
 A passing workflow does not guarantee the deployed site is current, so load the
 published URL before treating a revision as live. To build the tour on its own
 for local review, use `pnpm build:demo`, which writes `pages-dist/`.

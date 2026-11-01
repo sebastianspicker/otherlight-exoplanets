@@ -14,19 +14,6 @@ on:
       - "apps/apple/**"
       - "scripts/select-swift-toolchain.sh"
       - "apps/browser/src/application/catalog/real-systems.snapshot.json"
-  push:
-    branches: ["main", "dev"]
-    paths:
-      - ".github/workflows/native-apple.yml"
-      - ".github/workflows/native-macos-dmg.yml"
-      - "contracts/capabilities-v1/**"
-      - "contracts/education-v4/**"
-      - "contracts/science-v5/**"
-      - "contracts/science-v6/**"
-      - "contracts/workspace-v1/**"
-      - "apps/apple/**"
-      - "scripts/select-swift-toolchain.sh"
-      - "apps/browser/src/application/catalog/real-systems.snapshot.json"
   workflow_dispatch:
 
 concurrency:
@@ -39,6 +26,7 @@ permissions:
 jobs:
   swift-package-core:
     name: Swift package / portable core
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]')
     runs-on: macos-26
     timeout-minutes: 25
     env:
@@ -71,6 +59,7 @@ jobs:
 
   swift-package-science:
     name: Swift package / macOS science
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]')
     runs-on: macos-26
     timeout-minutes: 25
     env:
@@ -89,6 +78,7 @@ jobs:
 
   app-test:
     name: ${{ matrix.destination.name }}
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]')
     runs-on: macos-26
     timeout-minutes: 25
     env:
@@ -125,6 +115,7 @@ jobs:
 
   macos-science-host-test:
     name: macOS / OtherlightMac scientific host
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]')
     runs-on: macos-26
     timeout-minutes: 25
     env:
@@ -150,6 +141,7 @@ jobs:
 
   ios-generic-archive:
     name: Generic iOS archive / unsigned metadata gate
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]')
     runs-on: macos-26
     timeout-minutes: 25
     env:

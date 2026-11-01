@@ -20,7 +20,7 @@ let package = Package(
       dependencies: [
         .product(name: "TransitScienceContracts", package: "OtherlightCore"),
         .product(name: "Arrow", package: "arrow-swift"),
-      ]),
+      ])
   ],
   swiftLanguageModes: [.v6]
 )

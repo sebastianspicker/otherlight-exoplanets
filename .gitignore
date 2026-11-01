@@ -222,3 +222,7 @@ id_ed25519
 *.kdbx
 *.keystore
 *.ppk
+
+# Local audit reports and maintenance ledgers
+/ALPHA_AUDIT_REPORT.md
+/THINGS_TO_DO_LEDGER.md
