@@ -23,13 +23,14 @@ flowchart LR
   User["Learner or educator"] --> Browser["Browser application<br/>Education and Scientific UI"]
   User --> Mobile["Otherlight mobile<br/>Education only"]
   User --> Mac["OtherlightMac<br/>Education plus native V5 host"]
-  Browser --> Workspace[".otherlight document<br/>workspace-v1"]
-  Mobile --> Workspace
-  Mac --> Workspace
+  Browser -->|save / open| Workspace[".otherlight document<br/>workspace-v1"]
+  Mobile -->|save / open| Workspace
+  Mac -->|save / open| Workspace
   Browser -->|"HTTP on loopback only"| Science["Python science service<br/>V5 jobs and V6 datasets"]
-  Science --> Cache["Process memory datasets<br/>and .science-cache artifacts"]
+  Science -->|"jobs, datasets, Arrow files"| Cache["Process memory datasets<br/>and .science-cache artifacts"]
   Contracts["Versioned JSON contracts<br/>V4, V5, V6, workspace, capabilities"] -. validate .-> Browser
-  Contracts -. validate .-> Apple
+  Contracts -. validate .-> Mobile
+  Contracts -. validate .-> Mac
   Contracts -. validate .-> Science
   Pages["GitHub Pages build"] --> Browser
   Pages --> Tour["Static screenshot tour<br/>/otherlight-exoplanets/demo/"]
@@ -139,13 +140,37 @@ last valid same-scenario chromatic overlay.
 
 ### Education
 
-```text
-controls and presets
-  -> BrowserScenarioDraft
-  -> EducationScenarioV4
-  -> V4 Education runtime
-  -> frames, plots, diagnostics, Guided Labs, and exports
+What happens when a learner changes a parameter and applies it:
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Learner
+  participant form as applyParams.ts
+  participant life as runtimeLifecycle.ts
+  participant adapter as browserScenarioAdapter.ts
+  participant rt as V4 runtime
+  participant frames as frameLoop.ts
+  U->>form: Edit form, Apply
+  form->>form: readValidatedUIIntoParams
+  form->>life: replaceRuntime(draft)
+  life->>adapter: toEducationScenarioV4 via v4Runtime
+  adapter-->>life: EducationScenarioV4
+  life->>rt: create, prepare()
+  rt-->>life: ready runtime
+  life-->>form: swap, dispose old
+  loop requestAnimationFrame
+    frames->>rt: step(tSec)
+    rt-->>frames: positions, flux
+    frames->>frames: drawFrame + plot.draw
+  end
 ```
+
+Invalid input stops at step 2: the form marks the fields and the old runtime
+keeps running. Steps 3–8 build the new runtime fully before the old one is
+disposed, so a failed `prepare()` leaves the last valid simulation in place.
+Everything happens in the page; no network request is made. The frame loop
+(steps 9–11) pauses while the tab is hidden.
 
 `BrowserScenarioDraft` is mutable authoring state. The pure draft-to-V4 mapping
 lives in the domain (`domain/simulation/v4/migrateModels.ts`). Outside the domain,
@@ -158,13 +183,66 @@ outer layers. Education output stays a teaching preview
 within the model registry's stated limits. The draft holds model authoring values,
 not DOM state or a cross-language wire format.
 
+Where in the code:
+
+- [presentation/scenario/applyParams.ts](../apps/browser/src/presentation/scenario/applyParams.ts): form validation and the apply guard
+- [application/runtime/runtimeLifecycle.ts](../apps/browser/src/application/runtime/runtimeLifecycle.ts) and [v4Runtime.ts](../apps/browser/src/application/runtime/v4Runtime.ts): build-then-swap
+- [application/browserScenarioAdapter.ts](../apps/browser/src/application/browserScenarioAdapter.ts): the only draft-to-V4 ingress
+- [domain/simulation/v4/](../apps/browser/src/domain/simulation/v4/index.ts): the Education runtime
+- [presentation/playback/frameLoop.ts](../apps/browser/src/presentation/playback/frameLoop.ts) and [frameLoopControllerShared.ts](../apps/browser/src/presentation/playback/frameLoopControllerShared.ts): stepping and drawing
+
 ### Scientific execution and hosted replay
 
-```text
-BrowserScenarioDraft -> EducationScenarioV4 -> strict V5 ForwardRunRequest
-  -> loopback capability check -> asynchronous job -> result + run manifest
-  -> optional content-addressed Arrow IPC artifact
+What happens when a user runs a radial-velocity job against the local service
+(normal build only):
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant ws as scienceWorkspace.ts
+  participant client as ScienceBackendClient
+  participant api as api_http.py
+  participant svc as V5ApiService
+  participant cache as .science-cache
+  U->>ws: Check backend
+  ws->>client: getCapabilities()
+  client->>api: GET /v1/capabilities
+  api-->>ws: manifest, Run enabled
+  U->>ws: Run
+  ws->>ws: compile V5 ForwardRunRequest
+  ws->>client: submitJob(request)
+  client->>api: POST /v1/jobs
+  api->>svc: submit(payload)
+  api-->>ws: 201, job id
+  svc-)svc: run_forward_compact (thread)
+  svc-)cache: write Arrow IPC artifact
+  loop until terminal or budget spent
+    ws->>api: GET /v1/jobs/{id}
+  end
+  ws->>api: GET /v1/jobs/{id}/result
+  api-->>ws: result + run manifest
+  ws->>ws: assertResultMatchesRequest
+  ws-->>U: RV samples and provenance
 ```
+
+Run stays disabled until step 4 confirms a supported capability. Step 6 is a pure
+compile: the draft goes through `toEducationScenarioV4` and then
+`buildScientificForwardRequestFromEducationScenarioV4`, and unsupported features
+fail here, before any request. The service bounds and validates the body (steps
+8–9), answers at once (step 10) and integrates on a worker thread (step 11). The
+content-addressed artifact (step 12) is published unless the retained-cache quota
+is full. If polling exceeds its budget, the workspace cancels the job with
+`DELETE /v1/jobs/{id}` instead of waiting indefinitely. Step 16 rejects a result
+that does not echo the submitted request.
+
+Where in the code:
+
+- [presentation/science/scienceWorkspace.ts](../apps/browser/src/presentation/science/scienceWorkspace.ts), [sciencePolling.ts](../apps/browser/src/presentation/science/sciencePolling.ts) and [scienceRequestSource.ts](../apps/browser/src/presentation/science/scienceRequestSource.ts): UI flow, polling budget, request source
+- [infrastructure/science/client.ts](../apps/browser/src/infrastructure/science/client.ts): loopback-only HTTP client with bounded, validated responses
+- [services/science/science_backend/api_http.py](../services/science/science_backend/api_http.py): `/v1` routes
+- [services/science/science_backend/api_service.py](../services/science/science_backend/api_service.py): job table, thread pool, artifact promotion
+- [services/science/science_backend/forward.py](../services/science/science_backend/forward.py): the forward model
 
 `apps/browser/src/infrastructure/science/educationScenarioCompiler.ts` accepts
 only the supported static V4 subset and emits barycentric SI state; unsupported
@@ -264,6 +342,31 @@ real-system catalog refresh reads NASA TAP and rewrites a checked-in snapshot;
 normal Browser, Apple, and service operation never fetches that catalog.
 
 ## Build and deployment boundaries
+
+How a change is checked and published. Nothing deploys on push: CI runs on pull
+requests to `main` or `dev`, and Pages and the macOS DMG are started by hand.
+
+```mermaid
+flowchart LR
+  pr(["Pull request"]) --> ci["ci.yml<br/>lint, typecheck, python, build"]
+  pr -->|"Apple paths changed"| apple["native-apple.yml<br/>SwiftPM + app tests"]
+  manual(["Manual dispatch"]) --> pages["pages.yml<br/>ci:verify, build:pages:site, smoke:pages"]
+  manual --> dmg["native-macos-dmg.yml"]
+  ci -.->|"pnpm build, uv build"| discard[("build checks,<br/>not uploaded")]
+  dmg -.->|"unsigned, checksummed"| discard
+  pages -->|"deploy-pages"| site["GitHub Pages<br/>app + /demo/"]
+  classDef focus fill:#fde68a,stroke:#b45309,color:#1f2937
+  class site focus
+```
+
+The Pages site is the only thing a workflow publishes, and it is the
+`build:pages` variant with science requests disabled. The workflows build the
+`dist/` bundle, the Python wheel and the unsigned DMG only to prove they build
+and keep none of them; the only uploads are Python and Apple benchmark reports.
+Signing and notarizing a
+release DMG are manual steps (see the [runbook](RUNBOOK.md)). `codeql.yml` and
+`security.yml` also run on pushes to `main`/`dev`, and `dependency-audit.yml`
+runs weekly; all three scan and publish nothing.
 
 - `pnpm build` creates the ordinary Browser bundle in `dist/` with the
   loopback-only science allowance.

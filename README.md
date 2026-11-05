@@ -5,6 +5,8 @@
 Change a planet's radius, watch the light curve answer back, then step up to a
 strictly validated radial-velocity model when you want numbers you can inspect.
 
+> _Claude was used to polish and proof-read the code and documentation of this repository._
+
 <details>
 <summary>Status and limitations</summary>
 
@@ -123,9 +125,10 @@ pnpm preview
 | `contracts/`                             | Versioned cross-language schemas, fixtures, and the capability registry                  | JSON                    | [Architecture](docs/ARCHITECTURE.md)                       |
 
 This is one pnpm project, not a JavaScript package monorepo, and the Browser is
-a modular monolith rather than a set of published packages. See
-[Architecture](docs/ARCHITECTURE.md) for dependency directions, data flows,
-persistence, and non-goals.
+a modular monolith rather than a set of published packages. New to the code?
+[Architecture](docs/ARCHITECTURE.md) shows what runs where, traces what happens
+when you apply a scenario or run a scientific job, and covers dependency
+directions, persistence, the release pipeline, and non-goals.
 
 ## The loopback science service
 
