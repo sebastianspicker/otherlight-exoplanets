@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from .api_v2_dataset_validation import MAX_DATASET_BYTES, parse_dataset_bytes
-from .api_v2_http import declared_content_length, read_bounded_body
-from .errors import CapabilityUnavailableError, ContractError
+from .api_v2_http import read_checked_body
+from .errors import CapabilityUnavailableError
 from .research_contracts import RESOURCE_SCHEMAS
 from .research_store import ResearchStore
 
@@ -39,23 +39,7 @@ def capabilities(store: ResearchStore) -> dict[str, Any]:
 
 
 async def _body(request: Any, expected_media: bytes) -> bytes:
-    headers = request.scope.get("headers", ())
-    types = [value for key, value in headers if key.lower() == b"content-type"]
-    if len(types) != 1 or types[0].split(b";", 1)[0].strip().lower() != expected_media:
-        raise ContractError("unsupported research input Content-Type")
-    _validate_transport_encoding(headers)
-    return await read_bounded_body(
-        request, declared_content_length(headers, "research"), "research"
-    )
-
-
-def _validate_transport_encoding(headers: Any) -> None:
-    encodings = [value for key, value in headers if key.lower() == b"content-encoding"]
-    if encodings and encodings != [b"identity"]:
-        raise ContractError("compressed research uploads are not supported")
-    names = {key.lower() for key, _ in headers}
-    if b"transfer-encoding" in names and b"content-length" in names:
-        raise ContractError("cannot combine Content-Length and Transfer-Encoding")
+    return await read_checked_body(request, expected_media, "research")
 
 
 def register_v3_routes(app: Any, store: ResearchStore, request_type: Any) -> None:

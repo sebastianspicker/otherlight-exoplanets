@@ -2,7 +2,7 @@
   "meta": {
     "source": "NASA Exoplanet Archive (pscomppars via TAP)",
     "fetchedAt": "2026-07-11T18:08:50.544Z",
-    "rowCount": 20,
+    "rowCount": 18,
     "selectionPolicy": "transit-only, required-fields, score-ranked top 20"
   },
   "systems": [
@@ -247,22 +247,6 @@
       "inclinationDeg": 83.66
     },
     {
-      "id": "xo-4-b",
-      "label": "XO-4 b",
-      "hostname": "XO-4",
-      "starRadiusSolar": 1.45,
-      "semiMajorAxisAu": 0.05524,
-      "periodDays": 4.12508,
-      "planetRadiusJupiter": 1.25,
-      "planetRadiusEarth": 14.01125,
-      "discYear": 2010,
-      "starMassSolar": 1.1,
-      "planetMassJupiter": 1.42,
-      "planetMassEarth": 451.3186,
-      "eccentricity": 0,
-      "inclinationDeg": 88.8
-    },
-    {
       "id": "xo-5-b",
       "label": "XO-5 b",
       "hostname": "XO-5",
@@ -277,22 +261,6 @@
       "planetMassEarth": 378.2,
       "eccentricity": 0,
       "inclinationDeg": 86.8
-    },
-    {
-      "id": "xo-6-b",
-      "label": "XO-6 b",
-      "hostname": "XO-6",
-      "starRadiusSolar": 1.93,
-      "semiMajorAxisAu": 0.0815,
-      "periodDays": 3.7650007,
-      "planetRadiusJupiter": 2.07,
-      "planetRadiusEarth": 23.20263,
-      "discYear": 2016,
-      "starMassSolar": 1.47,
-      "planetMassJupiter": 4.4,
-      "planetMassEarth": 1398.452,
-      "eccentricity": 0,
-      "inclinationDeg": 86
     },
     {
       "id": "xo-7-b",

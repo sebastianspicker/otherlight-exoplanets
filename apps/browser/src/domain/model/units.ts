@@ -46,14 +46,14 @@ export const SOLAR_RADIUS_M = 6.957e8;
 /** Conventional Earth-mass estimate in kg; measured/rounded, not exact or IAU nominal. */
 export const EARTH_MASS_KG = 5.9722e24;
 
-/** Conventional mean Earth radius in meters; rounded, not an IAU nominal equatorial radius. */
-export const EARTH_RADIUS_M = 6.371e6;
+/** IAU nominal equatorial Earth radius in meters, the unit of the NASA Exoplanet Archive `pl_rade`. */
+export const EARTH_RADIUS_M = 6.3781e6;
 
 /** Conventional Jupiter-mass estimate in kg; measured/rounded, not exact or IAU nominal. */
 export const JUPITER_MASS_KG = 1.89813e27;
 
-/** Conventional mean Jupiter radius in meters; rounded, not an IAU nominal equatorial radius. */
-export const JUPITER_RADIUS_M = 6.9911e7;
+/** IAU nominal equatorial Jupiter radius in meters, the unit of the NASA Exoplanet Archive `pl_radj`. */
+export const JUPITER_RADIUS_M = 7.1492e7;
 
 // Canonical names (readable).
 

@@ -34,8 +34,48 @@ def _dataset_identifier(value: str) -> bool:
 
 
 async def _read_dataset_body(request: Any) -> bytes:
+    return await read_checked_body(
+        request,
+        DATASET_MEDIA_TYPE.encode("ascii"),
+        "dataset",
+        exact_media=True,
+        media_error=UnsupportedDatasetMediaType,
+    )
+
+
+async def read_checked_body(
+    request: Any,
+    media_type: bytes,
+    subject: str,
+    *,
+    exact_media: bool = False,
+    media_error: type[Exception] = ContractError,
+) -> bytes:
+    """Apply the one set of body-header rules every route shares, then read the bounded body.
+
+    ``exact_media`` compares the whole Content-Type value (parameters included);
+    otherwise only the media type before ``;`` is compared, case-insensitively.
+    """
     raw_headers = request.scope.get("headers", ())
-    return await read_bounded_body(request, _validate_content_headers(raw_headers))
+    content_types = _header_values(raw_headers, b"content-type")
+    actual = content_types[0].lower() if content_types else b""
+    if not exact_media:
+        actual = actual.split(b";", 1)[0].strip()
+    if len(content_types) != 1 or actual != media_type:
+        raise media_error(
+            f"{subject} request Content-Type must be {media_type.decode('ascii')}"
+        )
+    encodings = _header_values(raw_headers, b"content-encoding")
+    if encodings and [value.lower() for value in encodings] != [b"identity"]:
+        raise media_error(f"compressed {subject} uploads are not supported")
+    names = {name.lower() for name, _ in raw_headers}
+    if b"transfer-encoding" in names and b"content-length" in names:
+        raise ContractError(
+            f"{subject} request cannot combine Content-Length and Transfer-Encoding"
+        )
+    return await read_bounded_body(
+        request, declared_content_length(raw_headers, subject), subject
+    )
 
 
 async def read_bounded_body(
@@ -62,36 +102,6 @@ def declared_content_length(raw_headers: Any, subject: str = "dataset") -> int |
     if len(content_lengths) > 1:
         raise ContractError("request must contain at most one Content-Length")
     return _declared_length(content_lengths, subject)
-
-
-def _validate_content_headers(raw_headers: Any) -> int | None:
-    content_lengths = _header_values(raw_headers, b"content-length")
-    transfer_encodings = _header_values(raw_headers, b"transfer-encoding")
-    content_types = _header_values(raw_headers, b"content-type")
-    content_encodings = _header_values(raw_headers, b"content-encoding")
-    if len(content_lengths) > 1:
-        raise ContractError("dataset request must contain at most one Content-Length")
-    if content_lengths and transfer_encodings:
-        raise ContractError(
-            "dataset request cannot combine Content-Length and Transfer-Encoding"
-        )
-    declared = _declared_length(content_lengths)
-    try:
-        content_type = content_types[0].decode("ascii").lower()
-    except IndexError, UnicodeDecodeError:
-        raise UnsupportedDatasetMediaType from None
-    if len(content_types) != 1 or content_type != DATASET_MEDIA_TYPE:
-        raise UnsupportedDatasetMediaType
-    if len(content_encodings) > 1:
-        raise UnsupportedDatasetMediaType
-    if content_encodings:
-        try:
-            content_encoding = content_encodings[0].decode("ascii").lower()
-        except UnicodeDecodeError:
-            raise UnsupportedDatasetMediaType from None
-        if content_encoding != "identity":
-            raise UnsupportedDatasetMediaType
-    return declared
 
 
 def _declared_length(

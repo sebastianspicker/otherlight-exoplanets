@@ -15,14 +15,17 @@ const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 const MAX_NASA_RESPONSE_BYTES = 10 * 1024 * 1024;
 const SNAPSHOT_OUTPUT_PATH = "apps/browser/src/application/catalog/real-systems.snapshot.json";
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// Browser constants (domain/model/units.ts), so the Browser maps a derived Jupiter radius back exactly; Swift uses another Jupiter radius (ledger O-12).
-const EARTH_RADIUS_M = 6.371e6;
-const JUPITER_RADIUS_M = 6.9911e7;
+// The archive's equatorial units, kept equal to domain/model/units.ts and RealSystemSnapshot.swift.
+const EARTH_RADIUS_M = 6.3781e6;
+const JUPITER_RADIUS_M = 7.1492e7;
+// Largest accepted gap between a³/P² and the host mass; pscomppars can mix a, P and M from different papers.
+const MAX_KEPLER_MASS_DEVIATION = 0.2;
+const DAYS_PER_JULIAN_YEAR = 365.25;
 
 export const NASA_TAP_QUERY = [
   "select",
   "pl_name,hostname,disc_year,st_rad,st_mass,pl_radj,pl_rade,pl_bmassj,pl_bmasse,",
-  "pl_orbsmax,pl_orbper,pl_orbeccen,pl_orbincl,tran_flag",
+  "pl_orbsmax,pl_orbper,pl_orbeccen,pl_orbincl,tran_flag,cb_flag",
   "from pscomppars",
   "where tran_flag = 1",
 ].join(" ");
@@ -99,7 +102,17 @@ export function normalizeNasaRow(row) {
     inclinationDeg: inRange(toFinite(row.pl_orbincl), 0, 180),
   };
   if (!entry.id) return null;
+  // A circumbinary orbit follows the binary's total mass, which st_mass does not give.
+  if (toFinite(row.cb_flag) !== 1 && !isKeplerConsistent(entry)) return null;
   return entry;
+}
+
+/** True when a, P and the host mass agree with Kepler's third law, or the mass is unknown. */
+export function isKeplerConsistent(entry) {
+  if (typeof entry.starMassSolar !== "number") return true;
+  const years = entry.periodDays / DAYS_PER_JULIAN_YEAR;
+  const impliedMassSolar = entry.semiMajorAxisAu ** 3 / years ** 2;
+  return Math.abs(impliedMassSolar / entry.starMassSolar - 1) <= MAX_KEPLER_MASS_DEVIATION;
 }
 
 function isTransitObject(row) {

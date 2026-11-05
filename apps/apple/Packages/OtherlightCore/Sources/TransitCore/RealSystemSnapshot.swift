@@ -34,8 +34,9 @@ public enum RealSystemSnapshotImport {
     let solarRadius = 6.957e8
     let solarMass = 1.98847e30
     let au = 1.495978707e11
+    // NASA archive pl_radj / pl_rade use IAU nominal equatorial radii; keep equal to the Browser units.
     let jupiterRadius = 7.1492e7
-    let earthRadius = 6.371e6
+    let earthRadius = 6.3781e6
     let planetRadius: Double
     if let jupiter = system.planetRadiusJupiter {
       planetRadius = jupiter * jupiterRadius

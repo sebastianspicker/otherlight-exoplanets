@@ -41,7 +41,7 @@ MOUNT_DIRECTORY="$(mktemp -d /private/tmp/otherlight-verify.XXXXXX)"
 ENTITLEMENTS_PATH="$(mktemp /private/tmp/otherlight-entitlements.XXXXXX)"
 cleanup() {
   hdiutil detach "$MOUNT_DIRECTORY" >/dev/null 2>&1 || true
-  rm -rf "$MOUNT_DIRECTORY"
+  rmdir "$MOUNT_DIRECTORY" 2>/dev/null || true # Left behind if detach failed; never recurse into a mounted volume.
   rm -f "$ENTITLEMENTS_PATH"
 }
 trap cleanup EXIT

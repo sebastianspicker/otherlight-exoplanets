@@ -15,8 +15,7 @@ from .api_service import V5ApiService
 from .api_v2_dataset_registry import V6DatasetRegistry
 from .api_v2_http import (
     UnsupportedDatasetMediaType,
-    declared_content_length,
-    read_bounded_body,
+    read_checked_body,
     register_v2_routes,
 )
 from .api_v3_http import register_v3_routes
@@ -189,17 +188,6 @@ def configure_service_logging() -> None:
     package_logger.propagate = False
 
 
-def require_json_content_type(raw_headers: Any) -> None:
-    content_types = [
-        value for name, value in raw_headers if name.lower() == b"content-type"
-    ]
-    media_type = (
-        content_types[0].split(b";", 1)[0].strip().lower() if content_types else b""
-    )
-    if len(content_types) != 1 or media_type != b"application/json":
-        raise ContractError("request Content-Type must be application/json")
-
-
 def register_base_routes(
     app: Any, jobs: V5ApiService, streaming_response: Any, request_type: Any
 ) -> None:
@@ -212,10 +200,7 @@ def register_base_routes(
         return jobs.capabilities()
 
     async def submit(request: Any):
-        raw_headers = request.scope.get("headers", ())
-        require_json_content_type(raw_headers)
-        declared = declared_content_length(raw_headers, "request")
-        body = await read_bounded_body(request, declared, "request")
+        body = await read_checked_body(request, b"application/json", "request")
         try:
             payload = json.loads(body)
         except (ValueError, RecursionError) as failure:
