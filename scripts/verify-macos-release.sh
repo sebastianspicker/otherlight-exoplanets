@@ -56,7 +56,9 @@ fi
 
 codesign --verify --strict --verbose=2 "$APP_PATH"
 spctl --assess --type execute --verbose=4 "$APP_PATH"
-if ! codesign -dvv "$APP_PATH" 2>&1 | grep -q 'runtime'; then
+# Captured once: grep -q in a pipe can SIGPIPE codesign, which pipefail reports as a failure.
+SIGNATURE_DETAILS="$(codesign -dvv "$APP_PATH" 2>&1)"
+if ! grep -q 'runtime' <<<"$SIGNATURE_DETAILS"; then
   echo "Hardened Runtime flag is missing from the app signature." >&2
   exit 65
 fi
@@ -85,7 +87,7 @@ if [[ "$EXECUTABLE_NAME" != "$EXPECTED_EXECUTABLE" ]]; then
   echo "Unexpected executable name." >&2
   exit 65
 fi
-if ! codesign -dvv "$APP_PATH" 2>&1 | grep -Fxq "TeamIdentifier=$EXPECTED_TEAM_ID"; then
+if ! grep -Fxq "TeamIdentifier=$EXPECTED_TEAM_ID" <<<"$SIGNATURE_DETAILS"; then
   echo "Unexpected signing team identifier." >&2
   exit 65
 fi

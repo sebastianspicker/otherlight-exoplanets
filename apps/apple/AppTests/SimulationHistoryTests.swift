@@ -55,6 +55,26 @@ final class SimulationHistoryTests: XCTestCase {
     XCTAssertEqual(history.events[.planet]?.count, 4)
   }
 
+  /// Fits O-C over transit epochs, as the Browser does, when recorded events skip epochs.
+  func testOCFitUsesTransitEpochsNotEventIndices() {
+    var history = TransitEventHistory()
+    for epoch in 0..<4 {
+      history.append(
+        .init(
+          body: .planet, centerSeconds: 100 + Double(epoch) * 10, observedFlux: 0.99, series: .raw),
+        currentTimeSeconds: 200)
+    }
+    for epoch in [0.0, 2, 3] {
+      history.append(
+        .init(body: .moon, centerSeconds: 101 + epoch * 10, observedFlux: 0.99, series: .raw),
+        currentTimeSeconds: 200)
+    }
+    XCTAssertEqual(history.epochs(for: .moon), [0, 2, 3])
+    XCTAssertEqual(history.ephemeris(for: .moon)?.periodSeconds ?? .nan, 10, accuracy: 1e-10)
+    XCTAssertEqual(history.rmsResidualMilliseconds(for: .moon) ?? .nan, 0, accuracy: 1e-8)
+    XCTAssertTrue(history.csv.contains("moon,2,121.0,"))
+  }
+
   /// Ensures playback policy honors pause, wrapping, and explicit clamp semantics.
   func testPlaybackSpeedCanPauseWrapOrClamp() {
     let policy = PlaybackClockPolicy(scenario: ScenarioCatalog.default)

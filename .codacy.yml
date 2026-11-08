@@ -6,6 +6,10 @@ exclude_paths:
   - "node_modules/**"
   - "services/science/.venv/**"
   - "test-results/**"
+  - "apps/apple/AppTests/**"
+  - "services/science/benchmarks/**"
+  - "**/Tests/**"
+  - "**/tests/**"
 engines:
   lizard:
     exclude_paths:

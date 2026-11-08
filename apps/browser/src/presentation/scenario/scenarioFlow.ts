@@ -311,6 +311,7 @@ async function applyBinaryLabScenario(deps: ScenarioFlowDeps): Promise<void> {
   state.didacticsRuntime = {
     ...initDidacticsRuntime(state.params, deps.getTimeSec()),
     responses: previousDidactics.responses,
+    learningByLesson: previousDidactics.learningByLesson,
   };
   state.binaryLabState = createBinaryLabState(DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab);
   if (refs.realSystemSelect) refs.realSystemSelect.value = "";
@@ -360,10 +361,11 @@ export async function applyScenarioParams(
   state.comparisonGhosts = undefined;
   state.comparisonBadges = undefined;
   applyObserverModeContract(state.params, readUiMode(refs.uiModeSelect.value));
-  // Learner answers outlive any apply; workspace restore overwrites them afterwards.
+  // Learner answers and other lessons' progress outlive any apply; workspace restore overwrites them afterwards.
   state.didacticsRuntime = {
     ...initDidacticsRuntime(state.params, deps.getTimeSec()),
     responses: previous.didacticsRuntime.responses,
+    learningByLesson: previous.didacticsRuntime.learningByLesson,
   };
   if (shouldResetBinaryLab(options)) {
     state.binaryLabState = createBinaryLabState(DEFAULT_BINARY_LAB_CONFIG_V4.binaryLab);

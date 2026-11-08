@@ -96,7 +96,7 @@ public enum StellarSurface {
 
   /// Returns S = ∫ I(mu) P dA / ∫ I(mu) dA on the transit midpoint grid without occulters.
   ///
-  /// The grid is the clamped `gridRes` with fallback 60. It is exactly 1 without valid patches,
+  /// The grid is the clamped `gridRes` with default 220. It is exactly 1 without valid patches,
   /// for a degenerate disk, or a vanishing reference.
   public static func spottedDiskFluxFactor(
     starRadius: Double, patches: [BrightnessPatch], u1: Double, u2: Double,
@@ -108,7 +108,7 @@ public enum StellarSurface {
     var patched = 0.0
     DiskIntegration.forEachChordCell(
       starRadius: starRadius,
-      resolution: DiskIntegration.resolution(gridResolution, fallback: 60)
+      resolution: DiskIntegration.resolution(gridResolution)
     ) { x, y, mu, area in
       let intensity = QuadraticLimbDarkening.intensity(mu: mu, u1: u1, u2: u2)
       unpatched += intensity * area

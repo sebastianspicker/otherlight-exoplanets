@@ -34,11 +34,11 @@ function renderDidacticPhaseChrome(): string {
           <div id="didResponseComposer" class="lab-phase__response">
             <label class="inline" for="didPrimaryResponseInput">
               <span id="didPrimaryResponseLabel">Response</span>
-              <textarea id="didPrimaryResponseInput" rows="3" placeholder="Write your answer here."></textarea>
+              <textarea id="didPrimaryResponseInput" rows="3" maxlength="20000" placeholder="Write your answer here."></textarea>
             </label>
             <label class="inline" for="didSecondaryResponseInput">
               <span id="didSecondaryResponseLabel">Reason / evidence</span>
-              <textarea id="didSecondaryResponseInput" rows="3" placeholder="Explain your reasoning."></textarea>
+              <textarea id="didSecondaryResponseInput" rows="3" maxlength="20000" placeholder="Explain your reasoning."></textarea>
             </label>
             <p id="didResponseHelp" class="help"></p>
           </div>

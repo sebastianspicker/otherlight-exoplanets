@@ -181,9 +181,11 @@ export function validateString(validator, schema, value, location) {
 
 function validateStringLengths(validator, schema, value, location) {
   let valid = true;
-  if (Number.isInteger(schema.minLength) && value.length < schema.minLength)
+  // JSON Schema (and the Python validator) count code points, not UTF-16 units.
+  const length = [...value].length;
+  if (Number.isInteger(schema.minLength) && length < schema.minLength)
     valid = validator.fail(location, "is too short") && valid;
-  if (Number.isInteger(schema.maxLength) && value.length > schema.maxLength)
+  if (Number.isInteger(schema.maxLength) && length > schema.maxLength)
     valid = validator.fail(location, "is too long") && valid;
   return valid;
 }

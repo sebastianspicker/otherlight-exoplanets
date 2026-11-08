@@ -83,7 +83,7 @@ extension SimulationEngine {
   /// `ΔRV = (M_disk − M_blocked)/(F_disk − F_blocked) − M_disk/F_disk`, where M integrates
   /// `I v_los` and F integrates I. I is the quadratic
   /// limb-darkened intensity times the "multiply" patch factor and blocked is the union of the
-  /// opaque circles on the transit midpoint grid (clamped `gridRes`, fallback 60). As the Browser,
+  /// opaque circles on the transit midpoint grid (clamped `gridRes`, default 220). As the Browser,
   /// the moment integrates the shifted weight `I max(0, v_los + V0)` with `V0 = |v_eq sin i_*|`
   /// and subtracts `V0 ∫ I`. The result is 0 without an overlapping occulter, for invalid
   /// inputs, or when the visible flux is at most 1e-12 of the total, and never NaN.
@@ -104,7 +104,7 @@ extension SimulationEngine {
     var shiftedTotal = 0.0
     DiskIntegration.forEachChordCell(
       starRadius: starRadius,
-      resolution: DiskIntegration.resolution(input.gridResolution, fallback: 60)
+      resolution: DiskIntegration.resolution(input.gridResolution)
     ) { x, y, mu, area in
       var intensity = QuadraticLimbDarkening.intensity(mu: mu, u1: input.u1, u2: input.u2)
       if !prepared.isEmpty {

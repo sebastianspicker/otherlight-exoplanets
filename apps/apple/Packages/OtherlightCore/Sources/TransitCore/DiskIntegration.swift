@@ -5,11 +5,14 @@ import Foundation
 /// Stellar-disk sampling helpers mirroring the Browser `occulterCircle.ts` `clampGridRes`,
 /// `diskMidpoint.ts` `integrateDiskMidpoint`, and `transitTransmission.ts`.
 enum DiskIntegration {
+  /// The Browser's `DEFAULT_TRANSIT_GRID_RES`, used by every disk integrator.
+  static let defaultResolution = 220
+
   /// Mirrors the Browser `clampGridRes`: a finite authored value is floored, an absent or
-  /// non-finite one takes the path-specific fallback, and the result is clamped to
+  /// non-finite one takes `defaultResolution`, and the result is clamped to
   /// `[minimum, 1024]`. Non-positive values are not rejected; they clamp up to the minimum.
-  static func resolution(_ raw: Double?, fallback: Int, minimum: Int = 60) -> Int {
-    let value = raw.flatMap { $0.isFinite ? $0 : nil } ?? Double(fallback)
+  static func resolution(_ raw: Double?, minimum: Int = 60) -> Int {
+    let value = raw.flatMap { $0.isFinite ? $0 : nil } ?? Double(defaultResolution)
     return Int(max(Double(minimum), min(1024, value.rounded(.down))))
   }
 
@@ -44,7 +47,7 @@ enum DiskIntegration {
   ///
   /// One unpatched circular occulter uses analytic overlap, resolving arbitrarily small disks.
   /// Otherwise the N×N Cartesian grid spans `[−R, R]²` with `step = 2R / N`, N the clamped `gridRes` with
-  /// fallback 256 and minimum 32; cells outside the disk are skipped. The intensity is the
+  /// default 220 and minimum 32; cells outside the disk are skipped. The intensity is the
   /// "multiply" patch factor (cells with a non-positive one are skipped), a cell is blocked when
   /// `hypot(x − dx, y − dy) <= r` for any occulter, and the result is `clamp01(ΣI·T / ΣI)`, or 1
   /// for a degenerate star or a non-positive or non-finite sum.
@@ -62,7 +65,7 @@ enum DiskIntegration {
         separation: hypot(circle.x, circle.y) / starRadius)
       return min(1, max(0, 1 - area / .pi))
     }
-    let count = resolution(gridResolution, fallback: 256, minimum: 32)
+    let count = resolution(gridResolution, minimum: 32)
     let step = 2 * starRadius / Double(count)
     let half = 0.5 * step
     let r2 = starRadius * starRadius

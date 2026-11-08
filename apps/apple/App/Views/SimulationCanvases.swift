@@ -100,7 +100,7 @@ struct TransitOCChart: View {
           residuals.map { abs($0.milliseconds) }.max() ?? 0, Double.leastNonzeroMagnitude)
         for residual in residuals {
           let x =
-            plot.minX + CGFloat(residual.ordinal) / CGFloat(max(residuals.count - 1, 1))
+            plot.minX + CGFloat(residual.ordinal) / CGFloat(max(residuals.last?.ordinal ?? 1, 1))
             * plot.width
           let y = middle - residual.milliseconds / maximumMagnitude * plot.height * 0.42
           context.fill(

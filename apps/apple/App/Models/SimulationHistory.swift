@@ -95,26 +95,46 @@ struct TransitEventHistory: Sendable {
     }
     events[event.body] = bodyEvents
   }
-  /// Fits a linear ephemeris when enough completed events establish a positive period.
+  /// Transit epochs of a body's events, `round((center - first) / P)` as in the Browser O-C plot.
+  ///
+  /// Recorded events can skip epochs (moon events exist only where the moon transits), so the
+  /// event index is not the epoch. P is the smallest gap between recorded planet transits, or
+  /// between the body's own events when the planet has fewer than two.
+  /// shortcut: if no two consecutive transits were ever recorded, P is a multiple of the true
+  /// period; pass the scenario's period in here if that case starts to matter.
+  func epochs(for body: TransitBody) -> [Int] {
+    let centers = events[body, default: []].map(\.centerSeconds)
+    /// Returns the smallest positive gap between consecutive centres.
+    func smallestGap(_ values: [Double]) -> Double? {
+      zip(values, values.dropFirst()).map { $1 - $0 }.filter { $0 > 0 }.min()
+    }
+    let planetCenters = events[.planet, default: []].map(\.centerSeconds)
+    guard let first = centers.first,
+      let period = smallestGap(planetCenters) ?? smallestGap(centers)
+    else { return Array(centers.indices) }
+    return centers.map { Int((($0 - first) / period).rounded()) }
+  }
+  /// Fits a linear ephemeris over transit epochs when enough events establish a positive period.
   func ephemeris(for body: TransitBody) -> LinearEphemeris? {
     let centers = events[body, default: []].map(\.centerSeconds)
     guard centers.count >= 2 else { return nil }
+    let epochs = epochs(for: body).map(Double.init)
     let n = Double(centers.count)
-    let meanOrdinal = (n - 1) / 2
+    let meanEpoch = epochs.reduce(0, +) / n
     let meanTime = centers.reduce(0, +) / n
-    let numerator = centers.enumerated().reduce(0.0) {
-      $0 + (Double($1.offset) - meanOrdinal) * ($1.element - meanTime)
+    let numerator = zip(epochs, centers).reduce(0.0) {
+      $0 + ($1.0 - meanEpoch) * ($1.1 - meanTime)
     }
-    let denominator = (0..<centers.count).reduce(0.0) { $0 + pow(Double($1) - meanOrdinal, 2) }
+    let denominator = epochs.reduce(0.0) { $0 + pow($1 - meanEpoch, 2) }
     let period = numerator / denominator
     guard period.isFinite, period > 0 else { return nil }
-    return .init(epochSeconds: meanTime - period * meanOrdinal, periodSeconds: period)
+    return .init(epochSeconds: meanTime - period * meanEpoch, periodSeconds: period)
   }
-  /// Returns O-C residuals in milliseconds relative to the fitted body ephemeris.
+  /// Returns O-C residuals in milliseconds, keyed by transit epoch, against the fitted ephemeris.
   func residualMilliseconds(for body: TransitBody) -> [(ordinal: Int, milliseconds: Double)] {
     guard let ephemeris = ephemeris(for: body) else { return [] }
-    return events[body, default: []].enumerated().map {
-      ($0.offset, ($0.element.centerSeconds - ephemeris.predictedCenter(for: $0.offset)) * 1_000)
+    return zip(epochs(for: body), events[body, default: []]).map {
+      ($0, ($1.centerSeconds - ephemeris.predictedCenter(for: $0)) * 1_000)
     }
   }
   /// Returns the newest O-C residual for concise presentation.
@@ -148,10 +168,11 @@ struct TransitEventHistory: Sendable {
   var csv: String {
     var rows = ["body,ordinal,center_s,oc_ms,series,flux"]
     for body in TransitBody.allCases {
-      let residuals = Dictionary(
-        uniqueKeysWithValues: residualMilliseconds(for: body).map { ($0.ordinal, $0.milliseconds) })
-      for (ordinal, event) in events[body, default: []].enumerated() {
-        let residual = residuals[ordinal].map { String($0) } ?? ""
+      let residuals = residualMilliseconds(for: body)
+      let epochs = epochs(for: body)
+      for (index, event) in events[body, default: []].enumerated() {
+        let ordinal = epochs[index]
+        let residual = residuals.isEmpty ? "" : String(residuals[index].milliseconds)
         rows.append(
           "\(body.rawValue),\(ordinal),\(event.centerSeconds),\(residual),\(event.series.rawValue),\(event.observedFlux)"
         )

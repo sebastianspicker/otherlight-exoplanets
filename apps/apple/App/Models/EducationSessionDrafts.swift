@@ -118,6 +118,9 @@ extension EducationSession {
     var candidate = scenario
     binary.primary.star.limbDarkeningU1 = limbDarkeningU1
     binary.primary.star.limbDarkeningU2 = limbDarkeningU2
+    // The Browser V4 binary has one law for both stars; export writes only the primary's.
+    binary.secondary.star.limbDarkeningU1 = limbDarkeningU1
+    binary.secondary.star.limbDarkeningU2 = limbDarkeningU2
     candidate.star = binary.primary.star
     candidate.detachedBinary = binary
     candidate.gridResolution = gridResolution
@@ -149,11 +152,15 @@ extension EducationSession {
     return value
   }
 
-  /// Requires an integral disk resolution, or a blank draft for the Browser's per-integrator
-  /// default, while retaining malformed draft text for correction.
+  /// Requires an integral disk resolution, or a blank draft for the Browser's default grid,
+  /// while retaining malformed draft text for correction. An unchanged draft keeps the accepted
+  /// value, which an imported workspace may hold outside the editable range.
   private func parseGridResolution() -> Double?? {
     if draftGridResolution.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
       return .some(nil)
+    }
+    if draftGridResolution == EducationDraftPolicy.values(for: scenario).gridResolution {
+      return .some(scenario.gridResolution)
     }
     guard let value = parseDraft(draftGridResolution, field: .gridResolution) else { return nil }
     guard value.rounded() == value, value >= 60, value <= 1_024 else {

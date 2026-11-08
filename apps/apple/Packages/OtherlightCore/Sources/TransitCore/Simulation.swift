@@ -204,7 +204,7 @@ public struct SimulationEngine: Sendable {
           starRadius: source.star.radiusMetres, occulters: [occulter], patches: [],
           gridResolution: scenario.gridResolution)
     }
-    let resolution = DiskIntegration.resolution(scenario.gridResolution, fallback: 60)
+    let resolution = DiskIntegration.resolution(scenario.gridResolution)
     let radius = source.star.radiusMetres
     let dy = 2 * radius / Double(resolution)
     var total = 0.0
@@ -300,7 +300,7 @@ public struct SimulationEngine: Sendable {
     var blocked = 0.0
     DiskIntegration.forEachChordCell(
       starRadius: radius,
-      resolution: DiskIntegration.resolution(scenario.gridResolution, fallback: 60)
+      resolution: DiskIntegration.resolution(scenario.gridResolution)
     ) { x, y, mu, area in
       var intensity = QuadraticLimbDarkening.intensity(
         mu: mu, u1: star.limbDarkeningU1, u2: star.limbDarkeningU2)

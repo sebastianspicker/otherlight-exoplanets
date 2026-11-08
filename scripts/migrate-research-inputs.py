@@ -95,7 +95,7 @@ def main():
     source_hash = sha256(source).hexdigest()
     migrations = {"workspace-v1": workspace, "science-dataset-v2": calibration}
     version = payload.get("schemaVersion")
-    if version not in migrations:
+    if not isinstance(version, str) or version not in migrations:
         raise ValueError("Unsupported source version; no bytes were converted")
     provenance = {
         "schemaVersion": "science-v7",
