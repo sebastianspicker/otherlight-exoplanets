@@ -11,6 +11,22 @@ actor SimulationRuntime {
   private struct Computation: Sendable {
     let outcome: CalculationOutcome
     let builtSeries: Bool
+    let engine: CachedEngine?
+    let builtEngine: Bool
+  }
+
+  /// Keeps an engine with its warm timing caches across frames of the same scenario and mode.
+  private struct CachedEngine: Sendable {
+    let scenario: EducationScenarioV4
+    let runtimeMode: NativeRuntimeMode
+    let referenceSubsteps: Int
+    var engine: SelectedEngine
+
+    /// Reports whether this engine was built for exactly the request's inputs.
+    func matches(_ request: CalculationRequest) -> Bool {
+      scenario == request.seriesKey.scenario && runtimeMode == request.runtimeMode
+        && referenceSubsteps == request.referenceSubsteps
+    }
   }
 
   private var pending: CalculationRequest?
@@ -19,10 +35,11 @@ actor SimulationRuntime {
   private var latestActivityRevision = 0
   private var latestSubmittedGeneration = Int.min
   private var cachedSeries: SeriesSnapshot?
+  private var cachedEngine: CachedEngine?
   private var runtimeMetrics = SimulationRuntimeMetrics()
 
   /// Keeps one mode-specific engine alive for a calculation without constructing the other mode.
-  private enum SelectedEngine {
+  private enum SelectedEngine: Sendable {
     case interactive(SimulationEngine)
     case reference(ReferenceSimulationEngine)
 
@@ -111,9 +128,13 @@ actor SimulationRuntime {
     while !isPaused, let request = pending {
       pending = nil
       let reusableSeries = cachedSeries
+      let reusableEngine = cachedEngine
       let computation = await Task.detached(priority: .userInitiated) {
-        Self.calculate(request, reusableSeries: reusableSeries)
+        Self.calculate(request, reusableSeries: reusableSeries, reusableEngine: reusableEngine)
       }.value
+
+      cachedEngine = computation.engine
+      if computation.builtEngine { runtimeMetrics.engineBuilds += 1 }
 
       runtimeMetrics.completedFrames += 1
       if computation.builtSeries, case .success(let frame) = computation.outcome {
@@ -127,18 +148,23 @@ actor SimulationRuntime {
     if !isPaused { startIfNeeded(deliver: deliver) }
   }
 
-  /// Calculates a frame off the actor while reusing only an exactly matching series key.
+  /// Calculates a frame off the actor while reusing only an exactly matching series key, and an
+  /// engine built for the same scenario and mode.
   private static func calculate(
-    _ request: CalculationRequest, reusableSeries: SeriesSnapshot?
+    _ request: CalculationRequest, reusableSeries: SeriesSnapshot?, reusableEngine: CachedEngine?
   ) -> Computation {
     let key = request.seriesKey
     let builtSeries = reusableSeries?.key != key
+    let cached = reusableEngine.flatMap { $0.matches(request) ? $0 : nil }
+    let builtEngine = cached == nil
     do {
       guard key.samples >= 16 else { throw SimulationError.insufficientSamples }
       let scenario = key.scenario
-      var engine = try SelectedEngine(
-        scenario: scenario, mode: request.runtimeMode,
-        referenceSubsteps: request.referenceSubsteps)
+      var engine =
+        try cached?.engine
+        ?? SelectedEngine(
+          scenario: scenario, mode: request.runtimeMode,
+          referenceSubsteps: request.referenceSubsteps)
       let series: SeriesSnapshot
       if let reusableSeries, reusableSeries.key == key {
         series = reusableSeries
@@ -168,13 +194,18 @@ actor SimulationRuntime {
         planetRadiusMetres: scenario.planet.radiusMetres,
         moonRadiusMetres: scenario.moon?.radiusMetres
       )
-      return Computation(outcome: .success(frame), builtSeries: builtSeries)
+      let warm = CachedEngine(
+        scenario: scenario, runtimeMode: request.runtimeMode,
+        referenceSubsteps: request.referenceSubsteps, engine: engine)
+      return Computation(
+        outcome: .success(frame), builtSeries: builtSeries, engine: warm, builtEngine: builtEngine)
     } catch {
+      // A failed calculation drops the engine so the next request starts from a fresh one.
       return Computation(
         outcome: .failure(
           generation: request.generation, seriesKey: request.seriesKey,
           message: error.localizedDescription),
-        builtSeries: builtSeries)
+        builtSeries: builtSeries, engine: nil, builtEngine: builtEngine)
     }
   }
 }

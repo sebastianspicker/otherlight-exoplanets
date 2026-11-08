@@ -11,9 +11,12 @@ exclude_paths:
   - "**/Tests/**"
   - "**/tests/**"
 engines:
+  # CI already runs lizard with the repository's own limits (scripts/check-complexity.sh:
+  # CCN 12, 100 lines per function). Codacy's lizard thresholds come from the locked default
+  # coding standard and only duplicate that gate with stricter numbers, so it is skipped here.
   lizard:
     exclude_paths:
-      - "pnpm-lock.yaml"
+      - "**"
   metric:
     exclude_paths:
       - "pnpm-lock.yaml"

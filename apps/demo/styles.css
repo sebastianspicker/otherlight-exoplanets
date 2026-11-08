@@ -1,3 +1,4 @@
+/* stylelint-disable no-descending-specificity -- each flagged pair styles a different page section (intro, demo heading, tabs, capture frame, scope, footer), so source order never decides a conflict. */
 :root {
   /* Deep Field roles, mirrored from the Browser's deep-field/tokens.css. */
   --ink: #03050a;

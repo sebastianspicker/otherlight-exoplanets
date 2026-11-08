@@ -312,4 +312,5 @@ struct SimulationRuntimeMetrics: Sendable, Equatable {
   var coalescedRequests = 0
   var completedFrames = 0
   var seriesBuilds = 0
+  var engineBuilds = 0
 }

@@ -48,6 +48,7 @@ final class OtherlightTests: XCTestCase {
     XCTAssertEqual(first.series, reused.series)
     let reuseMetrics = await runtime.metrics()
     XCTAssertEqual(reuseMetrics.seriesBuilds, 1)
+    XCTAssertEqual(reuseMetrics.engineBuilds, 1)
 
     let revisedKey = SeriesKey(
       revision: 2, scenario: scenario, samples: 16, centerSeconds: transit)
@@ -56,6 +57,7 @@ final class OtherlightTests: XCTestCase {
     XCTAssertEqual(rebuilt.series.key, revisedKey)
     let rebuildMetrics = await runtime.metrics()
     XCTAssertEqual(rebuildMetrics.seriesBuilds, 2)
+    XCTAssertEqual(rebuildMetrics.engineBuilds, 1, "same scenario and mode keep the engine")
   }
 
   /// Ensures a reference request takes the portable reference path and cannot reuse interactive output.
@@ -80,6 +82,7 @@ final class OtherlightTests: XCTestCase {
     XCTAssertNotEqual(interactive.series, reference.series)
     let metrics = await runtime.metrics()
     XCTAssertEqual(metrics.seriesBuilds, 2)
+    XCTAssertEqual(metrics.engineBuilds, 2, "a mode change builds a new engine")
   }
 
   /// Ensures rapid playback requests collapse behind one sampled-series calculation.
@@ -328,6 +331,9 @@ final class OtherlightTests: XCTestCase {
     session.applyDraft()
     XCTAssertEqual(session.scenario.gridResolution, 300)
     XCTAssertEqual(session.scenario.detachedBinary?.primary.star.limbDarkeningU1, 0.4)
+    // The Browser V4 binary has one law; the secondary must match before and after a round trip.
+    XCTAssertEqual(session.scenario.detachedBinary?.secondary.star.limbDarkeningU1, 0.4)
+    XCTAssertEqual(session.scenario.detachedBinary?.secondary.star.limbDarkeningU2, 0.2)
 
     let document = try OtherlightWorkspaceDocument(
       workspace: session.workspace(section: .simulation))
@@ -337,6 +343,22 @@ final class OtherlightTests: XCTestCase {
     XCTAssertTrue(restored.isBinaryLabSkyVisible)
     XCTAssertEqual(restored.binaryLab?.hypothesis, .primaryEclipseDeepest)
     XCTAssertEqual(document.workspace.productContext.lab, "binary-stars")
+    XCTAssertEqual(restored.scenario.detachedBinary, session.scenario.detachedBinary)
+  }
+
+  /// Keeps an imported grid outside the editable range when only another field changes.
+  func testUnchangedImportedGridResolutionDoesNotBlockApply() {
+    let session = EducationSession()
+    session.scenario.gridResolution = 40
+    session.resetDraft()
+    session.draftPlanetRadiusMetres = String(session.scenario.planet.radiusMetres * 1.1)
+    let expectedRadius = session.scenario.planet.radiusMetres * 1.1
+    session.applyDraft()
+    XCTAssertEqual(session.scenario.planet.radiusMetres, expectedRadius, accuracy: 1e-6)
+    XCTAssertEqual(session.scenario.gridResolution, 40)
+    session.draftGridResolution = "41"
+    session.applyDraft()
+    XCTAssertEqual(session.scenario.gridResolution, 40, "an edited grid still needs 60...1024")
   }
 
   /// Ensures accepted workspace state round-trips and unsupported schema versions fail clearly.
@@ -631,7 +653,7 @@ final class OtherlightTests: XCTestCase {
 
   /// Ensures the packaged real-system catalog can populate native scenario selection.
   func testBundledSnapshotIsAvailable() throws {
-    XCTAssertEqual(BundledRealSystems.labels.count, 20)
+    XCTAssertEqual(BundledRealSystems.labels.count, 18)
     XCTAssertNoThrow(try BundledRealSystems.scenario(id: "ph1-b"))
   }
 

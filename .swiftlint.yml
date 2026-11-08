@@ -1,0 +1,52 @@
+# SwiftLint rules for Codacy, aligned with the repository's own complexity gate
+# (scripts/check-complexity.sh: lizard CCN 12, 100 lines per function).
+# The rule list mirrors Codacy's default coding standard minus function_parameter_count:
+# memberwise initializers of value models take one labelled argument per stored property.
+only_rules:
+  - blanket_disable_command
+  - class_delegate_protocol
+  - compiler_protocol_init
+  - cyclomatic_complexity
+  - deployment_target
+  - discouraged_direct_init
+  - duplicate_conditions
+  - duplicate_enum_cases
+  - duplicated_key_in_dictionary_literal
+  - dynamic_inline
+  - for_where
+  - force_cast
+  - force_try
+  - function_body_length
+  - invalid_swiftlint_command
+  - large_tuple
+  - legacy_hashing
+  - legacy_random
+  - nesting
+  - notification_center_detachment
+  - ns_number_init_as_function_reference
+  - optional_data_string_conversion
+  - private_unit_test
+  - reduce_boolean
+  - self_in_property_initialization
+  - todo
+  - unused_setter_value
+  - valid_ibinspectable
+
+cyclomatic_complexity:
+  warning: 12
+  error: 20
+function_body_length:
+  warning: 100
+  error: 200
+# (x, y, radius)-style tuples are fine; wider ones should become structs.
+large_tuple:
+  warning: 3
+  error: 6
+# Codable types nest their CodingKeys one level inside a nested DTO.
+nesting:
+  type_level: 2
+
+excluded:
+  - apps/apple/AppTests
+  - "**/Tests"
+  - "**/.build"
