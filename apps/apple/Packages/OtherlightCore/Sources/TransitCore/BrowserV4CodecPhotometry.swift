@@ -5,6 +5,28 @@ import Foundation
 /// Reads the Browser V4 `photometry.stellarVariability`, `photometry.stellarSurface`, and primary
 /// star `spin` blocks.
 extension BrowserV4Import {
+  /// Keeps the Browser exposure settings and a limb-darkening model that resolves to a law and
+  /// holds more than a plain default, or nil when the file has none of them.
+  static func passthrough(
+    _ photometry: BrowserV4ScenarioDTO.PhotometryDTO?,
+    limb: (u1: Double, u2: Double, present: Bool)
+  ) -> BrowserPhotometryPassthrough? {
+    guard let photometry else { return nil }
+    var imported: ImportedLimbDarkening?
+    if limb.present, let model = photometry.limbDarkeningModel,
+      model.bands != nil || model.bandpass != nil || model.stellar != nil
+    {
+      imported = .init(model: model, u1: limb.u1, u2: limb.u2)
+    }
+    guard
+      photometry.cadenceSec != nil || photometry.nSubsamples != nil
+        || photometry.baselineFlux != nil || imported != nil
+    else { return nil }
+    return .init(
+      cadenceSec: photometry.cadenceSec, nSubsamples: photometry.nSubsamples,
+      baselineFlux: photometry.baselineFlux, limbDarkening: imported)
+  }
+
   /// Reads an enabled `photometry.stellarVariability` block with the Browser defaults.
   ///
   /// A disabled or absent block yields nil. Absent or non-numeric amplitudes, offsets, and the

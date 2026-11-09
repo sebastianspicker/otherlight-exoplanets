@@ -466,7 +466,34 @@ final class OtherlightTests: XCTestCase {
     expected.moonPhase?.thermalModel = .cosine
     expected.dayNightVisibility = .init(
       enabled: true, reflectedModel: .lambert, thermalModel: .constant, clamp: true)
+    // The canonical Browser fixture carries its exposure settings; the import keeps them for re-save.
+    expected.browserPhotometryPassthrough = .init(cadenceSec: 60, nSubsamples: 9, baselineFlux: 1)
     XCTAssertEqual(try document.workspace.educationScenario(), expected)
+  }
+
+  /// Ensures the scenario key check matches the Browser: `runtime` optional, `baselineFlux` unknown.
+  func testWorkspaceScenarioRuntimeIsOptionalAndBaselineFluxRejected() throws {
+    var scenario = try XCTUnwrap(
+      JSONSerialization.jsonObject(
+        with: JSONEncoder().encode(BrowserV4Export.scenario(from: ScenarioCatalog.default)))
+        as? [String: Any])
+    /// Wraps a scenario object in a minimal workspace document.
+    func data(_ scenario: [String: Any]) throws -> Data {
+      try JSONSerialization.data(
+        withJSONObject: [
+          "schemaVersion": "workspace-v1",
+          "productContext": [
+            "profile": "education", "mode": "simulation", "ui": "essential",
+            "source": "preset", "scenario": "default", "lab": "transit-exomoon",
+            "lesson": "kepler-geometry", "runtime": "interactive",
+          ],
+          "education": ["scenario": scenario],
+        ] as [String: Any])
+    }
+    scenario["runtime"] = nil
+    _ = try OtherlightWorkspaceDocument(data: data(scenario))
+    scenario["baselineFlux"] = 1
+    XCTAssertThrowsError(try OtherlightWorkspaceDocument(data: data(scenario)))
   }
 
   /// Ensures a valid reference workspace restores its execution semantics without history state.

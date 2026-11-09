@@ -36,7 +36,7 @@
       "type": "object",
       "required": ["id", "kind", "massKg", "radiusM", "state"],
       "properties": {
-        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
         "kind": { "enum": ["star", "planet", "moon", "companion"] },
         "massKg": { "type": "number", "exclusiveMinimum": 0 },
         "radiusM": { "type": "number", "exclusiveMinimum": 0 },
@@ -57,7 +57,7 @@
       "required": ["schemaVersion", "id", "epochJdTdb", "timeScale", "bodies", "observer", "integrator"],
       "properties": {
         "schemaVersion": { "const": "v5" },
-        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
         "epochJdTdb": { "type": "number", "exclusiveMinimum": 0 },
         "timeScale": { "const": "TDB" },
         "bodies": {
@@ -71,7 +71,7 @@
           "required": ["lineOfSight", "targetBodyId"],
           "properties": {
             "lineOfSight": { "$ref": "#/$defs/vector3" },
-            "targetBodyId": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "targetBodyId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
             "distanceM": { "type": "number", "exclusiveMinimum": 0 }
           },
           "additionalProperties": false

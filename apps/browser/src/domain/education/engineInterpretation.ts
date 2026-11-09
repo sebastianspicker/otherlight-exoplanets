@@ -6,14 +6,19 @@ import type { NumericSignals } from "./engineNumericSignals";
 
 type InterpretationEvaluation = { stepId: string };
 
-const DEPTH_RELATIVE_TOLERANCE = 0.2;
+/**
+ * Relative depth tolerance of the Kepler lesson. A central transit of a quadratically
+ * limb-darkened star is 18 % (u = 0.35, 0.25) to 26 % (u = 0.55, 0.15) deeper than (Rp/R*)^2.
+ */
+export const DEPTH_RELATIVE_TOLERANCE = 0.3;
+const DEPTH_TOLERANCE_PERCENT = `${DEPTH_RELATIVE_TOLERANCE * 100}%`;
 const MOON_LEAD_LAG_MIN_SEC = 600;
 
 function formatFinite(value: number, digits: number): string {
   return Number.isFinite(value) ? value.toFixed(digits) : "n/a";
 }
 
-/** True when a transit is observed and its depth is within 20 % of (Rp/R*)^2. */
+/** True when a transit is observed and its depth is within the lesson tolerance of (Rp/R*)^2. */
 export function depthMatchesGeometry(signals: { depthApprox: number; depthObserved: number }): boolean {
   const { depthApprox, depthObserved } = signals;
   return (
@@ -36,13 +41,13 @@ function interpretKeplerDepth(signals: NumericSignals): DidacticInterpretation {
   return depthMatchesGeometry(signals)
     ? {
         headline: "Geometry and depth now tell the same story.",
-        observation: `The physical depth ${signals.depthObserved.toFixed(4)} is within 20% of the geometric estimate ${signals.depthApprox.toFixed(4)}.`,
+        observation: `The physical depth ${signals.depthObserved.toFixed(4)} is within ${DEPTH_TOLERANCE_PERCENT} of the geometric estimate ${signals.depthApprox.toFixed(4)}.`,
         nextAction:
           "Use ingress and egress to explain why central transits best match the simple radius-ratio formula.",
       }
     : {
         headline: "The depth still disagrees with the simple radius-ratio estimate.",
-        observation: `Observed depth ${signals.depthObserved.toFixed(4)} differs from the geometric estimate ${formatFinite(signals.depthApprox, 4)} by more than 20%.`,
+        observation: `Observed depth ${signals.depthObserved.toFixed(4)} differs from the geometric estimate ${formatFinite(signals.depthApprox, 4)} by more than ${DEPTH_TOLERANCE_PERCENT}.`,
         nextAction:
           "Read the depth at mid-transit and check whether the chord is grazing or limb darkening changes the occulted brightness.",
       };

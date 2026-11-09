@@ -357,7 +357,8 @@ def _loopback_host_port_suffix(value: str) -> str | None:
 def _valid_port_suffix(suffix: str) -> bool:
     if not suffix:
         return True
-    if not suffix.startswith(":") or not suffix[1:].isdigit():
+    # A valid port has at most five digits; int() raises on more than 4300.
+    if len(suffix) > 6 or not suffix.startswith(":") or not suffix[1:].isdigit():
         return False
     numeric_port = int(suffix[1:])
     return 1 <= numeric_port <= 65_535

@@ -20,7 +20,8 @@ from science_backend.research_validation import validate_research  # noqa: E402
 
 
 def workspace(payload, source_hash, provenance_hash, args):
-    if payload.get("productContext", {}).get("profile") != "education":
+    context = payload.get("productContext")
+    if not isinstance(context, dict) or context.get("profile") != "education":
         raise ValueError(
             "Scientific workspace conversion requires explicit epoch, frame and model mapping; no automatic conversion exists"
         )
@@ -115,7 +116,9 @@ def main():
     args.destination.mkdir(parents=False, exist_ok=False)
     (args.destination / "original.bin").write_bytes(source)
     (args.destination / "provenance.json").write_bytes(encoded_provenance)
-    (args.destination / f"{kind}.json").write_text(canonical_json(migrated))
+    (args.destination / f"{kind}.json").write_text(
+        canonical_json(migrated), encoding="utf-8"
+    )
     print(f"Preserved {source_hash}; wrote {kind} input bundle to {args.destination}")
 
 

@@ -347,17 +347,17 @@ extension SimulationEngine {
     let planetOrbit = scenario.planet.orbit
     let outer = orbitalSpeedBound(planetOrbit)
     guard let moon = scenario.moon else { return outer }
-    let planetMass = scenario.planet.massKilograms
+    let planetMass =
+      SimulationEngine.isFinitePositive(scenario.planet.massKilograms)
+      ? scenario.planet.massKilograms : 0
     let moonMass = moon.massKilograms
-    let bothMassive =
-      SimulationEngine.isFinitePositive(planetMass)
-      && SimulationEngine.isFinitePositive(moonMass)
-    let totalMass = bothMassive ? planetMass + moonMass : 0
-    let moonFraction = bothMassive ? moonMass / totalMass : 0
+    let moonMassive = SimulationEngine.isFinitePositive(moonMass)
+    let totalMass = moonMassive ? planetMass + moonMass : 0
+    let moonFraction = moonMassive ? moonMass / totalMass : 0
     let internalFraction: Double
     switch body {
     case .planet: internalFraction = moonFraction
-    case .moon: internalFraction = bothMassive ? planetMass / totalMass : 1
+    case .moon: internalFraction = moonMassive ? planetMass / totalMass : 1
     }
     let drift = moon.orientationDrift
     let driftRate =

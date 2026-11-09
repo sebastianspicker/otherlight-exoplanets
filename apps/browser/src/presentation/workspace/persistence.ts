@@ -54,6 +54,8 @@ type BootstrapPersistenceArgs = {
   setAppStatus: (message: string) => void;
   writeProductHistory: (kind: "push" | "replace") => void;
   hasUnappliedEdits: () => boolean;
+  setParamsDirty: (dirty: boolean) => void;
+  requestContextChange: (action: () => void) => void;
   warnEl: HTMLElement | null;
   signal: AbortSignal;
 };
@@ -148,6 +150,8 @@ function restoreBrowserHistory(args: BootstrapPersistenceArgs): void {
     async () => {
       try {
         await args.applyActive();
+        // The apply reloaded the form, so edits made before Back/Forward no longer exist.
+        args.setParamsDirty(false);
         if (applyProductLessonSelection(args.refs.didLessonSelect, parsed.state.lesson, parsed.corrections)) {
           args.refs.didLessonSelect?.dispatchEvent(new Event("change", { bubbles: true }));
         }
@@ -221,17 +225,20 @@ export function wireBootstrapPersistence(args: BootstrapPersistenceArgs): void {
       const file = workspaceFileInput.files?.[0];
       workspaceFileInput.value = "";
       if (!file) return;
-      runWithErrorHandling(
-        async () => {
-          if (file.size > MAX_WORKSPACE_FILE_BYTES) {
-            throw new Error("Workspace files larger than 8 MiB are not supported.");
-          }
-          if (await restoreWorkspace(reportingArgs, await file.text())) unloadGuard.markSaved();
-        },
-        {
-          statusEl: errorTarget(),
-          errorPrefix: "Workspace import failed: ",
-        },
+      // Restoring reloads the form, so unapplied edits need the same confirmation as a preset change.
+      args.requestContextChange(() =>
+        runWithErrorHandling(
+          async () => {
+            if (file.size > MAX_WORKSPACE_FILE_BYTES) {
+              throw new Error("Workspace files larger than 8 MiB are not supported.");
+            }
+            if (await restoreWorkspace(reportingArgs, await file.text())) unloadGuard.markSaved();
+          },
+          {
+            statusEl: errorTarget(),
+            errorPrefix: "Workspace import failed: ",
+          },
+        ),
       );
     },
     listenerOptions,

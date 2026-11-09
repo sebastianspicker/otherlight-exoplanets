@@ -99,13 +99,6 @@ export const BINARY_LESSONS: LessonSpec[] = [
             signal: "bPlanet",
             below: "transitContactLimit",
           },
-          {
-            id: "binary-eclipse-partial",
-            label: "b > |1 - k| (partial eclipse)",
-            kind: "signal-bound",
-            signal: "bPlanet",
-            above: "totalEclipseLimit",
-          },
         ],
         phases: [
           observePhase({

@@ -311,6 +311,8 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
   /// The enabled stellar variability terms and stellar-surface sines (nil: disabled).
   public var stellarVariability: StellarVariability?
   public var stellarSurface: StellarSurfaceActivity?
+  /// Browser exposure settings carried through a re-save; the engine does not use them.
+  public var browserPhotometryPassthrough: BrowserPhotometryPassthrough?
   /// Creates an education scenario from its physical, photometric, and teaching inputs.
   public init(
     identifier: String = "education-default", epochSeconds: Double = 0, star: Star, planet: Planet,
@@ -319,7 +321,8 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
     detachedBinary: DetachedBinary? = nil, binaryLab: BinaryLabConfiguration? = nil,
     dayNightVisibility: DayNightVisibility? = nil, nonSphericalFlux: Bool = false,
     brightnessPatches: [BrightnessPatch] = [], spotEvolution: SpotEvolution? = nil,
-    stellarVariability: StellarVariability? = nil, stellarSurface: StellarSurfaceActivity? = nil
+    stellarVariability: StellarVariability? = nil, stellarSurface: StellarSurfaceActivity? = nil,
+    browserPhotometryPassthrough: BrowserPhotometryPassthrough? = nil
   ) {
     self.mode = mode
     self.identifier = identifier
@@ -338,12 +341,14 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
     self.spotEvolution = spotEvolution
     self.stellarVariability = stellarVariability
     self.stellarSurface = stellarSurface
+    self.browserPhotometryPassthrough = browserPhotometryPassthrough
   }
   /// Names the serialized scenario fields.
   private enum CodingKeys: String, CodingKey {
     case mode, identifier, epochSeconds, star, planet, moon, gridResolution, planetPhase
     case moonPhase, detachedBinary, binaryLab, dayNightVisibility, nonSphericalFlux
     case brightnessPatches, spotEvolution, stellarVariability, stellarSurface
+    case browserPhotometryPassthrough
   }
   /// Decodes a scenario, reading an absent `nonSphericalFlux` from older documents as false and
   /// absent brightness patches, spot evolution, stellar variability, and surface activity as none.
@@ -371,7 +376,9 @@ public struct EducationScenarioV4: Codable, Sendable, Hashable {
       stellarVariability: try container.decodeIfPresent(
         StellarVariability.self, forKey: .stellarVariability),
       stellarSurface: try container.decodeIfPresent(
-        StellarSurfaceActivity.self, forKey: .stellarSurface))
+        StellarSurfaceActivity.self, forKey: .stellarSurface),
+      browserPhotometryPassthrough: try container.decodeIfPresent(
+        BrowserPhotometryPassthrough.self, forKey: .browserPhotometryPassthrough))
   }
 }
 

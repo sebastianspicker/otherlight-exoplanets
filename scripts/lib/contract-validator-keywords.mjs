@@ -197,6 +197,8 @@ function validateStringPattern(validator, schema, value, location) {
 
 function matchesSupportedPattern(pattern, value) {
   switch (pattern) {
+    case "\\S":
+      return /\S/u.test(value);
     case "^artifact-[0-9a-f]{64}$":
       return /^artifact-[0-9a-f]{64}$/u.test(value);
     case "^[0-9a-f]{64}$":

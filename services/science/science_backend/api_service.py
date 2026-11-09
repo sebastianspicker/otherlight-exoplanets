@@ -158,16 +158,15 @@ class V5ApiService:
             raise CapabilityUnavailableError(
                 "forward jobs require both the 'integrator' and 'artifacts' extras"
             )
+        # Validate before the capacity check, so an invalid request is always answered as invalid.
+        request, seed = forward_request(payload)
+        fingerprint = sha256(canonical_json(payload).encode("utf-8")).hexdigest()
         with self._lock:
             self._assert_can_submit_locked()
             self._outstanding_jobs += 1
             job_id = f"job-{uuid4()}"
             try:
-                request, seed = forward_request(payload)
-                fingerprint, started = (
-                    sha256(canonical_json(payload).encode("utf-8")).hexdigest(),
-                    now(),
-                )
+                started = now()
                 status = {
                     "id": job_id,
                     "kind": "forward",

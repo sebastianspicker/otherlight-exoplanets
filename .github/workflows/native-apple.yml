@@ -184,7 +184,7 @@ jobs:
             echo "Arrow and TransitScience must not be embedded in the mobile app" >&2
             exit 1
           fi
-          if rg -q 'OtherlightScience|productName = TransitScience;|productName = Arrow;' apps/apple/Otherlight.xcodeproj/project.pbxproj; then
+          if grep -Eq 'OtherlightScience|productName = TransitScience;|productName = Arrow;' apps/apple/Otherlight.xcodeproj/project.pbxproj; then
             echo "The mobile Xcode project must not resolve Arrow-backed TransitScience" >&2
             exit 1
           fi

@@ -6,8 +6,13 @@ import type { InstrumentNoiseState, InstrumentNoiseSystematicsParams } from "./i
 type OneOverFCfg = NonNullable<NonNullable<InstrumentNoiseSystematicsParams["correlatedNoise"]>["oneOverF"]>;
 type OneOverFConfig = NonNullable<InstrumentNoiseSystematicsParams["correlatedNoise"]>["oneOverF"];
 
+// No form field sets nComponents, so a workspace file is the only source; cap it to keep the per-frame loop small.
+const MAX_ONE_OVER_F_COMPONENTS = 64;
+const oneOverFComponentCount = (cfg: OneOverFCfg): number =>
+  Math.min(MAX_ONE_OVER_F_COMPONENTS, Math.max(1, Math.floor(toFiniteNumber(cfg.nComponents, 6))));
+
 const makeOneOverFSignature = (cfg: OneOverFCfg): string => {
-  const n = Math.max(1, Math.floor(toFiniteNumber(cfg.nComponents, 6)));
+  const n = oneOverFComponentCount(cfg);
   const tauMin = toFiniteNumber(cfg.tauMinSec, 10);
   const tauMax = toFiniteNumber(cfg.tauMaxSec, 10_000);
   const sigma = toFiniteNumber(cfg.sigmaFlux, 0);
@@ -17,7 +22,7 @@ const makeOneOverFSignature = (cfg: OneOverFCfg): string => {
 function ensureOneOverFBank(state: InstrumentNoiseState, oneF: OneOverFCfg): void {
   const signature = makeOneOverFSignature(oneF);
   if (state.ar1Bank && state.oneOverFSignature === signature) return;
-  const n = Math.max(1, Math.floor(toFiniteNumber(oneF.nComponents, 6)));
+  const n = oneOverFComponentCount(oneF);
   const tauMin = Math.max(1e-6, toFiniteNumber(oneF.tauMinSec, 10));
   const tauMax = Math.max(tauMin, toFiniteNumber(oneF.tauMaxSec, 10_000));
   const weight = Math.max(0, toFiniteNumber(oneF.sigmaFlux, 0)) / Math.sqrt(n);

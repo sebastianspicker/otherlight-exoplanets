@@ -85,13 +85,13 @@ function isObject(x: unknown): x is Record<string, unknown> {
 }
 
 function finitePos(v: unknown): number | undefined {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) && n > 0 ? n : undefined;
+  const n = finite(v);
+  return n !== undefined && n > 0 ? n : undefined;
 }
 
+// Numbers only: Number(null) is 0, which would turn a missing inclination into a face-on orbit.
 function finite(v: unknown): number | undefined {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : undefined;
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
 function asString(v: unknown): string | undefined {

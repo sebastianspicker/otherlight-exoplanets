@@ -13,6 +13,9 @@ import {
   reportPhase,
   workedExamplePhase,
 } from "./lessonPhases";
+import { DEPTH_RELATIVE_TOLERANCE } from "./engineInterpretation";
+
+const DEPTH_TOLERANCE_PERCENT = `${DEPTH_RELATIVE_TOLERANCE * 100}%`;
 
 export const PRESET_LESSONS: LessonSpec[] = [
   {
@@ -88,16 +91,15 @@ export const PRESET_LESSONS: LessonSpec[] = [
       {
         id: "kepler-step-2",
         title: "Verify the geometric depth approximation",
-        prompt:
-          "For a uniform stellar disk and a near-central transit, the depth should satisfy delta_physical ~ (Rp/R*)^2. Check that the physical transit depth matches this prediction within 20%.",
+        prompt: `For a uniform stellar disk and a near-central transit, the depth should satisfy delta_physical ~ (Rp/R*)^2. Limb darkening makes a central transit somewhat deeper, so check that the physical transit depth matches this prediction within ${DEPTH_TOLERANCE_PERCENT}.`,
         checks: [
           {
             id: "depth-approx",
-            label: "delta_physical ~ (Rp/R*)^2  (within 20%)",
+            label: `delta_physical ~ (Rp/R*)^2  (within ${DEPTH_TOLERANCE_PERCENT})`,
             kind: "signal-approx",
             signal: "depthObserved",
             referenceSignal: "depthApprox",
-            tolerance: 0.2,
+            tolerance: DEPTH_RELATIVE_TOLERANCE,
           },
         ],
         phases: [

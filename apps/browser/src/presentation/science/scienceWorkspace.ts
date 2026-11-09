@@ -239,6 +239,8 @@ async function refreshScienceCapabilities({
   requests,
 }: ScienceWorkspaceContext): Promise<void> {
   if (args.signal.aborted) return;
+  // startRequest aborts the active request; a running job would be dropped here without a server-side cancel.
+  if (state.getCurrentJobId() !== null) return;
   const signal = state.startRequest();
   state.setReady(false);
   elements.capabilityStatus.textContent = "Checking…";

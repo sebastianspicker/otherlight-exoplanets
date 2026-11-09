@@ -35,8 +35,15 @@ function hasValidScaleAndShape(src: OrbitCandidate): boolean {
   return isFinitePositive(src.a) && isFiniteEccentricity(src.e);
 }
 
+// The inclination range matches assertOrbit, so the engine never rejects an accepted import.
 function hasValidAngles(src: OrbitCandidate): boolean {
-  return isFiniteNumber(src.inc) && isFiniteNumber(src.Omega) && isFiniteNumber(src.omega);
+  return (
+    isFiniteNumber(src.inc) &&
+    src.inc >= 0 &&
+    src.inc <= Math.PI &&
+    isFiniteNumber(src.Omega) &&
+    isFiniteNumber(src.omega)
+  );
 }
 
 function hasValidTiming(src: OrbitCandidate): boolean {

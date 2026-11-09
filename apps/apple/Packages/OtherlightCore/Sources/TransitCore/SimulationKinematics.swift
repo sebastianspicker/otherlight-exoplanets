@@ -16,9 +16,10 @@ extension SimulationEngine {
   /// Places star, planet, and moon about their barycentres exactly as the Browser V4 snapshot does.
   ///
   /// The planet's authored orbit describes the planet-moon barycentre relative to the star. With
-  /// finite positive planet and moon masses the planet is displaced by `-(m_moon / M) * rel_moon`;
-  /// with a finite positive star mass the star and its planet system are displaced by
-  /// `-(M / (m_star + M)) * rel_planet`. Missing masses disable the respective split. A moon
+  /// a finite positive moon mass the planet is displaced by `-(m_moon / M) * rel_moon`, where a
+  /// missing or non-positive planet mass counts as 0; with a finite positive star mass the star
+  /// and its planet system are displaced by `-(M / (m_star + M)) * rel_planet`. Missing masses
+  /// disable the respective split, and a zero system mass disables the star split. A moon
   /// orientation drift is applied at the absolute time `epochSeconds + elapsed`.
   static func kinematics(of scenario: EducationScenarioV4, elapsed: Double) -> SystemKinematics {
     let relativePlanet = scenario.planet.orbit.position(at: elapsed)
@@ -39,8 +40,8 @@ extension SimulationEngine {
       state.moon = state.planet + rel.0
       state.moonVelocity = state.planetVelocity + rel.1
     }
-    let planetMass = scenario.planet.massKilograms
-    guard isFinitePositive(planetMass) else { return state }
+    let authoredMass = scenario.planet.massKilograms
+    let planetMass = isFinitePositive(authoredMass) ? authoredMass : 0
     var systemMass = planetMass
     if let relativeMoon, let moonMass = scenario.moon?.massKilograms, isFinitePositive(moonMass) {
       systemMass = planetMass + moonMass
@@ -50,7 +51,7 @@ extension SimulationEngine {
         velocity: Vector3.zero + relativeMoon.velocity * fraction)
     }
     let starMass = scenario.star.massKilograms
-    guard isFinitePositive(starMass) else { return state }
+    guard isFinitePositive(starMass), systemMass > 0 else { return state }
     let fraction = -systemMass / (starMass + systemMass)
     let shift = Vector3.zero + relativePlanet * fraction
     let velocityShift = Vector3.zero + relativePlanetVelocity * fraction

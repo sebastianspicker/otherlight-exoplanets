@@ -25,7 +25,34 @@ extension SimulationEngine {
     validateStellarVariability(scenario.stellarVariability, into: &issues)
     validateStellarSurface(scenario.stellarSurface, into: &issues)
     validateStellarSpin(scenario.star.spin, into: &issues)
+    validateBrowserRanges(scenario, into: &issues)
     return issues
+  }
+
+  /// Reports negative or non-finite planet and moon masses and inclinations outside [0, pi],
+  /// as the Browser migration does; a mass of 0 is valid.
+  private static func validateBrowserRanges(
+    _ scenario: EducationScenarioV4, into issues: inout [ValidationIssue]
+  ) {
+    let orbit = scenario.detachedBinary?.relativeOrbit ?? scenario.planet.orbit
+    let prefix = scenario.detachedBinary == nil ? "planet.orbit" : "detachedBinary.relativeOrbit"
+    var masses = [("planet.massKilograms", scenario.planet.massKilograms)]
+    var inclinations = [("\(prefix).inclinationRadians", orbit.inclinationRadians)]
+    if let moon = scenario.moon {
+      masses.append(("moon.massKilograms", moon.massKilograms))
+      inclinations.append(("moon.orbit.inclinationRadians", moon.orbit.inclinationRadians))
+    }
+    for (name, value) in masses {
+      if !value.isFinite {
+        issues.append(.nonFinite(field: name))
+      } else if value < 0 {
+        issues.append(.outOfRange(field: name, value: value))
+      }
+    }
+    // A non-finite inclination is already reported as non-finite.
+    for (name, value) in inclinations where value.isFinite && !(0...Double.pi).contains(value) {
+      issues.append(.outOfRange(field: name, value: value))
+    }
   }
 
   /// Reports a non-positive or non-finite spin period and a non-finite axis angle or obliquity.

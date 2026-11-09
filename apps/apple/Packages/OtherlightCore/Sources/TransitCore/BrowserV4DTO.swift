@@ -125,6 +125,9 @@ public struct BrowserV4ScenarioDTO: Codable, Sendable, Hashable {
     public var ringScattering: BrowserV4JSONValue? = nil
     public var instrument: BrowserV4JSONValue? = nil
     public var instrumentNoise: BrowserV4JSONValue? = nil
+    public var cadenceSec: Double? = nil
+    public var nSubsamples: Double? = nil
+    public var baselineFlux: Double? = nil
   }
   /// Carries the browser V4 active-lesson selection.
   public struct DidacticsDTO: Codable, Sendable, Hashable { public let activeLessonId: String? }
@@ -239,5 +242,39 @@ public enum BrowserV4JSONValue: Codable, Sendable, Hashable {
     case .object(let members): !members.isEmpty
     default: true
     }
+  }
+}
+
+/// Browser photometry content that Swift does not model; it is only carried so a re-save does
+/// not drop it.
+public struct BrowserPhotometryPassthrough: Codable, Sendable, Hashable {
+  public var cadenceSec: Double?
+  public var nSubsamples: Double?
+  public var baselineFlux: Double?
+  /// The authored limb-darkening model when it holds more than a plain default law.
+  public var limbDarkening: ImportedLimbDarkening?
+  /// Creates a passthrough from the Browser exposure values and an optional authored model.
+  public init(
+    cadenceSec: Double?, nSubsamples: Double?, baselineFlux: Double?,
+    limbDarkening: ImportedLimbDarkening? = nil
+  ) {
+    self.cadenceSec = cadenceSec
+    self.nSubsamples = nSubsamples
+    self.baselineFlux = baselineFlux
+    self.limbDarkening = limbDarkening
+  }
+}
+
+/// An authored Browser limb-darkening model with bands, a bandpass, or stellar parameters, and
+/// the law Swift resolved from it at import.
+public struct ImportedLimbDarkening: Codable, Sendable, Hashable {
+  public var model: BrowserV4ScenarioDTO.LimbDarkeningModelDTO
+  public var u1: Double
+  public var u2: Double
+  /// Pairs the authored model with the resolved quadratic law.
+  public init(model: BrowserV4ScenarioDTO.LimbDarkeningModelDTO, u1: Double, u2: Double) {
+    self.model = model
+    self.u1 = u1
+    self.u2 = u2
   }
 }

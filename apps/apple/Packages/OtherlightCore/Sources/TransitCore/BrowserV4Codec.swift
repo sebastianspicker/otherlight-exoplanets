@@ -57,7 +57,8 @@ public enum BrowserV4Import {
       brightnessPatches: brightnessPatches(photometry?.brightnessPatches),
       spotEvolution: spotEvolution(photometry?.spotEvolution),
       stellarVariability: stellarVariability(photometry?.stellarVariability),
-      stellarSurface: stellarSurface(photometry?.stellarSurface))
+      stellarSurface: stellarSurface(photometry?.stellarSurface),
+      browserPhotometryPassthrough: passthrough(photometry, limb: limb))
     return try validated(scenario)
   }
 
@@ -254,7 +255,8 @@ public enum BrowserV4Import {
       gridResolution: dto.photometry?.gridRes, mode: .detachedBinaryLab,
       detachedBinary: DetachedBinary(
         primary: primary, secondary: companion, relativeOrbit: orbit(binaryOrbit)),
-      binaryLab: binaryLab ?? .default, nonSphericalFlux: nonSphericalFlux(dto))
+      binaryLab: binaryLab ?? .default, nonSphericalFlux: nonSphericalFlux(dto),
+      browserPhotometryPassthrough: passthrough(dto.photometry, limb: limb))
     return try validated(scenario)
   }
 
@@ -311,7 +313,7 @@ public enum BrowserV4Export {
         } ?? []),
       orbits: .init(binary: planetOrbit, hierarchy: hierarchy),
       photometry: .init(
-        gridRes: scenario.gridResolution, limbDarkeningModel: limbDarkeningModel(scenario.star),
+        gridRes: scenario.gridResolution, limbDarkeningModel: limbDarkeningModel(scenario),
         phaseCurve: phase(scenario.planetPhase), moonPhaseCurve: phase(scenario.moonPhase),
         dayNightVisibility: scenario.dayNightVisibility.map {
           .init(
@@ -320,7 +322,10 @@ public enum BrowserV4Export {
         }, brightnessPatches: brightnessPatches(scenario.brightnessPatches),
         stellarVariability: scenario.stellarVariability.map(stellarVariability),
         spotEvolution: scenario.spotEvolution.map(spotEvolution),
-        stellarSurface: scenario.stellarSurface.map(stellarSurface)),
+        stellarSurface: scenario.stellarSurface.map(stellarSurface),
+        cadenceSec: scenario.browserPhotometryPassthrough?.cadenceSec,
+        nSubsamples: scenario.browserPhotometryPassthrough?.nSubsamples,
+        baselineFlux: scenario.browserPhotometryPassthrough?.baselineFlux),
       didactics: .init(activeLessonId: lessonID), binaryLab: nil,
       dynamics: dynamics(scenario))
   }
@@ -359,10 +364,20 @@ public enum BrowserV4Export {
     return .object(members)
   }
 
-  /// Encodes a star's quadratic law as the default `limbDarkeningModel`, or no model for a star
-  /// without a law, which the Browser then renders as a uniform disk.
-  static func limbDarkeningModel(_ star: Star) -> BrowserV4ScenarioDTO.LimbDarkeningModelDTO? {
+  /// Encodes the primary star's quadratic law as the default `limbDarkeningModel`, or no model
+  /// for a star without a law, which the Browser then renders as a uniform disk. While the star
+  /// still has the law resolved at import, the authored model is written back unchanged; after
+  /// an edit it is not, because the Browser prefers a band entry over `default`.
+  static func limbDarkeningModel(
+    _ scenario: EducationScenarioV4
+  ) -> BrowserV4ScenarioDTO.LimbDarkeningModelDTO? {
+    let star = scenario.detachedBinary?.primary.star ?? scenario.star
     guard star.limbDarkeningLawPresent else { return nil }
+    if let imported = scenario.browserPhotometryPassthrough?.limbDarkening,
+      imported.u1 == star.limbDarkeningU1, imported.u2 == star.limbDarkeningU2
+    {
+      return imported.model
+    }
     return .init(
       default: .init(kind: "quadratic", u1: star.limbDarkeningU1, u2: star.limbDarkeningU2))
   }
@@ -455,8 +470,10 @@ public enum BrowserV4Export {
       orbits: .init(binary: orbit(binary.relativeOrbit), hierarchy: []),
       photometry: .init(
         gridRes: scenario.gridResolution,
-        limbDarkeningModel: limbDarkeningModel(binary.primary.star), phaseCurve: nil,
-        moonPhaseCurve: nil),
+        limbDarkeningModel: limbDarkeningModel(scenario), phaseCurve: nil,
+        moonPhaseCurve: nil, cadenceSec: scenario.browserPhotometryPassthrough?.cadenceSec,
+        nSubsamples: scenario.browserPhotometryPassthrough?.nSubsamples,
+        baselineFlux: scenario.browserPhotometryPassthrough?.baselineFlux),
       didactics: .init(activeLessonId: lessonID),
       binaryLab: .init(
         enabled: scenario.binaryLab?.enabled ?? true,

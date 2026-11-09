@@ -75,7 +75,9 @@ def register_v3_routes(app: Any, store: ResearchStore, request_type: Any) -> Non
         _register_resource(app, store, request_type, kind)
 
     async def submit_job(request: Any):
-        payload = parse_dataset_bytes(await _body(request, b"application/json"))
+        payload = await run_in_threadpool(
+            parse_dataset_bytes, await _body(request, b"application/json")
+        )
         await run_in_threadpool(store.validate_job_inputs, payload)
         raise CapabilityUnavailableError(
             "V7 joint forward models have not been qualified; no job was created"

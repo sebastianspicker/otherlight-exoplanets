@@ -68,7 +68,9 @@ function raceAbort(promise, signal) {
 }
 
 function toFinite(v) {
-  const n = typeof v === "number" ? v : Number(v);
+  // Number(null) and Number("") are 0, so a missing archive value must not become a real zero.
+  if (typeof v !== "number" && !(typeof v === "string" && v.trim() !== "")) return undefined;
+  const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 }
 
@@ -326,8 +328,14 @@ export async function writeSnapshotFile(snapshot) {
   const outPath = defaultSnapshotOutputPath();
   // Write beside the target and rename, so an interrupted run never leaves a truncated snapshot.
   const temporary = `${outPath}.${process.pid}.tmp`;
-  await fs.writeFile(temporary, text, "utf8");
-  await fs.rename(temporary, outPath);
+  try {
+    await fs.writeFile(temporary, text, "utf8");
+    await fs.rename(temporary, outPath);
+  } catch (error) {
+    // unlink removes only this one file, never a directory.
+    await fs.unlink(temporary).catch(() => {});
+    throw error;
+  }
 }
 
 async function main() {

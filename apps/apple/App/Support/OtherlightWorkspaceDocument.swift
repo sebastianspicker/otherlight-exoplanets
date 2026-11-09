@@ -375,8 +375,8 @@ private enum WorkspaceJSONShapeValidator {
     let scenario = try object(education["scenario"], path: "education.scenario")
     try exact(
       scenario,
-      required: ["version", "mode", "runtime", "bodies", "orbits"],
-      optional: ["observer", "photometry", "dynamics", "didactics", "binaryLab", "baselineFlux"],
+      required: ["version", "mode", "bodies", "orbits"],
+      optional: ["runtime", "observer", "photometry", "dynamics", "didactics", "binaryLab"],
       path: "education.scenario")
     if let binaryLabValue = scenario["binaryLab"] {
       let binaryLab = try object(binaryLabValue, path: "education.scenario.binaryLab")
