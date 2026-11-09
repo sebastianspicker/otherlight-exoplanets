@@ -100,7 +100,7 @@
     "@typescript/native": "npm:typescript@7.0.2",
     "eslint": "10.1.0",
     "jscpd": "5.0.12",
-    "jsdom": "29.1.1",
+    "jsdom": "31.0.0",
     "knip": "6.27.0",
     "prettier": "3.4.2",
     "stylelint": "17.15.0",
